@@ -1,0 +1,49 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+  name: hdfs-operator.v0.0.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: HdfsCluster is the Schema for the hdfsclusters API
+      displayName: Hdfs Cluster
+      kind: HdfsCluster
+      name: hdfsclusters.hdfs.zncdata.dev
+      version: v1alpha1
+  description: Hdfs operator
+  displayName: hdfs-operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: true
+    type: OwnNamespace
+  - supported: true
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - hdfs
+  - operator
+  links:
+  - name: Hdfs Operator
+    url: https://hdfs-operator.domain
+  maintainers:
+  - email: lwpk110@163.com
+    name: luwei
+  maturity: alpha
+  provider:
+    name: zncdata-labs
+    url: https://github.com/zncdata-labs/hdfs-operator
+  version: 0.0.0
