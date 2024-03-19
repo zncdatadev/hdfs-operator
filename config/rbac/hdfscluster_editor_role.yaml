@@ -1,0 +1,31 @@
+# permissions for end users to edit hdfsclusters.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: hdfscluster-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: hdfs-operator
+    app.kubernetes.io/part-of: hdfs-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: hdfscluster-editor-role
+rules:
+- apiGroups:
+  - hdfs.zncdata.dev
+  resources:
+  - hdfsclusters
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - hdfs.zncdata.dev
+  resources:
+  - hdfsclusters/status
+  verbs:
+  - get

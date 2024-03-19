@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- hdfs_v1alpha1_hdfscluster.yaml
+#+kubebuilder:scaffold:manifestskustomizesamples
