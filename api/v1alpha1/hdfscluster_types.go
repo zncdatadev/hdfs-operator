@@ -22,6 +22,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	CoreSiteFileName = "core-site.xml"
+	HdfsSiteFileName = "hdfs-site.xml"
+	Log4jFileName    = "log4j.properties"
+)
+
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
@@ -124,10 +130,10 @@ type JournalNodeSpec struct {
 
 type ImageSpec struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=bitnami/zookeeper
+	// +kubebuilder:default=gchq/hdfs
 	Repository string `json:"repository,omitempty"`
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default:="423"
+	// +kubebuilder:default:="3.3.3"
 	Tag string `json:"tag,omitempty"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default:=IfNotPresent
@@ -204,7 +210,9 @@ type ConfigSpec struct {
 }
 
 type ConfigOverridesSpec struct {
-	ZooCfg map[string]string `json:"zoo.cfg,omitempty"`
+	CoreSite map[string]string `json:"core-site.xml,omitempty"`
+	HdfsSite map[string]string `json:"hdfs-site.xml,omitempty"`
+	Log4j    map[string]string `json:"log4j.properties,omitempty"`
 }
 
 type PodDisruptionBudgetSpec struct {

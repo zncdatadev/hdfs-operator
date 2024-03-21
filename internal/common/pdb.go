@@ -1,7 +1,9 @@
 package common
 
 import (
-	stackv1alpha1 "github.com/zncdata-labs/alluxio-operator/api/v1alpha1"
+	"context"
+	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
+
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -9,29 +11,30 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type PDBReconciler struct {
-	BaseResourceReconciler[*stackv1alpha1.Alluxio, any]
+type PDBReconciler[T client.Object] struct {
+	GeneralResourceStyleReconciler[T, any]
 	name   string
 	labels map[string]string
-	pdb    *stackv1alpha1.PodDisruptionBudgetSpec
+	pdb    *hdfsv1alpha1.PodDisruptionBudgetSpec
 }
 
-func NewReconcilePDB(
+func NewReconcilePDB[T client.Object](
 	client client.Client,
 	schema *runtime.Scheme,
-	cr *stackv1alpha1.Alluxio,
+	cr T,
 	labels map[string]string,
 	name string,
-	pdb *stackv1alpha1.PodDisruptionBudgetSpec,
-) *PDBReconciler {
-	return &PDBReconciler{
-		BaseResourceReconciler: *NewBaseResourceReconciler[*stackv1alpha1.Alluxio, any](
+	pdb *hdfsv1alpha1.PodDisruptionBudgetSpec,
+) *PDBReconciler[T] {
+	var cfg = &hdfsv1alpha1.RoleGroupSpec{}
+	return &PDBReconciler[T]{
+		GeneralResourceStyleReconciler: *NewGeneraResourceStyleReconciler[T, any](
 			schema,
 			cr,
 			client,
 			"",
 			labels,
-			nil,
+			cfg,
 		),
 		name:   name,
 		labels: labels,
@@ -39,11 +42,14 @@ func NewReconcilePDB(
 	}
 }
 
-func (r *PDBReconciler) Build() (client.Object, error) {
+func (r *PDBReconciler[T]) Build(_ context.Context) (client.Object, error) {
+	if r.pdb == nil {
+		return nil, nil
+	}
 	obj := &policyv1.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      r.name,
-			Namespace: r.Instance.Namespace,
+			Namespace: r.Instance.GetNamespace(),
 			Labels:    r.labels,
 		},
 		Spec: policyv1.PodDisruptionBudgetSpec{

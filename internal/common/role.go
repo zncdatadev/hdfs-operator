@@ -2,8 +2,8 @@ package common
 
 import (
 	"context"
+	"fmt"
 	"github.com/go-logr/logr"
-	stackv1alpha1 "github.com/zncdata-labs/alluxio-operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -13,8 +13,7 @@ import (
 type Role string
 
 const (
-	Master Role = "master"
-	Worker Role = "worker"
+	Server Role = "server"
 )
 
 type RoleReconciler interface {
@@ -29,25 +28,68 @@ type RoleGroupRecociler interface {
 	ReconcileGroup(ctx context.Context) (ctrl.Result, error)
 	MergeLabels(mergedGroupCfg any) map[string]string
 	MergeGroupConfigSpec() any
+	RegisterResource()
 }
 
-type BaseRoleReconciler[R any] struct {
+type RoleConfigSpec interface {
+	GetRoleConfigSpec(role Role) (any, error)
+}
+
+type BaseRoleReconciler[T client.Object] struct {
 	Scheme   *runtime.Scheme
-	Instance *stackv1alpha1.Alluxio
+	Instance T
 	Client   client.Client
 	Log      logr.Logger
 	Labels   map[string]string
-	Role     R
+
+	Role Role
 }
 
-func (r *BaseRoleReconciler[R]) GetLabels(role Role) map[string]string {
-	roleLables := RoleLabels{Cr: r.Instance, Name: string(role)}
+func (r *BaseRoleReconciler[T]) GetLabels() map[string]string {
+	roleLables := RoleLabels{InstanceName: r.Instance.GetName(), Name: string(r.Role)}
 	mergeLabels := roleLables.GetLabels()
 	return mergeLabels
 }
 
-func (r *BaseRoleReconciler[R]) EnabledClusterConfig() bool {
-	return r.Instance.Spec.ClusterConfig != nil
+type BaseRoleGroupReconciler[T client.Object] struct {
+	Scheme     *runtime.Scheme
+	Instance   T
+	Client     client.Client
+	GroupName  string
+	RoleLabels map[string]string
+	Log        logr.Logger
+
+	Reconcilers []ResourceReconciler
+}
+
+func ReconcilerDoHandler(ctx context.Context, reconcilers []ResourceReconciler) (ctrl.Result, error) {
+	for _, r := range reconcilers {
+		if single, ok := r.(ResourceBuilder); ok {
+			res, err := r.ReconcileResource(ctx, NewSingleResourceBuilder(single))
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if res.RequeueAfter > 0 {
+				return res, nil
+			}
+		} else if multi, ok := r.(MultiResourceReconcilerBuilder); ok {
+			res, err := r.ReconcileResource(ctx, NewMultiResourceBuilder(multi))
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if res.RequeueAfter > 0 {
+				return res, nil
+			}
+		} else {
+			panic(fmt.Sprintf("unknown resource reconciler builder, actual type: %T", r))
+		}
+	}
+	return ctrl.Result{}, nil
+}
+
+// ReconcileGroup ReconcileRole implements the Role interface
+func (m *BaseRoleGroupReconciler[T]) ReconcileGroup(ctx context.Context) (ctrl.Result, error) {
+	return ReconcilerDoHandler(ctx, m.Reconcilers)
 }
 
 // MergeObjects merge right to left, if field not in left, it will be added from right,
