@@ -23,9 +23,20 @@ import (
 )
 
 const (
-	CoreSiteFileName = "core-site.xml"
-	HdfsSiteFileName = "hdfs-site.xml"
-	Log4jFileName    = "log4j.properties"
+	CoreSiteFileName     = "core-site.xml"
+	HdfsSiteFileName     = "hdfs-site.xml"
+	SslServerFileName    = "ssl-server.xml"
+	SslClientFileName    = "ssl-client.xml"
+	SecurityFileName     = "security.xml"
+	HadoopPolicyFileName = "hadoop-policy.xml"
+	Log4jFileName        = "log4j.properties"
+	FormatNameNodeLog4j
+)
+
+const (
+	JournalServicePort = 8485
+	NameNodeHttpPort   = 9870
+	NameNodeRpcPort    = 8020
 )
 
 //+kubebuilder:object:root=true
@@ -128,12 +139,13 @@ type JournalNodeSpec struct {
 	EnvOverrides map[string]string `json:"envOverrides,omitempty"`
 }
 
+// ImageSpec todo: the image should be made by ourself, image from stackable for test only, especial listener class testing, currently
 type ImageSpec struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=gchq/hdfs
+	// +kubebuilder:default=docker.stackable.tech/stackable/hadoop
 	Repository string `json:"repository,omitempty"`
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default:="3.3.3"
+	// +kubebuilder:default:="3.3.4-stackable24.3.0"
 	Tag string `json:"tag,omitempty"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default:=IfNotPresent
@@ -150,7 +162,11 @@ type ClusterConfigSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default:=1
-	MinServerId int32 `json:"minServerId,omitempty"`
+	DfsReplication int32 `json:"dfsReplication,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default:="cluster-internal"
+	ListenerClass string `json:"listenerClass,omitempty"`
 }
 
 type RoleGroupSpec struct {
@@ -169,9 +185,6 @@ type RoleGroupSpec struct {
 
 	// +kubebuilder:validation:Optional
 	EnvOverrides map[string]string `json:"envOverrides,omitempty"`
-
-	//// +kubebuilder:validation:Optional
-	//PodOverride corev1.PodSpec `json:"podOverride,omitempty"`
 }
 
 type ConfigSpec struct {

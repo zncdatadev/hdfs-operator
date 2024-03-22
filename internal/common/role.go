@@ -13,7 +13,9 @@ import (
 type Role string
 
 const (
-	Server Role = "server"
+	NameNode    Role = "namenode"
+	DataNode    Role = "datanode"
+	JournalNode Role = "journalnode"
 )
 
 type RoleReconciler interface {
