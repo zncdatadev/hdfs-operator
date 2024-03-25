@@ -23,14 +23,16 @@ import (
 )
 
 const (
-	CoreSiteFileName     = "core-site.xml"
-	HdfsSiteFileName     = "hdfs-site.xml"
-	SslServerFileName    = "ssl-server.xml"
-	SslClientFileName    = "ssl-client.xml"
-	SecurityFileName     = "security.xml"
+	CoreSiteFileName = "core-site.xml"
+	HdfsSiteFileName = "hdfs-site.xml"
+	// SslServerFileName see https://hadoop.apache.org/docs/stable/hadoop-mapreduce-client/hadoop-mapreduce-client-core/EncryptedShuffle.html
+	SslServerFileName = "ssl-server.xml"
+	SslClientFileName = "ssl-client.xml"
+	// SecurityFileName this is for java security, not for hadoop
+	SecurityFileName = "security.properties"
+	// HadoopPolicyFileName see: https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/ServiceLevelAuth.html
 	HadoopPolicyFileName = "hadoop-policy.xml"
 	Log4jFileName        = "log4j.properties"
-	FormatNameNodeLog4j
 )
 
 const (
@@ -208,6 +210,7 @@ type ConfigSpec struct {
 
 	// +kubebuilder:validation:Optional
 	StorageClass string `json:"storageClass,omitempty"`
+
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="8Gi"
 	StorageSize string `json:"storageSize,omitempty"`
@@ -225,7 +228,12 @@ type ConfigSpec struct {
 type ConfigOverridesSpec struct {
 	CoreSite map[string]string `json:"core-site.xml,omitempty"`
 	HdfsSite map[string]string `json:"hdfs-site.xml,omitempty"`
-	Log4j    map[string]string `json:"log4j.properties,omitempty"`
+	// only for nameNode
+	Log4j        map[string]string `json:"log4j.properties,omitempty"`
+	Security     map[string]string `json:"security.properties,omitempty"`
+	HadoopPolicy map[string]string `json:"hadoop-policy.xml,omitempty"`
+	SslServer    map[string]string `json:"ssl-server.xml,omitempty"`
+	SslClient    map[string]string `json:"ssl-client.xml,omitempty"`
 }
 
 type PodDisruptionBudgetSpec struct {
