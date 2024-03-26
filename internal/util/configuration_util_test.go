@@ -45,8 +45,8 @@ func TestOverrideXmlFileContent(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := OverrideXmlFileContent(tt.args.current, tt.args.override); strings.TrimSpace(got) != strings.TrimSpace(tt.want) {
-				t.Errorf("OverrideXmlFileContent() = %v, want %v", got, tt.want)
+			if got := AppendXmlContent(tt.args.current, tt.args.override); strings.TrimSpace(got) != strings.TrimSpace(tt.want) {
+				t.Errorf("AppendXmlContent() = %v, want %v", got, tt.want)
 			}
 		})
 	}

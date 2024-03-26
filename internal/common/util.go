@@ -197,3 +197,14 @@ func CreateXmlContentByReplicas(replicas int32, keyTemplate string, valueTemplat
 func CreateRoleCfgCacheKey(instanceName string, role Role, groupName string) string {
 	return NewResourceNameGenerator(instanceName, string(role), groupName).GenerateResourceName("cache")
 }
+func GetMergedRoleGroupCfg(role Role, instanceName string, groupName string) *hdfsv1alpha1.RoleGroupSpec {
+	cfg, ok := MergedCache.Get(CreateRoleCfgCacheKey(instanceName, role, groupName))
+	if !ok {
+		cfg, ok = MergedCache.Get(CreateRoleCfgCacheKey(instanceName, role, "default"))
+		if ok {
+			return cfg.(*hdfsv1alpha1.RoleGroupSpec)
+		}
+		panic(fmt.Sprintf("%s config not found in cache)", role))
+	}
+	return cfg.(*hdfsv1alpha1.RoleGroupSpec)
+}

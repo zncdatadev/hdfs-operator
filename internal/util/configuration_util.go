@@ -60,9 +60,9 @@ type Configuration struct {
 	Properties []XmlNameValuePair `xml:"property"`
 }
 
-// OverrideXmlFileContent overrides the content of a xml file
+// AppendXmlContent overrides the content of a xml file
 // append the override properties to the current xml dom
-func OverrideXmlFileContent(current string, overrideProperties map[string]string) string {
+func AppendXmlContent(current string, overrideProperties map[string]string) string {
 	var xmlDom Configuration
 	//string -> dom
 	if err := xml.Unmarshal([]byte(current), &xmlDom); err != nil {

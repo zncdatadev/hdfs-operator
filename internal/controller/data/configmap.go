@@ -1,4 +1,4 @@
-package name
+package data
 
 import (
 	"context"
@@ -41,9 +41,9 @@ func (c *ConfigMapReconciler) ConfigurationOverride(resource client.Object) {
 	common.OverrideConfigurations(cm, overrides)
 	// only name node log4j,other component log4j not override, I think it is not necessary
 	if override := overrides.Log4j; override != nil {
-		origin := cm.Data[common.CreateComponentLog4jPropertiesName(ContainerNameNode)]
+		origin := cm.Data[common.CreateComponentLog4jPropertiesName(ContainerDataNode)]
 		overrideContent := util.MakePropertiesFileContent(override)
-		cm.Data[common.CreateComponentLog4jPropertiesName(ContainerNameNode)] = util.OverrideConfigFileContent(origin,
+		cm.Data[common.CreateComponentLog4jPropertiesName(ContainerDataNode)] = util.OverrideConfigFileContent(origin,
 			overrideContent)
 	}
 
@@ -64,10 +64,8 @@ func (c *ConfigMapReconciler) Build(_ context.Context) (client.Object, error) {
 			hdfsv1alpha1.SslClientFileName:    common.MakeSslClientData(),
 			hdfsv1alpha1.SslServerFileName:    common.MakeSslServerData(),
 			//log4j
-			common.CreateComponentLog4jPropertiesName(ContainerNameNode):        common.MakeLog4jPropertiesData(ContainerNameNode),
-			common.CreateComponentLog4jPropertiesName(ContainerZkfc):            common.MakeLog4jPropertiesData(ContainerZkfc),
-			common.CreateComponentLog4jPropertiesName(ContainerFormatNameNode):  common.MakeLog4jPropertiesData(ContainerFormatNameNode),
-			common.CreateComponentLog4jPropertiesName(ContainerFormatZookeeper): common.MakeLog4jPropertiesData(ContainerFormatZookeeper),
+			common.CreateComponentLog4jPropertiesName(ContainerDataNode):     common.MakeLog4jPropertiesData(ContainerDataNode),
+			common.CreateComponentLog4jPropertiesName(ContainerWaitNameNode): common.MakeLog4jPropertiesData(ContainerWaitNameNode),
 		},
 	}, nil
 }
@@ -81,8 +79,19 @@ func (c *ConfigMapReconciler) makeCoreSiteData() string {
 // make hdfs-site.xml data
 func (c *ConfigMapReconciler) makeHdfsSiteData() string {
 	clusterSpec := c.Instance.Spec.ClusterConfigSpec
-	generator := common.NewNameNodeHdfsSiteXmlGenerator(c.Instance.GetName(), c.GroupName,
-		c.MergedCfg.Replicas, c.Instance.Namespace, clusterSpec.ClusterDomain,
-		clusterSpec.DfsReplication)
+	generator := common.NewDataNodeHdfsSiteXmlGenerator(
+		c.Instance.GetName(), c.GroupName, c.getNameNodeReplicas(), c.Instance.Namespace,
+		clusterSpec.ClusterDomain, clusterSpec.DfsReplication, c.dataNodeConfig())
 	return generator.Generate()
+}
+
+func (c *ConfigMapReconciler) getNameNodeReplicas() int32 {
+	cfg := common.GetMergedRoleGroupCfg(common.NameNode, c.Instance.GetName(), c.GroupName)
+	return cfg.Replicas
+}
+
+func (c *ConfigMapReconciler) dataNodeConfig() map[string]string {
+	return map[string]string{
+		"dfs.datanode.data.dir": "[DISK]/znclabs/data/data/datanode",
+	}
 }

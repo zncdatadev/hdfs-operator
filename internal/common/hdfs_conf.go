@@ -3,6 +3,8 @@ package common
 import (
 	"fmt"
 	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
+	"github.com/zncdata-labs/hdfs-operator/internal/util"
+	corev1 "k8s.io/api/core/v1"
 	"strings"
 )
 
@@ -28,13 +30,30 @@ func (c *CoreSiteXmlGenerator) Generate() string {
 }
 
 type NameNodeHdfsSiteXmlGenerator struct {
-	NameNodeReplicas    int32
-	JournalNodeReplicas int32
-	InstanceName        string
-	GroupName           string
-	NameSpace           string
-	ClusterDomain       string
-	hdfsReplication     int32
+	NameNodeReplicas int32
+	InstanceName     string
+	GroupName        string
+	NameSpace        string
+	ClusterDomain    string
+	hdfsReplication  int32
+}
+
+// NewNameNodeHdfsSiteXmlGenerator new a NameNodeHdfsSiteXmlGenerator
+func NewNameNodeHdfsSiteXmlGenerator(
+	instanceName string,
+	groupName string,
+	nameNodeReplicas int32,
+	nameSpace string,
+	clusterDomain string,
+	hdfsReplication int32) *NameNodeHdfsSiteXmlGenerator {
+	return &NameNodeHdfsSiteXmlGenerator{
+		NameNodeReplicas: nameNodeReplicas,
+		InstanceName:     instanceName,
+		GroupName:        groupName,
+		NameSpace:        nameSpace,
+		ClusterDomain:    clusterDomain,
+		hdfsReplication:  hdfsReplication,
+	}
 }
 
 // make hdfs-site.xml data
@@ -93,9 +112,15 @@ const JournalNodeTemplate = `
 func (c *NameNodeHdfsSiteXmlGenerator) makeJournalNodeDataDir() string {
 	journalStatefulSetName := CreateJournalNodeStatefulSetName(c.InstanceName, c.GroupName)
 	JournalSvcName := CreateJournalNodeServiceName(c.InstanceName, c.GroupName)
-	journalUrls := CreateNetworksByReplicates(c.JournalNodeReplicas, journalStatefulSetName, JournalSvcName, c.NameSpace, c.ClusterDomain, 8485)
+	journalUrls := CreateNetworksByReplicates(c.getJournalNodeReplicates(), journalStatefulSetName, JournalSvcName, c.NameSpace, c.ClusterDomain, 8485)
 	journalConnection := CreateJournalUrl(journalUrls, c.InstanceName)
 	return fmt.Sprintf(JournalNodeTemplate, journalConnection)
+}
+
+// get journal node replicates
+func (c *NameNodeHdfsSiteXmlGenerator) getJournalNodeReplicates() int32 {
+	cfg := GetMergedRoleGroupCfg(JournalNode, c.InstanceName, c.GroupName)
+	return cfg.Replicas
 }
 
 // make name nodes
@@ -264,3 +289,124 @@ const hdfsSiteTemplate = `<?xml version="1.0"?>
 
 </configuration>
 `
+
+// MakeHadoopPolicyData make hadoop-policy.xml data
+func MakeHadoopPolicyData() string {
+	return `<?xml version="1.0"?>
+<configuration>
+</configuration>`
+}
+
+// MakeSecurityPropertiesData make security.properties data
+func MakeSecurityPropertiesData() string {
+	return `networkaddress.cache.negative.ttl=0
+networkaddress.cache.ttl=30`
+}
+
+// MakeSslClientData make ssl-client.xml data
+func MakeSslClientData() string {
+	return `<?xml version="1.0"?>
+<configuration>
+</configuration>`
+}
+
+// MakeSslServerData make ssl-server.xml data
+func MakeSslServerData() string {
+	return `<?xml version="1.0"?>
+<configuration>
+</configuration>`
+}
+
+// make log4j.properties data
+const log4jProperties = `log4j.rootLogger=INFO, CONSOLE, FILE
+
+log4j.appender.CONSOLE=org.apache.log4j.ConsoleAppender
+log4j.appender.CONSOLE.Threshold=INFO
+log4j.appender.CONSOLE.layout=org.apache.log4j.PatternLayout
+log4j.appender.CONSOLE.layout.ConversionPattern=%d{ISO8601} %-5p %c{2} (%F:%M(%L)) - %m%n
+
+log4j.appender.FILE=org.apache.log4j.RollingFileAppender
+log4j.appender.FILE.Threshold=INFO
+log4j.appender.FILE.MaxFileSize=5MB
+log4j.appender.FILE.MaxBackupIndex=1
+log4j.appender.FILE.layout=org.apache.log4j.PatternLayout
+log4j.appender.FILE.layout.ConversionPattern=%d{ISO8601} %-5p %c{2} (%F:%M(%L)) - %m%n
+`
+const fileLocationTemplate = `log4j.appender.FILE.File=/zncdata/log/%s/%s.log`
+
+func MakeLog4jPropertiesData(containerComponent ContainerComponent) string {
+	fileLocation := fmt.Sprintf(fileLocationTemplate, containerComponent, containerComponent)
+	return log4jProperties + "\n" + fileLocation
+}
+
+func CreateComponentLog4jPropertiesName(component ContainerComponent) string {
+	return fmt.Sprintf("%s.log4j.properties", string(component))
+}
+
+// OverrideConfigurations override configurations
+// override the content of the configMap
+func OverrideConfigurations(cm *corev1.ConfigMap, overrides *hdfsv1alpha1.ConfigOverridesSpec) {
+	// core-site.xml
+	if override := overrides.CoreSite; override != nil {
+		origin := cm.Data[hdfsv1alpha1.CoreSiteFileName]
+		cm.Data[hdfsv1alpha1.CoreSiteFileName] = util.AppendXmlContent(origin, override)
+	}
+	// hdfs-site.xml
+	if override := overrides.HdfsSite; override != nil {
+		origin := cm.Data[hdfsv1alpha1.HdfsSiteFileName]
+		cm.Data[hdfsv1alpha1.HdfsSiteFileName] = util.AppendXmlContent(origin, override)
+	}
+	// hadoop-policy.xml
+	if override := overrides.HadoopPolicy; override != nil {
+		origin := cm.Data[hdfsv1alpha1.HadoopPolicyFileName]
+		cm.Data[hdfsv1alpha1.HadoopPolicyFileName] = util.AppendXmlContent(origin, override)
+	}
+	// security.properties
+	if override := overrides.Security; override != nil {
+		origin := cm.Data[hdfsv1alpha1.SecurityFileName]
+		overrideContent := util.MakePropertiesFileContent(override)
+		cm.Data[hdfsv1alpha1.SecurityFileName] = util.OverrideConfigFileContent(origin, overrideContent)
+	}
+	// ssl-client.xml
+	if override := overrides.SslClient; override != nil {
+		origin := cm.Data[hdfsv1alpha1.SslClientFileName]
+		cm.Data[hdfsv1alpha1.SslClientFileName] = util.AppendXmlContent(origin, override)
+	}
+	// ssl-server.xml
+	if override := overrides.SslServer; override != nil {
+		origin := cm.Data[hdfsv1alpha1.SslServerFileName]
+		cm.Data[hdfsv1alpha1.SslServerFileName] = util.AppendXmlContent(origin, override)
+	}
+}
+
+type DataNodeHdfsSiteXmlGenerator struct {
+	NameNodeHdfsSiteXmlGenerator
+	DataNodeConfig map[string]string
+}
+
+// NewDataNodeHdfsSiteXmlGenerator new a DataNodeHdfsSiteXmlGenerator
+func NewDataNodeHdfsSiteXmlGenerator(
+	instanceName string,
+	groupName string,
+	nameNodeReplicas int32,
+	nameSpace string,
+	clusterDomain string,
+	hdfsReplication int32,
+	dataNodeConfig map[string]string) *DataNodeHdfsSiteXmlGenerator {
+	return &DataNodeHdfsSiteXmlGenerator{
+		NameNodeHdfsSiteXmlGenerator: *NewNameNodeHdfsSiteXmlGenerator(
+			instanceName,
+			groupName,
+			nameNodeReplicas,
+			nameSpace,
+			clusterDomain,
+			hdfsReplication),
+		DataNodeConfig: dataNodeConfig,
+	}
+}
+
+// Generate make hdfs-site.xml data
+func (c *DataNodeHdfsSiteXmlGenerator) Generate() string {
+	nameNodeSiteXml := c.NameNodeHdfsSiteXmlGenerator.Generate()
+	return util.AppendXmlContent(nameNodeSiteXml, c.DataNodeConfig)
+}

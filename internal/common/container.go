@@ -86,3 +86,6 @@ type LivenessProbe interface {
 type ReadinessProbe interface {
 	ReadinessProbe() *corev1.Probe
 }
+
+// ContainerComponent use for define container name
+type ContainerComponent string

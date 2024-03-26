@@ -19,3 +19,10 @@ const (
 	ServiceRpcPort    = 8020
 	ServiceMetricPort = 8183
 )
+
+const (
+	ContainerZkfc            common.ContainerComponent = "zkfc"
+	ContainerNameNode        common.ContainerComponent = "namenode"
+	ContainerFormatNameNode  common.ContainerComponent = "format-namenodes"
+	ContainerFormatZookeeper common.ContainerComponent = "format-zookeeper"
+)

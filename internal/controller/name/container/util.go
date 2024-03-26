@@ -7,14 +7,6 @@ import (
 
 // Component ContainerComponent name node container component
 // contains: zkfc, namenode, format-namenode, format-zookeeper
-type Component string
-
-const (
-	Zkfc            Component = "zkfc"
-	NameNode        Component = "namenode"
-	FormatNameNode  Component = "format-namenodes"
-	FormatZookeeper Component = "format-zookeeper"
-)
 
 func LogVolumeName() string {
 	return "log"
