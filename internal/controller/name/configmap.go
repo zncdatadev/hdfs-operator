@@ -5,6 +5,7 @@ import (
 	"fmt"
 	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
 	"github.com/zncdata-labs/hdfs-operator/internal/common"
+	"github.com/zncdata-labs/hdfs-operator/internal/controller/name/container"
 	"github.com/zncdata-labs/hdfs-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -72,9 +73,9 @@ func (c *ConfigMapReconciler) ConfigurationOverride(resource client.Object) {
 	}
 	// only name node log4j,other component log4j not override, I think it is not necessary
 	if override := overrides.Log4j; override != nil {
-		origin := cm.Data[createComponentLog4jPropertiesName(NameNode)]
+		origin := cm.Data[createComponentLog4jPropertiesName(container.NameNode)]
 		overrideContent := util.MakePropertiesFileContent(override)
-		cm.Data[createComponentLog4jPropertiesName(NameNode)] = util.OverrideConfigFileContent(origin, overrideContent)
+		cm.Data[createComponentLog4jPropertiesName(container.NameNode)] = util.OverrideConfigFileContent(origin, overrideContent)
 	}
 }
 
@@ -93,10 +94,10 @@ func (c *ConfigMapReconciler) Build(ctx context.Context) (client.Object, error) 
 			hdfsv1alpha1.SslClientFileName:    c.makeSslClientData(),
 			hdfsv1alpha1.SslServerFileName:    c.makeSslServerData(),
 			//log4j
-			createComponentLog4jPropertiesName(NameNode):        c.makeLog4jPropertiesData(NameNode),
-			createComponentLog4jPropertiesName(Zkfc):            c.makeLog4jPropertiesData(Zkfc),
-			createComponentLog4jPropertiesName(FormatNameNode):  c.makeLog4jPropertiesData(FormatNameNode),
-			createComponentLog4jPropertiesName(FormatZookeeper): c.makeLog4jPropertiesData(FormatZookeeper),
+			createComponentLog4jPropertiesName(container.NameNode):        c.makeLog4jPropertiesData(container.NameNode),
+			createComponentLog4jPropertiesName(container.Zkfc):            c.makeLog4jPropertiesData(container.Zkfc),
+			createComponentLog4jPropertiesName(container.FormatNameNode):  c.makeLog4jPropertiesData(container.FormatNameNode),
+			createComponentLog4jPropertiesName(container.FormatZookeeper): c.makeLog4jPropertiesData(container.FormatZookeeper),
 		},
 	}, nil
 }
@@ -160,22 +161,11 @@ log4j.appender.FILE.layout.ConversionPattern=%d{ISO8601} %-5p %c{2} (%F:%M(%L)) 
 `
 const fileLocationTemplate = `log4j.appender.FILE.File=/zncdata/log/%s/%s.log`
 
-func (c *ConfigMapReconciler) makeLog4jPropertiesData(containerComponent ContainerComponent) string {
+func (c *ConfigMapReconciler) makeLog4jPropertiesData(containerComponent container.Component) string {
 	fileLocation := fmt.Sprintf(fileLocationTemplate, string(containerComponent), string(containerComponent))
 	return log4jProperties + "\n" + fileLocation
 }
 
-func createComponentLog4jPropertiesName(component ContainerComponent) string {
+func createComponentLog4jPropertiesName(component container.Component) string {
 	return fmt.Sprintf("%s.log4j.properties", string(component))
 }
-
-// ContainerComponent name node container component
-// contains: zkfc, namenode, format-namenode, format-zookeeper
-type ContainerComponent string
-
-const (
-	Zkfc            ContainerComponent = "zkfc"
-	NameNode        ContainerComponent = "namenode"
-	FormatNameNode  ContainerComponent = "format-namenodes"
-	FormatZookeeper ContainerComponent = "format-zookeeper"
-)

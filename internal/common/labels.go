@@ -16,3 +16,9 @@ func (r *RoleLabels) GetLabels() map[string]string {
 		"app.kubernetes.io/managed-by": "alluxio-operator",
 	}
 }
+
+func GetListenerLabels(listenerClass string) map[string]string {
+	return map[string]string{
+		ListenerAnnotationKey: listenerClass,
+	}
+}

@@ -39,6 +39,7 @@ const (
 	JournalServicePort = 8485
 	NameNodeHttpPort   = 9870
 	NameNodeRpcPort    = 8020
+	NameNodeMetricPort = 8183
 )
 
 //+kubebuilder:object:root=true
@@ -169,6 +170,9 @@ type ClusterConfigSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default:="cluster-internal"
 	ListenerClass string `json:"listenerClass,omitempty"`
+
+	// +kubebuilder:validation:required
+	ZookeeperDiscoveryZNode string `json:"zookeeperDiscoveryZNode,omitempty"`
 }
 
 type RoleGroupSpec struct {
