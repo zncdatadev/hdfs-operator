@@ -36,7 +36,9 @@ const (
 )
 
 const (
-	JournalServicePort = 8485
+	MetricName         = "metric"
+	HttpName           = "http"
+	RpcName            = "rpc"
 	NameNodeHttpPort   = 9870
 	NameNodeRpcPort    = 8020
 	NameNodeMetricPort = 8183

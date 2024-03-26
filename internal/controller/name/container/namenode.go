@@ -98,17 +98,17 @@ func (n *NameNodeContainerBuilder) ReadinessProbe() *corev1.Probe {
 func MakeNameNodeContainerPorts() []corev1.ContainerPort {
 	return []corev1.ContainerPort{
 		{
-			Name:          "http",
+			Name:          hdfsv1alpha1.HttpName,
 			ContainerPort: hdfsv1alpha1.NameNodeHttpPort,
 			Protocol:      corev1.ProtocolTCP,
 		},
 		{
-			Name:          "rpc",
+			Name:          hdfsv1alpha1.RpcName,
 			ContainerPort: hdfsv1alpha1.NameNodeRpcPort,
 			Protocol:      corev1.ProtocolTCP,
 		},
 		{
-			Name:          "metrics",
+			Name:          hdfsv1alpha1.MetricName,
 			ContainerPort: hdfsv1alpha1.NameNodeMetricPort,
 			Protocol:      corev1.ProtocolTCP,
 		},

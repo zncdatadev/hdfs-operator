@@ -45,7 +45,7 @@ func NewStatefulSet(
 func (s *StatefulSetReconciler) Build(ctx context.Context) (client.Object, error) {
 	return &appv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      createStatefulsetName(s.Instance.GetName(), s.GroupName),
+			Name:      createStatefulSetName(s.Instance.GetName(), s.GroupName),
 			Namespace: s.Instance.GetNamespace(),
 			Labels:    s.MergedLabels,
 		},
