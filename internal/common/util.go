@@ -3,53 +3,11 @@ package common
 import (
 	"fmt"
 	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
+	"github.com/zncdata-labs/hdfs-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"strings"
 )
-
-type ResourceNameGenerator struct {
-	InstanceName string
-	RoleName     string
-	GroupName    string
-}
-
-// NewResourceNameGenerator new a ResourceNameGenerator
-func NewResourceNameGenerator(instanceName, roleName, groupName string) *ResourceNameGenerator {
-	return &ResourceNameGenerator{
-		InstanceName: instanceName,
-		RoleName:     roleName,
-		GroupName:    groupName,
-	}
-}
-
-// NewResourceNameGeneratorOneRole new a ResourceNameGenerator without roleName
-func NewResourceNameGeneratorOneRole(instanceName, groupName string) *ResourceNameGenerator {
-	return &ResourceNameGenerator{
-		InstanceName: instanceName,
-		GroupName:    groupName,
-	}
-}
-
-// GenerateResourceName generate resource Name
-func (r *ResourceNameGenerator) GenerateResourceName(extraSuffix string) string {
-	var res string
-	if r.InstanceName != "" {
-		res = r.InstanceName + "-"
-	}
-	if r.GroupName != "" {
-		res = res + r.GroupName + "-"
-	}
-	if r.RoleName != "" {
-		res = res + r.RoleName
-	} else {
-		res = res[:len(res)-1]
-	}
-	if extraSuffix != "" {
-		return res + "-" + extraSuffix
-	}
-	return res
-}
 
 func OverrideEnvVars(origin *[]corev1.EnvVar, override map[string]string) {
 	for _, env := range *origin {
@@ -66,7 +24,7 @@ func CreateClusterServiceName(instanceName string) string {
 
 // CreateRoleGroupLoggingConfigMapName create role group logging config-map name
 func CreateRoleGroupLoggingConfigMapName(instanceName string, role string, groupName string) string {
-	return NewResourceNameGenerator(instanceName, role, groupName).GenerateResourceName("log")
+	return util.NewResourceNameGenerator(instanceName, role, groupName).GenerateResourceName("log")
 }
 
 func ConvertToResourceRequirements(resources *hdfsv1alpha1.ResourcesSpec) *corev1.ResourceRequirements {
@@ -153,11 +111,11 @@ func CreateDnsDomain(svcName, namespace, clusterDomain string, port int32) strin
 }
 
 func CreateRoleStatefulSetName(instanceName string, role Role, groupName string) string {
-	return NewResourceNameGenerator(instanceName, string(role), groupName).GenerateResourceName("")
+	return util.NewResourceNameGenerator(instanceName, string(role), groupName).GenerateResourceName("")
 }
 
 func CreateRoleServiceName(instanceName string, role Role, groupName string) string {
-	return NewResourceNameGenerator(instanceName, string(role), groupName).GenerateResourceName("")
+	return util.NewResourceNameGenerator(instanceName, string(role), groupName).GenerateResourceName("")
 }
 
 // CreatePodNamesByReplicas create pod names by replicas
@@ -195,7 +153,7 @@ func CreateXmlContentByReplicas(replicas int32, keyTemplate string, valueTemplat
 }
 
 func CreateRoleCfgCacheKey(instanceName string, role Role, groupName string) string {
-	return NewResourceNameGenerator(instanceName, string(role), groupName).GenerateResourceName("cache")
+	return util.NewResourceNameGenerator(instanceName, string(role), groupName).GenerateResourceName("cache")
 }
 func GetMergedRoleGroupCfg(role Role, instanceName string, groupName string) *hdfsv1alpha1.RoleGroupSpec {
 	cfg, ok := MergedCache.Get(CreateRoleCfgCacheKey(instanceName, role, groupName))
@@ -207,4 +165,40 @@ func GetMergedRoleGroupCfg(role Role, instanceName string, groupName string) *hd
 		panic(fmt.Sprintf("%s config not found in cache)", role))
 	}
 	return cfg.(*hdfsv1alpha1.RoleGroupSpec)
+}
+
+func GetCommonContainerEnv(zkDiscoveryZNode string, container ContainerComponent) []corev1.EnvVar {
+	return []corev1.EnvVar{
+		{
+			Name:  "HADOOP_CONF_DIR",
+			Value: "/znclabs/config/" + string(container),
+		},
+		{
+			Name:  "HADOOP_HOME",
+			Value: "/stackable/hadoop", // todo rename
+		},
+		{
+			Name: "POD_NAME",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
+		},
+		{
+			Name: "ZOOKEEPER",
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: zkDiscoveryZNode,
+					},
+					Key: ZookeeperHdfsDiscoveryKey,
+				},
+			},
+		},
+	}
+}
+
+func GetCommonCommand() []string {
+	return []string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}
 }

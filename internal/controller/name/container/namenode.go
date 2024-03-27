@@ -16,21 +16,20 @@ func NewNameNodeContainerBuilder(
 	image string,
 	imagePullPolicy corev1.PullPolicy,
 	resource corev1.ResourceRequirements,
-	ports []corev1.ContainerPort,
 	zookeeperDiscoveryZNode string,
 ) *NameNodeContainerBuilder {
 	return &NameNodeContainerBuilder{
-		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, ports, resource),
+		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, resource),
 		zookeeperDiscoveryZNode: zookeeperDiscoveryZNode,
 	}
 }
 
 func (n *NameNodeContainerBuilder) Command() []string {
-	return commonCommand()
+	return common.GetCommonCommand()
 }
 
 func (n *NameNodeContainerBuilder) ContainerEnv() []corev1.EnvVar {
-	envs := commonContainerEnv(n.zookeeperDiscoveryZNode)
+	envs := common.GetCommonContainerEnv(n.zookeeperDiscoveryZNode, NameNode)
 	envs = append(envs, corev1.EnvVar{
 		Name:  "HDFS_NAMENODE_OPTS",
 		Value: "-Djava.security.properties=/znclabs/config/namenode/security.properties -Xmx838860k",
@@ -45,7 +44,7 @@ func (n *NameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
 			MountPath: "/znclabs/log",
 		},
 		{
-			Name:      NameNodeVolumeName(),
+			Name:      NameNodeConfVolumeName(),
 			MountPath: "/znclabs/mount/config/namenode",
 		},
 		{
@@ -73,7 +72,7 @@ func (n *NameNodeContainerBuilder) LivenessProbe() *corev1.Probe {
 		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path:   "/dfshealth.html",
-				Port:   intstr.FromInt32(hdfsv1alpha1.NameNodeHttpPort),
+				Port:   intstr.FromString(hdfsv1alpha1.HttpName),
 				Scheme: corev1.URISchemeHTTP,
 			},
 		},
@@ -88,14 +87,14 @@ func (n *NameNodeContainerBuilder) ReadinessProbe() *corev1.Probe {
 		SuccessThreshold:    1,
 		TimeoutSeconds:      1,
 		ProbeHandler: corev1.ProbeHandler{
-			TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt32(hdfsv1alpha1.NameNodeRpcPort)},
+			TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromString(hdfsv1alpha1.RpcName)},
 		},
 	}
 
 }
 
-// MakeNameNodeContainerPorts make container ports of name node
-func MakeNameNodeContainerPorts() []corev1.ContainerPort {
+// ContainerPorts  make container ports of name node
+func (n *NameNodeContainerBuilder) ContainerPorts() []corev1.ContainerPort {
 	return []corev1.ContainerPort{
 		{
 			Name:          hdfsv1alpha1.HttpName,

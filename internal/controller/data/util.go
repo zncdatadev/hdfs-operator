@@ -1,17 +1,20 @@
 package data
 
-import "github.com/zncdata-labs/hdfs-operator/internal/common"
+import (
+	"github.com/zncdata-labs/hdfs-operator/internal/common"
+	"github.com/zncdata-labs/hdfs-operator/internal/util"
+)
 
 func createConfigName(instanceName string, groupName string) string {
-	return common.NewResourceNameGenerator(instanceName, string(common.DataNode), groupName).GenerateResourceName("")
+	return util.NewResourceNameGenerator(instanceName, string(common.DataNode), groupName).GenerateResourceName("")
 }
 
 func createStatefulSetName(instanceName string, groupName string) string {
-	return common.NewResourceNameGenerator(instanceName, string(common.DataNode), groupName).GenerateResourceName("")
+	return util.NewResourceNameGenerator(instanceName, string(common.DataNode), groupName).GenerateResourceName("")
 }
 
 func createServiceName(instanceName string, groupName string) string {
-	return common.NewResourceNameGenerator(instanceName, string(common.DataNode), groupName).GenerateResourceName("")
+	return util.NewResourceNameGenerator(instanceName, string(common.DataNode), groupName).GenerateResourceName("")
 }
 
 const (

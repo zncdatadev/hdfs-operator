@@ -15,11 +15,10 @@ func NewZkfcContainerBuilder(
 	image string,
 	imagePullPolicy corev1.PullPolicy,
 	resource corev1.ResourceRequirements,
-	ports []corev1.ContainerPort,
 	zookeeperDiscoveryZNode string,
 ) *ZkfcContainerBuilder {
 	return &ZkfcContainerBuilder{
-		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, ports, resource),
+		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, resource),
 		zookeeperDiscoveryZNode: zookeeperDiscoveryZNode,
 	}
 }
@@ -35,7 +34,7 @@ cp /znclabs/mount/config/zkfc/zkfc.log4j.properties /znclabs/config/zkfc/log4j.p
 }
 
 func (z *ZkfcContainerBuilder) ContainerEnv() []corev1.EnvVar {
-	return commonContainerEnv(z.zookeeperDiscoveryZNode)
+	return common.GetCommonContainerEnv(z.zookeeperDiscoveryZNode, Zkfc)
 }
 
 func (z *ZkfcContainerBuilder) VolumeMount() []corev1.VolumeMount {
@@ -56,5 +55,5 @@ func (z *ZkfcContainerBuilder) VolumeMount() []corev1.VolumeMount {
 }
 
 func (z *ZkfcContainerBuilder) Command() []string {
-	return commonCommand()
+	return common.GetCommonCommand()
 }

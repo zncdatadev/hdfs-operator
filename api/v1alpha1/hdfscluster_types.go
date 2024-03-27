@@ -39,9 +39,15 @@ const (
 	MetricName         = "metric"
 	HttpName           = "http"
 	RpcName            = "rpc"
+	IpcName            = "ipc"
+	DataName           = "data"
 	NameNodeHttpPort   = 9870
 	NameNodeRpcPort    = 8020
 	NameNodeMetricPort = 8183
+	DataNodeMetricPort = 8182
+	DataNodeHttpPort   = 9864
+	DataNodeDataPort   = 9866
+	DataNodeIpcPort    = 9867
 )
 
 //+kubebuilder:object:root=true
@@ -169,10 +175,6 @@ type ClusterConfigSpec struct {
 	// +kubebuilder:default:=1
 	DfsReplication int32 `json:"dfsReplication,omitempty"`
 
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default:="cluster-internal"
-	ListenerClass string `json:"listenerClass,omitempty"`
-
 	// +kubebuilder:validation:required
 	ZookeeperDiscoveryZNode string `json:"zookeeperDiscoveryZNode,omitempty"`
 }
@@ -198,6 +200,10 @@ type RoleGroupSpec struct {
 type ConfigSpec struct {
 	// +kubebuilder:validation:Optional
 	Resources *ResourcesSpec `json:"resources,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default:="cluster-internal"
+	ListenerClass string `json:"listenerClass,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	SecurityContext *corev1.PodSecurityContext `json:"securityContext"`

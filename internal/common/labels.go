@@ -17,8 +17,8 @@ func (r *RoleLabels) GetLabels() map[string]string {
 	}
 }
 
-func GetListenerLabels(listenerClass string) map[string]string {
+func GetListenerLabels(listenerClass ListenerClass) map[string]string {
 	return map[string]string{
-		ListenerAnnotationKey: listenerClass,
+		ListenerAnnotationKey: string(listenerClass),
 	}
 }

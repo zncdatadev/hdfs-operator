@@ -15,17 +15,16 @@ func NewFormatNameNodeContainerBuilder(
 	image string,
 	imagePullPolicy corev1.PullPolicy,
 	resource corev1.ResourceRequirements,
-	ports []corev1.ContainerPort,
 	zookeeperDiscoveryZNode string,
 ) *FormatNameNodeContainerBuilder {
 	return &FormatNameNodeContainerBuilder{
-		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, ports, resource),
+		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, resource),
 		zookeeperDiscoveryZNode: zookeeperDiscoveryZNode,
 	}
 }
 
 func (f *FormatNameNodeContainerBuilder) ContainerEnv() []corev1.EnvVar {
-	return commonContainerEnv(f.zookeeperDiscoveryZNode)
+	return common.GetCommonContainerEnv(f.zookeeperDiscoveryZNode, FormatNameNode)
 }
 
 func (f *FormatNameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
@@ -50,7 +49,7 @@ func (f *FormatNameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
 }
 
 func (f *FormatNameNodeContainerBuilder) Command() []string {
-	return commonCommand()
+	return common.GetCommonCommand()
 }
 func (f *FormatNameNodeContainerBuilder) CommandArgs() []string {
 	return []string{`mkdir -p /znclabs/config/format-namenodes

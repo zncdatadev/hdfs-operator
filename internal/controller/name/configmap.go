@@ -4,6 +4,7 @@ import (
 	"context"
 	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
 	"github.com/zncdata-labs/hdfs-operator/internal/common"
+	"github.com/zncdata-labs/hdfs-operator/internal/controller/name/container"
 	"github.com/zncdata-labs/hdfs-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,9 +42,9 @@ func (c *ConfigMapReconciler) ConfigurationOverride(resource client.Object) {
 	common.OverrideConfigurations(cm, overrides)
 	// only name node log4j,other component log4j not override, I think it is not necessary
 	if override := overrides.Log4j; override != nil {
-		origin := cm.Data[common.CreateComponentLog4jPropertiesName(ContainerNameNode)]
+		origin := cm.Data[common.CreateComponentLog4jPropertiesName(container.NameNode)]
 		overrideContent := util.MakePropertiesFileContent(override)
-		cm.Data[common.CreateComponentLog4jPropertiesName(ContainerNameNode)] = util.OverrideConfigFileContent(origin,
+		cm.Data[common.CreateComponentLog4jPropertiesName(container.NameNode)] = util.OverrideConfigFileContent(origin,
 			overrideContent)
 	}
 
@@ -64,10 +65,10 @@ func (c *ConfigMapReconciler) Build(_ context.Context) (client.Object, error) {
 			hdfsv1alpha1.SslClientFileName:    common.MakeSslClientData(),
 			hdfsv1alpha1.SslServerFileName:    common.MakeSslServerData(),
 			//log4j
-			common.CreateComponentLog4jPropertiesName(ContainerNameNode):        common.MakeLog4jPropertiesData(ContainerNameNode),
-			common.CreateComponentLog4jPropertiesName(ContainerZkfc):            common.MakeLog4jPropertiesData(ContainerZkfc),
-			common.CreateComponentLog4jPropertiesName(ContainerFormatNameNode):  common.MakeLog4jPropertiesData(ContainerFormatNameNode),
-			common.CreateComponentLog4jPropertiesName(ContainerFormatZookeeper): common.MakeLog4jPropertiesData(ContainerFormatZookeeper),
+			common.CreateComponentLog4jPropertiesName(container.NameNode):        common.MakeLog4jPropertiesData(container.NameNode),
+			common.CreateComponentLog4jPropertiesName(container.Zkfc):            common.MakeLog4jPropertiesData(container.Zkfc),
+			common.CreateComponentLog4jPropertiesName(container.FormatNameNode):  common.MakeLog4jPropertiesData(container.FormatNameNode),
+			common.CreateComponentLog4jPropertiesName(container.FormatZookeeper): common.MakeLog4jPropertiesData(container.FormatZookeeper),
 		},
 	}, nil
 }

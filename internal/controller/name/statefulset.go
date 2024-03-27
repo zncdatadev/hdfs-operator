@@ -95,7 +95,6 @@ func (s *StatefulSetReconciler) makeNameNodeContainer() corev1.Container {
 		util.ImageRepository(image.Repository, image.Tag),
 		image.PullPolicy,
 		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
-		container.MakeNameNodeContainerPorts(),
 		s.getZookeeperDiscoveryZNode(),
 	)
 	return nameNode.Build(nameNode)
@@ -108,7 +107,6 @@ func (s *StatefulSetReconciler) makeZkfcContainer() corev1.Container {
 		util.ImageRepository(image.Repository, image.Tag),
 		image.PullPolicy,
 		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
-		container.MakeNameNodeContainerPorts(),
 		s.getZookeeperDiscoveryZNode(),
 	)
 	return zkfc.Build(zkfc)
@@ -121,7 +119,6 @@ func (s *StatefulSetReconciler) makeFormatNameNodeContainer() corev1.Container {
 		util.ImageRepository(image.Repository, image.Tag),
 		image.PullPolicy,
 		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
-		container.MakeNameNodeContainerPorts(),
 		s.getZookeeperDiscoveryZNode(),
 	)
 	return formatNameNode.Build(formatNameNode)
@@ -135,7 +132,6 @@ func (s *StatefulSetReconciler) makeFormatZookeeperContainer() corev1.Container 
 		util.ImageRepository(image.Repository, image.Tag),
 		image.PullPolicy,
 		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
-		container.MakeNameNodeContainerPorts(),
 		s.getZookeeperDiscoveryZNode(),
 	)
 	return formatZookeeper.Build(formatZookeeper)
@@ -154,7 +150,7 @@ func (s *StatefulSetReconciler) makeVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: container.NameNodeVolumeName(),
+			Name: container.NameNodeConfVolumeName(),
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: s.getNameNodeConfigMapSource(),
 			},
@@ -224,14 +220,15 @@ func (s *StatefulSetReconciler) createDataPvcTemplate() corev1.PersistentVolumeC
 
 // create listen pvc template
 func (s *StatefulSetReconciler) createListenPvcTemplate() corev1.PersistentVolumeClaim {
-	listenerClass := s.Instance.Spec.ClusterConfigSpec.ListenerClass
+	listenerClass := s.MergedCfg.Config.ListenerClass
 	if listenerClass == "" {
-		listenerClass = "cluster-internal"
+		listenerClass = string(common.ClusterIp)
 	}
+
 	return corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        container.ListenerVolumeName(),
-			Annotations: common.GetListenerLabels(listenerClass), // important-1!!!!!
+			Annotations: common.GetListenerLabels(common.ListenerClass(listenerClass)), // important-1!!!!!
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},

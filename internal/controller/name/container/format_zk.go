@@ -15,17 +15,16 @@ func NewFormatZookeeperContainerBuilder(
 	image string,
 	imagePullPolicy corev1.PullPolicy,
 	resource corev1.ResourceRequirements,
-	ports []corev1.ContainerPort,
 	zookeeperDiscoveryZNode string,
 ) *FormatZookeeperContainerBuilder {
 	return &FormatZookeeperContainerBuilder{
-		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, ports, resource),
+		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, resource),
 		zookeeperDiscoveryZNode: zookeeperDiscoveryZNode,
 	}
 }
 
 func (z *FormatZookeeperContainerBuilder) ContainerEnv() []corev1.EnvVar {
-	return commonContainerEnv(z.zookeeperDiscoveryZNode)
+	return common.GetCommonContainerEnv(z.zookeeperDiscoveryZNode, FormatZookeeper)
 }
 
 func (z *FormatZookeeperContainerBuilder) VolumeMount() []corev1.VolumeMount {
@@ -46,7 +45,7 @@ func (z *FormatZookeeperContainerBuilder) VolumeMount() []corev1.VolumeMount {
 }
 
 func (z *FormatZookeeperContainerBuilder) Command() []string {
-	return commonCommand()
+	return common.GetCommonCommand()
 }
 func (z *FormatZookeeperContainerBuilder) CommandArgs() []string {
 	return []string{`mkdir -p /znclabs/config/format-zookeeper

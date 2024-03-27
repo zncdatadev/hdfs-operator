@@ -11,19 +11,16 @@ type ContainerBuilder struct {
 	Image           string
 	ImagePullPolicy corev1.PullPolicy
 	Resources       corev1.ResourceRequirements
-	Ports           []corev1.ContainerPort
 }
 
 func NewContainerBuilder(
 	Image string,
 	ImagePullPolicy corev1.PullPolicy,
-	Ports []corev1.ContainerPort,
 	Resource corev1.ResourceRequirements,
 ) *ContainerBuilder {
 	return &ContainerBuilder{
 		Image:           Image,
 		ImagePullPolicy: ImagePullPolicy,
-		Ports:           Ports,
 		Resources:       Resource,
 	}
 }
@@ -33,13 +30,15 @@ func (b *ContainerBuilder) Build(handler interface{}) corev1.Container {
 		Image:           b.Image,
 		Resources:       b.Resources,
 		ImagePullPolicy: b.ImagePullPolicy,
-		Ports:           b.Ports,
 	}
 	if containerName, ok := handler.(ContainerName); ok {
 		container.Name = containerName.ContainerName()
 	}
 	if command, ok := handler.(Command); ok {
 		container.Command = command.Command()
+	}
+	if containerPorts, ok := handler.(ContainerPorts); ok {
+		container.Ports = containerPorts.ContainerPorts()
 	}
 	if commandArgs, ok := handler.(CommandArgs); ok {
 		container.Args = commandArgs.CommandArgs()
@@ -69,6 +68,10 @@ type Command interface {
 
 type CommandArgs interface {
 	CommandArgs() []string
+}
+
+type ContainerPorts interface {
+	ContainerPorts() []corev1.ContainerPort
 }
 
 type ContainerEnv interface {
