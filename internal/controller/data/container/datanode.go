@@ -123,7 +123,7 @@ func (d *DataNodeContainerBuilder) CommandArgs() []string {
 	return []string{
 		`mkdir -p /znclabs/config/datanode
 cp /znclabs/mount/config/datanode/*.xml /znclabs/config/datanode
-cp /znclabs/mount/config/datanode/hdfs.log4j.properties /znclabs/config/datanode/log4j.properties
+cp /znclabs/mount/config/datanode/datanode.log4j.properties /znclabs/config/datanode/log4j.properties
 \
 
 prepare_signal_handlers()
