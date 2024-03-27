@@ -128,6 +128,10 @@ func CreatePodNamesByReplicas(replicas int32, statefulResourceName string) []str
 	return podNames
 }
 
+func CreateServiceAccountName(instanceName string) string {
+	return util.NewResourceNameGeneratorOneRole(instanceName, "").GenerateResourceName("sa")
+}
+
 func CreateKvContentByReplicas(replicas int32, keyTemplate string, valueTemplate string) [][2]string {
 	var res [][2]string
 	for i := int32(0); i < replicas; i++ {
