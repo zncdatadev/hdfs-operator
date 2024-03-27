@@ -4,6 +4,7 @@ import (
 	"context"
 	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
 	"github.com/zncdata-labs/hdfs-operator/internal/common"
+	"github.com/zncdata-labs/hdfs-operator/internal/controller/data/container"
 	"github.com/zncdata-labs/hdfs-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,9 +42,9 @@ func (c *ConfigMapReconciler) ConfigurationOverride(resource client.Object) {
 	common.OverrideConfigurations(cm, overrides)
 	// only name node log4j,other component log4j not override, I think it is not necessary
 	if override := overrides.Log4j; override != nil {
-		origin := cm.Data[common.CreateComponentLog4jPropertiesName(ContainerDataNode)]
+		origin := cm.Data[common.CreateComponentLog4jPropertiesName(container.DataNode)]
 		overrideContent := util.MakePropertiesFileContent(override)
-		cm.Data[common.CreateComponentLog4jPropertiesName(ContainerDataNode)] = util.OverrideConfigFileContent(origin,
+		cm.Data[common.CreateComponentLog4jPropertiesName(container.DataNode)] = util.OverrideConfigFileContent(origin,
 			overrideContent)
 	}
 
@@ -64,8 +65,8 @@ func (c *ConfigMapReconciler) Build(_ context.Context) (client.Object, error) {
 			hdfsv1alpha1.SslClientFileName:    common.MakeSslClientData(),
 			hdfsv1alpha1.SslServerFileName:    common.MakeSslServerData(),
 			//log4j
-			common.CreateComponentLog4jPropertiesName(ContainerDataNode):     common.MakeLog4jPropertiesData(ContainerDataNode),
-			common.CreateComponentLog4jPropertiesName(ContainerWaitNameNode): common.MakeLog4jPropertiesData(ContainerWaitNameNode),
+			common.CreateComponentLog4jPropertiesName(container.DataNode):     common.MakeLog4jPropertiesData(container.DataNode),
+			common.CreateComponentLog4jPropertiesName(container.WaitNameNode): common.MakeLog4jPropertiesData(container.WaitNameNode),
 		},
 	}, nil
 }

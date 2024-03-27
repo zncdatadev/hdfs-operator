@@ -44,7 +44,7 @@ const (
 	NameNodeHttpPort   = 9870
 	NameNodeRpcPort    = 8020
 	NameNodeMetricPort = 8183
-	DataNodeMetricPort = 8182
+	DataNodeMetricPort = 8082
 	DataNodeHttpPort   = 9864
 	DataNodeDataPort   = 9866
 	DataNodeIpcPort    = 9867

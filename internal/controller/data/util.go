@@ -18,12 +18,8 @@ func createServiceName(instanceName string, groupName string) string {
 }
 
 const (
-	ServiceHttpPort   = 9870
-	ServiceRpcPort    = 8020
-	ServiceMetricPort = 8183
-)
-
-const (
-	ContainerDataNode     common.ContainerComponent = "datanode"
-	ContainerWaitNameNode common.ContainerComponent = "wait-for-namenodes"
+	ServiceHttpPort   = 9864
+	ServiceDataPort   = 9866
+	ServiceIpcPort    = 9867
+	ServiceMetricPort = 8082
 )

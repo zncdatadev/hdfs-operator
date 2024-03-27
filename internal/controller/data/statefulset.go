@@ -5,6 +5,7 @@ import (
 	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
 	"github.com/zncdata-labs/hdfs-operator/internal/common"
 	"github.com/zncdata-labs/hdfs-operator/internal/controller/data/container"
+	"github.com/zncdata-labs/hdfs-operator/internal/util"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -16,8 +17,6 @@ import (
 type StatefulSetReconciler struct {
 	common.WorkloadStyleReconciler[*hdfsv1alpha1.HdfsCluster, *hdfsv1alpha1.RoleGroupSpec]
 }
-
-// NewStatefulSetController new a StatefulSetReconciler
 
 func NewStatefulSet(
 	scheme *runtime.Scheme,
@@ -41,7 +40,7 @@ func NewStatefulSet(
 	}
 }
 
-func (s *StatefulSetReconciler) Build(ctx context.Context) (client.Object, error) {
+func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) {
 	return &appv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      createStatefulSetName(s.Instance.GetName(), s.GroupName),
@@ -87,12 +86,26 @@ func (s *StatefulSetReconciler) LogOverride(resource client.Object) {
 
 // make name node container
 func (s *StatefulSetReconciler) makeDataNodeContainer() corev1.Container {
-	panic("implement me")
+	image := s.getImageSpec()
+	dateNode := container.NewDataNodeContainerBuilder(
+		util.ImageRepository(image.Repository, image.Tag),
+		image.PullPolicy,
+		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
+		s.getZookeeperDiscoveryZNode(),
+	)
+	return dateNode.Build(dateNode)
 }
 
 // make format name node container
 func (s *StatefulSetReconciler) makeWaitNameNodeContainer() corev1.Container {
-	panic("implement me")
+	image := s.getImageSpec()
+	initContainer := container.NewDataNodeContainerBuilder(
+		util.ImageRepository(image.Repository, image.Tag),
+		image.PullPolicy,
+		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
+		s.getZookeeperDiscoveryZNode(),
+	)
+	return initContainer.Build(initContainer)
 }
 
 // make volumes
