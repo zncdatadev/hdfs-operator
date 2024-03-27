@@ -55,7 +55,8 @@ func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) 
 					Labels: s.MergedLabels,
 				},
 				Spec: corev1.PodSpec{
-					SecurityContext: s.MergedCfg.Config.SecurityContext,
+					ServiceAccountName: common.CreateServiceAccountName(s.Instance.GetName()),
+					SecurityContext:    s.MergedCfg.Config.SecurityContext,
 					Containers: []corev1.Container{
 						s.makeDataNodeContainer(),
 					},
@@ -123,25 +124,25 @@ func (s *StatefulSetReconciler) makeVolumes() []corev1.Volume {
 		{
 			Name: container.DataNodeConfVolumeName(),
 			VolumeSource: corev1.VolumeSource{
-				ConfigMap: s.getNameNodeConfigMapSource(),
+				ConfigMap: s.getConfigMapSource(),
 			},
 		},
 		{
 			Name: container.DataNodeLogVolumeName(),
 			VolumeSource: corev1.VolumeSource{
-				ConfigMap: s.getNameNodeConfigMapSource(),
+				ConfigMap: s.getConfigMapSource(),
 			},
 		},
 		{
 			Name: container.WaitNameNodeConfigVolumeName(),
 			VolumeSource: corev1.VolumeSource{
-				ConfigMap: s.getNameNodeConfigMapSource(),
+				ConfigMap: s.getConfigMapSource(),
 			},
 		},
 		{
 			Name: container.WaitNameNodeLogVolumeName(),
 			VolumeSource: corev1.VolumeSource{
-				ConfigMap: s.getNameNodeConfigMapSource(),
+				ConfigMap: s.getConfigMapSource(),
 			},
 		},
 		{
@@ -209,7 +210,7 @@ func (s *StatefulSetReconciler) getImageSpec() *hdfsv1alpha1.ImageSpec {
 	return s.Instance.Spec.Image
 }
 
-func (s *StatefulSetReconciler) getNameNodeConfigMapSource() *corev1.ConfigMapVolumeSource {
+func (s *StatefulSetReconciler) getConfigMapSource() *corev1.ConfigMapVolumeSource {
 	return &corev1.ConfigMapVolumeSource{
 		LocalObjectReference: corev1.LocalObjectReference{
 			Name: createConfigName(s.Instance.GetName(), s.GroupName)}}

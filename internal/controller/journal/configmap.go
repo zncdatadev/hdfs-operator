@@ -1,4 +1,4 @@
-package data
+package journal
 
 import (
 	"context"
@@ -65,7 +65,7 @@ func (c *ConfigMapReconciler) Build(_ context.Context) (client.Object, error) {
 			hdfsv1alpha1.SslClientFileName:    common.MakeSslClientData(),
 			hdfsv1alpha1.SslServerFileName:    common.MakeSslServerData(),
 			//log4j
-			common.CreateComponentLog4jPropertiesName(JournalNode): common.MakeLog4jPropertiesData(JournalNode),
+			common.CreateComponentLog4jPropertiesName(ContainerJournalNode): common.MakeLog4jPropertiesData(ContainerJournalNode),
 		},
 	}, nil
 }

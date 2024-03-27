@@ -1,4 +1,4 @@
-package data
+package journal
 
 import (
 	"github.com/zncdata-labs/hdfs-operator/internal/common"
@@ -6,22 +6,37 @@ import (
 )
 
 func createConfigName(instanceName string, groupName string) string {
-	return util.NewResourceNameGenerator(instanceName, string(common.DataNode), groupName).GenerateResourceName("")
+	return util.NewResourceNameGenerator(instanceName, string(common.JournalNode), groupName).GenerateResourceName("")
 }
 
 func createStatefulSetName(instanceName string, groupName string) string {
-	return util.NewResourceNameGenerator(instanceName, string(common.DataNode), groupName).GenerateResourceName("")
+	return util.NewResourceNameGenerator(instanceName, string(common.JournalNode), groupName).GenerateResourceName("")
 }
 
 func createServiceName(instanceName string, groupName string) string {
-	return util.NewResourceNameGenerator(instanceName, string(common.DataNode), groupName).GenerateResourceName("")
+	return util.NewResourceNameGenerator(instanceName, string(common.JournalNode), groupName).GenerateResourceName("")
+}
+
+func logVolumeName() string {
+	return "log"
+}
+
+func journalNodeConfigVolumeName() string {
+	return "journalnode-config"
+}
+
+func journalNodeLogVolumeName() string {
+	return "journalnode-log-config"
+}
+
+func dataVolumeName() string {
+	return "data"
 }
 
 const (
-	ServiceHttpPort   = 9864
-	ServiceDataPort   = 9866
-	ServiceIpcPort    = 9867
-	ServiceMetricPort = 8082
+	ServiceHttpPort   = 8480
+	ServiceRpcPort    = 8485
+	ServiceMetricPort = 8081
 )
 
-const JournalNode common.ContainerComponent = "journalnode"
+const ContainerJournalNode common.ContainerComponent = "journalnode"

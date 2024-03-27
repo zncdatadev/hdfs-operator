@@ -1,10 +1,10 @@
-package name
+package journal
 
 import (
 	"context"
 	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
 	"github.com/zncdata-labs/hdfs-operator/internal/common"
-	"github.com/zncdata-labs/hdfs-operator/internal/controller/name/container"
+	"github.com/zncdata-labs/hdfs-operator/internal/controller/data/container"
 	"github.com/zncdata-labs/hdfs-operator/internal/util"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -17,8 +17,6 @@ import (
 type StatefulSetReconciler struct {
 	common.WorkloadStyleReconciler[*hdfsv1alpha1.HdfsCluster, *hdfsv1alpha1.RoleGroupSpec]
 }
-
-// NewStatefulSetController new a StatefulSetReconciler
 
 func NewStatefulSet(
 	scheme *runtime.Scheme,
@@ -42,7 +40,7 @@ func NewStatefulSet(
 	}
 }
 
-func (s *StatefulSetReconciler) Build(ctx context.Context) (client.Object, error) {
+func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) {
 	return &appv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      createStatefulSetName(s.Instance.GetName(), s.GroupName),
@@ -60,12 +58,7 @@ func (s *StatefulSetReconciler) Build(ctx context.Context) (client.Object, error
 					ServiceAccountName: common.CreateServiceAccountName(s.Instance.GetName()),
 					SecurityContext:    s.MergedCfg.Config.SecurityContext,
 					Containers: []corev1.Container{
-						s.makeNameNodeContainer(),
-						s.makeZkfcContainer(),
-					},
-					InitContainers: []corev1.Container{
-						s.makeFormatNameNodeContainer(),
-						s.makeFormatZookeeperContainer(),
+						s.makeJournalNodeContainer(),
 					},
 					Volumes: s.makeVolumes(),
 				},
@@ -90,52 +83,15 @@ func (s *StatefulSetReconciler) LogOverride(resource client.Object) {
 }
 
 // make name node container
-func (s *StatefulSetReconciler) makeNameNodeContainer() corev1.Container {
+func (s *StatefulSetReconciler) makeJournalNodeContainer() corev1.Container {
 	image := s.getImageSpec()
-	nameNode := container.NewNameNodeContainerBuilder(
+	journalNode := NewJournalNodeContainerBuilder(
 		util.ImageRepository(image.Repository, image.Tag),
 		image.PullPolicy,
 		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
 		s.getZookeeperDiscoveryZNode(),
 	)
-	return nameNode.Build(nameNode)
-}
-
-// make zkfc container
-func (s *StatefulSetReconciler) makeZkfcContainer() corev1.Container {
-	image := s.getImageSpec()
-	zkfc := container.NewZkfcContainerBuilder(
-		util.ImageRepository(image.Repository, image.Tag),
-		image.PullPolicy,
-		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
-		s.getZookeeperDiscoveryZNode(),
-	)
-	return zkfc.Build(zkfc)
-}
-
-// make format name node container
-func (s *StatefulSetReconciler) makeFormatNameNodeContainer() corev1.Container {
-	image := s.getImageSpec()
-	formatNameNode := container.NewFormatNameNodeContainerBuilder(
-		util.ImageRepository(image.Repository, image.Tag),
-		image.PullPolicy,
-		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
-		s.getZookeeperDiscoveryZNode(),
-	)
-	return formatNameNode.Build(formatNameNode)
-
-}
-
-// make format zookeeper container
-func (s *StatefulSetReconciler) makeFormatZookeeperContainer() corev1.Container {
-	image := s.getImageSpec()
-	formatZookeeper := container.NewFormatZookeeperContainerBuilder(
-		util.ImageRepository(image.Repository, image.Tag),
-		image.PullPolicy,
-		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
-		s.getZookeeperDiscoveryZNode(),
-	)
-	return formatZookeeper.Build(formatZookeeper)
+	return journalNode.Build(journalNode)
 }
 
 // make volumes
@@ -143,7 +99,7 @@ func (s *StatefulSetReconciler) makeVolumes() []corev1.Volume {
 	limit := resource.MustParse("150Mi")
 	return []corev1.Volume{
 		{
-			Name: container.LogVolumeName(),
+			Name: logVolumeName(),
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{
 					SizeLimit: &limit,
@@ -151,45 +107,15 @@ func (s *StatefulSetReconciler) makeVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: container.NameNodeConfVolumeName(),
+			Name: journalNodeConfigVolumeName(),
 			VolumeSource: corev1.VolumeSource{
-				ConfigMap: s.getNameNodeConfigMapSource(),
+				ConfigMap: s.getConfigMapSource(),
 			},
 		},
 		{
-			Name: container.NameNodeLogVolumeName(),
+			Name: journalNodeLogVolumeName(),
 			VolumeSource: corev1.VolumeSource{
-				ConfigMap: s.getNameNodeConfigMapSource(),
-			},
-		},
-		{
-			Name: container.ZkfcVolumeName(),
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: s.getNameNodeConfigMapSource(),
-			},
-		},
-		{
-			Name: container.ZkfcLogVolumeName(),
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: s.getNameNodeConfigMapSource(),
-			},
-		},
-		{
-			Name: container.FormatNameNodeVolumeName(),
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: s.getNameNodeConfigMapSource(),
-			},
-		},
-		{
-			Name: container.FormatNameNodeLogVolumeName(),
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: s.getNameNodeConfigMapSource(),
-			},
-		},
-		{
-			Name: container.FormatZookeeperVolumeName(),
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: s.getNameNodeConfigMapSource(),
+				ConfigMap: s.getConfigMapSource(),
 			},
 		},
 	}
@@ -198,7 +124,6 @@ func (s *StatefulSetReconciler) makeVolumes() []corev1.Volume {
 func (s *StatefulSetReconciler) makePvcTemplates() []corev1.PersistentVolumeClaim {
 	return []corev1.PersistentVolumeClaim{
 		s.createDataPvcTemplate(),
-		s.createListenPvcTemplate(),
 	}
 }
 
@@ -212,33 +137,9 @@ func (s *StatefulSetReconciler) createDataPvcTemplate() corev1.PersistentVolumeC
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: resource.MustParse("2Gi"),
-				},
-			},
-		},
-	}
-}
-
-// create listen pvc template
-func (s *StatefulSetReconciler) createListenPvcTemplate() corev1.PersistentVolumeClaim {
-	listenerClass := s.MergedCfg.Config.ListenerClass
-	if listenerClass == "" {
-		listenerClass = string(common.ClusterIp)
-	}
-
-	return corev1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        container.ListenerVolumeName(),
-			Annotations: common.GetListenerLabels(common.ListenerClass(listenerClass)), // important-1!!!!!
-		},
-		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-			Resources: corev1.VolumeResourceRequirements{
-				Requests: corev1.ResourceList{
 					corev1.ResourceStorage: resource.MustParse("1Gi"),
 				},
 			},
-			StorageClassName: func() *string { v := common.ListenerStorageClass; return &v }(), // important-2!!!!!
 		},
 	}
 }
@@ -252,7 +153,7 @@ func (s *StatefulSetReconciler) getImageSpec() *hdfsv1alpha1.ImageSpec {
 	return s.Instance.Spec.Image
 }
 
-func (s *StatefulSetReconciler) getNameNodeConfigMapSource() *corev1.ConfigMapVolumeSource {
+func (s *StatefulSetReconciler) getConfigMapSource() *corev1.ConfigMapVolumeSource {
 	return &corev1.ConfigMapVolumeSource{
 		LocalObjectReference: corev1.LocalObjectReference{
 			Name: createConfigName(s.Instance.GetName(), s.GroupName)}}

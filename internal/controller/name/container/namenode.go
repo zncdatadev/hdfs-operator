@@ -118,7 +118,7 @@ func (n *NameNodeContainerBuilder) CommandArgs() []string {
 	return []string{
 		`mkdir -p /znclabs/config/namenode
 cp /znclabs/mount/config/namenode/*.xml /znclabs/config/namenode
-cp /znclabs/mount/config/namenode/hdfs.log4j.properties /znclabs/config/namenode/log4j.properties
+cp /znclabs/mount/config/namenode/namenode.log4j.properties /znclabs/config/namenode/log4j.properties
 \
 
 prepare_signal_handlers()

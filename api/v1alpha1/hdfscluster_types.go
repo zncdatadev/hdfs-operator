@@ -36,18 +36,21 @@ const (
 )
 
 const (
-	MetricName         = "metric"
-	HttpName           = "http"
-	RpcName            = "rpc"
-	IpcName            = "ipc"
-	DataName           = "data"
-	NameNodeHttpPort   = 9870
-	NameNodeRpcPort    = 8020
-	NameNodeMetricPort = 8183
-	DataNodeMetricPort = 8082
-	DataNodeHttpPort   = 9864
-	DataNodeDataPort   = 9866
-	DataNodeIpcPort    = 9867
+	MetricName            = "metric"
+	HttpName              = "http"
+	RpcName               = "rpc"
+	IpcName               = "ipc"
+	DataName              = "data"
+	NameNodeHttpPort      = 9870
+	NameNodeRpcPort       = 8020
+	NameNodeMetricPort    = 8183
+	DataNodeMetricPort    = 8082
+	DataNodeHttpPort      = 9864
+	DataNodeDataPort      = 9866
+	DataNodeIpcPort       = 9867
+	JournalNodeMetricPort = 8081
+	JournalNodeRpcPort    = 8485
+	JournalNodeHttpPort   = 8480
 )
 
 //+kubebuilder:object:root=true
