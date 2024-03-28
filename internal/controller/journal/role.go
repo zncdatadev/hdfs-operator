@@ -17,8 +17,7 @@ type Role struct {
 	common.BaseRoleReconciler[*hdfsv1alpha1.HdfsCluster]
 }
 
-// NewRoleNameNode  new roleMaster
-func NewRoleNameNode(
+func NewRoleJournalNode(
 	scheme *runtime.Scheme,
 	instance *hdfsv1alpha1.HdfsCluster,
 	client client.Client,

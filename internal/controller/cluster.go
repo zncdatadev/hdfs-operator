@@ -5,6 +5,9 @@ import (
 	"github.com/go-logr/logr"
 	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
 	"github.com/zncdata-labs/hdfs-operator/internal/common"
+	"github.com/zncdata-labs/hdfs-operator/internal/controller/data"
+	"github.com/zncdata-labs/hdfs-operator/internal/controller/journal"
+	"github.com/zncdata-labs/hdfs-operator/internal/controller/name"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,18 +36,15 @@ func NewClusterReconciler(client client.Client, scheme *runtime.Scheme, cr *hdfs
 
 // RegisterRole register role reconciler
 func (c *ClusterReconciler) RegisterRole() {
-	//serverRole := NewRoleServer(c.scheme, c.cr, c.client, c.Log)
-	//c.roleReconcilers = []common.RoleReconciler{serverRole}
+	nameNodeRole := name.NewRoleNameNode(c.scheme, c.cr, c.client, c.Log)
+	jounalNodeRole := journal.NewRoleJournalNode(c.scheme, c.cr, c.client, c.Log)
+	dataNodeRole := data.NewRoleDataNode(c.scheme, c.cr, c.client, c.Log)
+	c.roleReconcilers = []common.RoleReconciler{nameNodeRole, jounalNodeRole, dataNodeRole}
 }
 
 func (c *ClusterReconciler) RegisterResource() {
-	//label := common.RoleLabels[*stackv1alpha1.ZookeeperCluster]{
-	//	Cr:   c.cr,
-	//	Name: string(common.Server),
-	//}
-	//lables := label.GetLabels()
-	//svc := NewClusterService(c.scheme, c.cr, c.client, "", lables, nil)
-	//c.resourceReconcilers = []common.ResourceReconciler{svc}
+	// no cluster level resource
+	// recover config map should be handled by at last
 }
 
 func (c *ClusterReconciler) ReconcileCluster(ctx context.Context) (ctrl.Result, error) {
@@ -71,6 +71,16 @@ func (c *ClusterReconciler) ReconcileCluster(ctx context.Context) (ctrl.Result, 
 			return res, nil
 		}
 	}
+
+	// reconcile discovery
+	res, err := c.ReconcileDiscovery(ctx)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if res.RequeueAfter > 0 {
+		return res, nil
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -82,6 +92,11 @@ func (c *ClusterReconciler) preReconcile() {
 	for _, r := range c.roleReconcilers {
 		r.CacheRoleGroupConfig()
 	}
+}
+
+func (c *ClusterReconciler) ReconcileDiscovery(ctx context.Context) (ctrl.Result, error) {
+	discovery := NewDiscovery(c.scheme, c.cr, c.client)
+	return discovery.ReconcileResource(ctx, common.NewSingleResourceBuilder(discovery))
 }
 
 type HdfsClusterInstance struct {

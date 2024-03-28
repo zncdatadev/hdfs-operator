@@ -26,17 +26,15 @@ func NewDiscovery(
 	scheme *runtime.Scheme,
 	instance *hdfsv1alpha1.HdfsCluster,
 	client client.Client,
-	groupName string,
-	mergedLabels map[string]string,
-	mergedCfg *hdfsv1alpha1.RoleGroupSpec,
 ) *Discovery {
+	var mergedCfg *hdfsv1alpha1.RoleGroupSpec
 	d := &Discovery{
 		GeneralResourceStyleReconciler: *common.NewGeneraResourceStyleReconciler(
 			scheme,
 			instance,
 			client,
-			groupName,
-			mergedLabels,
+			"",
+			nil,
 			mergedCfg,
 		),
 	}
