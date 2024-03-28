@@ -24,6 +24,10 @@ func NewDataNodeContainerBuilder(
 	}
 }
 
+func (d *DataNodeContainerBuilder) ContainerName() string {
+	return string(DataNode)
+}
+
 func (d *DataNodeContainerBuilder) Command() []string {
 	return common.GetCommonCommand()
 }

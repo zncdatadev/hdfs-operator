@@ -24,6 +24,10 @@ func NewJournalNodeContainerBuilder(
 	}
 }
 
+func (d *ContainerBuilder) ContainerName() string {
+	return string(ContainerJournalNode)
+}
+
 func (d *ContainerBuilder) Command() []string {
 	return common.GetCommonCommand()
 }

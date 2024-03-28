@@ -44,6 +44,10 @@ func (z *FormatZookeeperContainerBuilder) VolumeMount() []corev1.VolumeMount {
 	}
 }
 
+func (z *FormatZookeeperContainerBuilder) ContainerName() string {
+	return string(FormatZookeeper)
+}
+
 func (z *FormatZookeeperContainerBuilder) Command() []string {
 	return common.GetCommonCommand()
 }

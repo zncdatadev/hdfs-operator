@@ -1,5 +1,7 @@
 package container
 
+import "github.com/zncdata-labs/hdfs-operator/internal/common"
+
 func DataNodeConfVolumeName() string {
 	return "datanode-config"
 }
@@ -28,6 +30,6 @@ func LogVolumeName() string {
 }
 
 const (
-	DataNode     = "datanode"
-	WaitNameNode = "wait-for-namenodes"
+	DataNode     common.ContainerComponent = "datanode"
+	WaitNameNode common.ContainerComponent = "wait-for-namenodes"
 )

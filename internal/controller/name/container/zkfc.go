@@ -23,6 +23,10 @@ func NewZkfcContainerBuilder(
 	}
 }
 
+func (z *ZkfcContainerBuilder) ContainerName() string {
+	return string(Zkfc)
+}
+
 // CommandArgs zookeeper fail-over controller command args
 func (z *ZkfcContainerBuilder) CommandArgs() []string {
 	return []string{`mkdir -p /znclabs/config/zkfc
