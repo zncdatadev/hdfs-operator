@@ -18,11 +18,11 @@ package controller
 
 import (
 	"context"
-
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
 )
@@ -31,6 +31,7 @@ import (
 type HdfsClusterReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	Log    logr.Logger
 }
 
 //+kubebuilder:rbac:groups=hdfs.zncdata.dev,resources=hdfsclusters,verbs=get;list;watch;create;update;patch;delete
@@ -47,11 +48,45 @@ type HdfsClusterReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.15.0/pkg/reconcile
 func (r *HdfsClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	r.Log.Info("Reconciling hdfs cluster instance")
 
-	// TODO(user): your logic here
+	cr := &hdfsv1alpha1.HdfsCluster{}
 
-	return ctrl.Result{}, nil
+	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			r.Log.Error(err, "unable to fetch HdfsCluster")
+			return ctrl.Result{}, err
+		}
+		r.Log.Info("Hdfs-cluster resource not found. Ignoring since object must be deleted")
+		return ctrl.Result{}, nil
+	}
+
+	r.Log.Info("HdfsCluster found", "Name", cr.Name)
+	// reconcile order by "cluster -> role -> role-group -> resource"
+	result, err := NewClusterReconciler(r.Client, r.Scheme, cr).ReconcileCluster(ctx)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	r.Log.Info("Successfully reconciled HdfsCluster")
+	return result, nil
+}
+
+// UpdateStatus updates the status of the HdfsCluster resource
+// https://stackoverflow.com/questions/76388004/k8s-controller-update-status-and-condition
+func (r *HdfsClusterReconciler) UpdateStatus(ctx context.Context, instance *hdfsv1alpha1.HdfsCluster) error {
+	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		return r.Status().Update(ctx, instance)
+		//return r.Status().Patch(ctx, instance, client.MergeFrom(instance))
+	})
+
+	if retryErr != nil {
+		r.Log.Error(retryErr, "Failed to update vfm status after retries")
+		return retryErr
+	}
+
+	r.Log.V(1).Info("Successfully patched object status")
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
