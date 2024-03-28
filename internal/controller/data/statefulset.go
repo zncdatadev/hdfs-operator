@@ -15,7 +15,7 @@ import (
 )
 
 type StatefulSetReconciler struct {
-	common.WorkloadStyleReconciler[*hdfsv1alpha1.HdfsCluster, *hdfsv1alpha1.RoleGroupSpec]
+	common.WorkloadStyleReconciler[*hdfsv1alpha1.HdfsCluster, *hdfsv1alpha1.DataNodeRoleGroupSpec]
 }
 
 func NewStatefulSet(
@@ -24,7 +24,7 @@ func NewStatefulSet(
 	client client.Client,
 	groupName string,
 	labels map[string]string,
-	mergedCfg *hdfsv1alpha1.RoleGroupSpec,
+	mergedCfg *hdfsv1alpha1.DataNodeRoleGroupSpec,
 	replicate int32,
 ) *StatefulSetReconciler {
 	return &StatefulSetReconciler{

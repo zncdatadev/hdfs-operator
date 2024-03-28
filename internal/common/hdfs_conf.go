@@ -120,7 +120,8 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeJournalNodeDataDir() string {
 // get journal node replicates
 func (c *NameNodeHdfsSiteXmlGenerator) getJournalNodeReplicates() int32 {
 	cfg := GetMergedRoleGroupCfg(JournalNode, c.InstanceName, c.GroupName)
-	return cfg.Replicas
+	journalCfg := cfg.(*hdfsv1alpha1.JournalNodeRoleGroupSpec)
+	return journalCfg.Replicas
 }
 
 // make name nodes
@@ -410,3 +411,20 @@ func (c *DataNodeHdfsSiteXmlGenerator) Generate() string {
 	nameNodeSiteXml := c.NameNodeHdfsSiteXmlGenerator.Generate()
 	return util.AppendXmlContent(nameNodeSiteXml, c.DataNodeConfig)
 }
+
+//type HdfsClusterLoggingDataBuilder struct {
+//	cfg     *hdfsv1alpha1.RoleGroupSpec
+//	current string
+//}
+//
+//func (h *HdfsClusterLoggingDataBuilder) MakeContainerLogData() map[string]string {
+//	return map[string]string{
+//		CreateRoleGroupLoggingConfigMapName(): h.MakeContainerLog4jData(),
+//	}
+//}
+//
+//func (h *HdfsClusterLoggingDataBuilder) MakeContainerLog4jData() string {
+//	if h.cfg.Config.Logging != nil {
+//
+//	}
+//}

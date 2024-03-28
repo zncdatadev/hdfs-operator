@@ -11,7 +11,7 @@ import (
 )
 
 type ServiceReconciler struct {
-	common.GeneralResourceStyleReconciler[*hdfsv1alpha1.HdfsCluster, *hdfsv1alpha1.RoleGroupSpec]
+	common.GeneralResourceStyleReconciler[*hdfsv1alpha1.HdfsCluster, *hdfsv1alpha1.DataNodeRoleGroupSpec]
 }
 
 // NewService new a ServiceReconciler
@@ -21,7 +21,7 @@ func NewServiceHeadless(
 	client client.Client,
 	groupName string,
 	labels map[string]string,
-	mergedCfg *hdfsv1alpha1.RoleGroupSpec,
+	mergedCfg *hdfsv1alpha1.DataNodeRoleGroupSpec,
 ) *ServiceReconciler {
 	return &ServiceReconciler{
 		GeneralResourceStyleReconciler: *common.NewGeneraResourceStyleReconciler(

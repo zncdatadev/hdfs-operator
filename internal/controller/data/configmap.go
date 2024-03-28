@@ -13,7 +13,7 @@ import (
 )
 
 type ConfigMapReconciler struct {
-	common.ConfigurationStyleReconciler[*hdfsv1alpha1.HdfsCluster, *hdfsv1alpha1.RoleGroupSpec]
+	common.ConfigurationStyleReconciler[*hdfsv1alpha1.HdfsCluster, *hdfsv1alpha1.DataNodeRoleGroupSpec]
 }
 
 // NewConfigMap new a ConfigMapReconciler
@@ -23,7 +23,7 @@ func NewConfigMap(
 	client client.Client,
 	groupName string,
 	labels map[string]string,
-	mergedCfg *hdfsv1alpha1.RoleGroupSpec,
+	mergedCfg *hdfsv1alpha1.DataNodeRoleGroupSpec,
 ) *ConfigMapReconciler {
 	return &ConfigMapReconciler{
 		ConfigurationStyleReconciler: *common.NewConfigurationStyleReconciler(
@@ -88,7 +88,8 @@ func (c *ConfigMapReconciler) makeHdfsSiteData() string {
 
 func (c *ConfigMapReconciler) getNameNodeReplicas() int32 {
 	cfg := common.GetMergedRoleGroupCfg(common.NameNode, c.Instance.GetName(), c.GroupName)
-	return cfg.Replicas
+	namenodecfg := cfg.(*hdfsv1alpha1.NameNodeRoleGroupSpec)
+	return namenodecfg.Replicas
 }
 
 func (c *ConfigMapReconciler) dataNodeConfig() map[string]string {

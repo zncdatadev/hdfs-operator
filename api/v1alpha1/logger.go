@@ -5,11 +5,6 @@ package v1alpha1
 //	Containers *ContainerLoggingSpec `json:"containers,omitempty"`
 //}
 
-type ContainerLoggingSpec struct {
-	// +kubebuilder:validation:Optional
-	Zookeeper *LoggingConfigSpec `json:"zookeeperCluster,omitempty"`
-}
-
 type LoggingConfigSpec struct {
 	// +kubebuilder:validation:Optional
 	Loggers map[string]*LogLevelSpec `json:"loggers,omitempty"`

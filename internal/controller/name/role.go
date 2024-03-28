@@ -109,7 +109,7 @@ func NewRoleGroupReconciler(
 func (m *RoleGroup) RegisterResource() {
 	cfg := m.MergeGroupConfigSpec()
 	lables := m.MergeLabels(cfg)
-	mergedCfg := cfg.(*hdfsv1alpha1.RoleGroupSpec)
+	mergedCfg := cfg.(*hdfsv1alpha1.NameNodeRoleGroupSpec)
 	pdbSpec := mergedCfg.Config.PodDisruptionBudget
 	//logDataBuilder := &LogDataBuilder{cfg: mergedCfg}
 
@@ -129,13 +129,13 @@ func (m *RoleGroup) MergeGroupConfigSpec() any {
 }
 
 func (m *RoleGroup) MergeLabels(mergedCfg any) map[string]string {
-	mergedMasterCfg := mergedCfg.(*hdfsv1alpha1.RoleGroupSpec)
+	mergedMasterCfg := mergedCfg.(*hdfsv1alpha1.NameNodeRoleGroupSpec)
 	return m.AppendLabels(mergedMasterCfg.Config.NodeSelector)
 }
 
 // MergeConfig merge the role's config into the role group's config
 func MergeConfig(masterRole *hdfsv1alpha1.NameNodeSpec,
-	group *hdfsv1alpha1.RoleGroupSpec) *hdfsv1alpha1.RoleGroupSpec {
+	group *hdfsv1alpha1.NameNodeRoleGroupSpec) *hdfsv1alpha1.NameNodeRoleGroupSpec {
 	copiedRoleGroup := group.DeepCopy()
 	// Merge the role into the role group.
 	// if the role group has a config, and role group not has a config, will
