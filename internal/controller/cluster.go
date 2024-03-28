@@ -48,6 +48,9 @@ func (c *ClusterReconciler) RegisterResource() {
 }
 
 func (c *ClusterReconciler) ReconcileCluster(ctx context.Context) (ctrl.Result, error) {
+	c.preReconcile()
+
+	// reconcile resource of cluster level
 	if len(c.resourceReconcilers) > 0 {
 		res, err := common.ReconcilerDoHandler(ctx, c.resourceReconcilers)
 		if err != nil {
@@ -58,6 +61,7 @@ func (c *ClusterReconciler) ReconcileCluster(ctx context.Context) (ctrl.Result, 
 		}
 	}
 
+	// reconcile role
 	for _, r := range c.roleReconcilers {
 		res, err := r.ReconcileRole(ctx)
 		if err != nil {
@@ -68,6 +72,16 @@ func (c *ClusterReconciler) ReconcileCluster(ctx context.Context) (ctrl.Result, 
 		}
 	}
 	return ctrl.Result{}, nil
+}
+
+func (c *ClusterReconciler) preReconcile() {
+	// pre-reconcile
+	// merge all the role-group cfg of roles, and cache it
+	// because of existing role group config circle reference
+	// we need to cache it before reconcile
+	for _, r := range c.roleReconcilers {
+		r.CacheRoleGroupConfig()
+	}
 }
 
 type HdfsClusterInstance struct {

@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-logr/logr"
+	"github.com/zncdata-labs/hdfs-operator/internal/util"
 	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 )
 
 type Role string
@@ -20,8 +22,8 @@ const (
 
 type RoleReconciler interface {
 	RoleName() Role
-	MergeLabels() map[string]string
 	ReconcileRole(ctx context.Context) (ctrl.Result, error)
+	CacheRoleGroupConfig()
 }
 
 // RoleGroupRecociler RoleReconcile role reconciler interface
@@ -29,7 +31,6 @@ type RoleReconciler interface {
 type RoleGroupRecociler interface {
 	ReconcileGroup(ctx context.Context) (ctrl.Result, error)
 	MergeLabels(mergedGroupCfg any) map[string]string
-	MergeGroupConfigSpec() any
 	RegisterResource()
 }
 
@@ -92,6 +93,16 @@ func ReconcilerDoHandler(ctx context.Context, reconcilers []ResourceReconciler) 
 // ReconcileGroup ReconcileRole implements the Role interface
 func (m *BaseRoleGroupReconciler[T]) ReconcileGroup(ctx context.Context) (ctrl.Result, error) {
 	return ReconcilerDoHandler(ctx, m.Reconcilers)
+}
+
+// AppendLabels  merge role labels and additional labels
+func (m *BaseRoleGroupReconciler[T]) AppendLabels(additionalLabels map[string]string) map[string]string {
+	roleLabels := m.RoleLabels
+	mergeLabels := make(util.Map)
+	mergeLabels.MapMerge(roleLabels, true)
+	mergeLabels.MapMerge(additionalLabels, true)
+	mergeLabels["app.kubernetes.io/instance"] = strings.ToLower(m.GroupName)
+	return mergeLabels
 }
 
 // MergeObjects merge right to left, if field not in left, it will be added from right,

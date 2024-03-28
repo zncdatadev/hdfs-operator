@@ -15,7 +15,7 @@ type ServiceReconciler struct {
 }
 
 // NewService new a ServiceReconciler
-func NewService(
+func NewServiceHeadless(
 	scheme *runtime.Scheme,
 	instance *hdfsv1alpha1.HdfsCluster,
 	client client.Client,

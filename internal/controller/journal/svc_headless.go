@@ -14,8 +14,8 @@ type ServiceReconciler struct {
 	common.GeneralResourceStyleReconciler[*hdfsv1alpha1.HdfsCluster, *hdfsv1alpha1.RoleGroupSpec]
 }
 
-// NewService new a ServiceReconciler
-func NewService(
+// NewServiceHeadless new a ServiceReconciler
+func NewServiceHeadless(
 	scheme *runtime.Scheme,
 	instance *hdfsv1alpha1.HdfsCluster,
 	client client.Client,
