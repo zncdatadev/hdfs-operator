@@ -39,7 +39,7 @@ spec:
                   clusterDomain:
                     default: cluster.local
                     type: string
-                  minServerId:
+                  dfsReplication:
                     default: 1
                     format: int32
                     type: integer
@@ -61,6 +61,8 @@ spec:
                           for a service
                         type: string
                     type: object
+                  zookeeperDiscoveryZNode:
+                    type: string
                 type: object
               dataNode:
                 properties:
@@ -1160,6 +1162,9 @@ spec:
                         additionalProperties:
                           type: string
                         type: object
+                      listenerClass:
+                        default: cluster-internal
+                        type: string
                       logging:
                         properties:
                           zookeeperCluster:
@@ -1509,7 +1514,32 @@ spec:
                     type: object
                   configOverrides:
                     properties:
-                      zoo.cfg:
+                      core-site.xml:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      hadoop-policy.xml:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      hdfs-site.xml:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      log4j.properties:
+                        additionalProperties:
+                          type: string
+                        description: only for nameNode
+                        type: object
+                      security.properties:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      ssl-client.xml:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      ssl-server.xml:
                         additionalProperties:
                           type: string
                         type: object
@@ -2734,6 +2764,9 @@ spec:
                               additionalProperties:
                                 type: string
                               type: object
+                            listenerClass:
+                              default: cluster-internal
+                              type: string
                             logging:
                               properties:
                                 zookeeperCluster:
@@ -3112,7 +3145,32 @@ spec:
                           type: object
                         configOverrides:
                           properties:
-                            zoo.cfg:
+                            core-site.xml:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            hadoop-policy.xml:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            hdfs-site.xml:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            log4j.properties:
+                              additionalProperties:
+                                type: string
+                              description: only for nameNode
+                              type: object
+                            security.properties:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            ssl-client.xml:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            ssl-server.xml:
                               additionalProperties:
                                 type: string
                               type: object
@@ -3129,6 +3187,9 @@ spec:
                     type: object
                 type: object
               image:
+                description: 'ImageSpec todo: the image should be made by ourself,
+                  image from stackable for test only, especial listener class testing,
+                  currently'
                 properties:
                   pullPolicy:
                     default: IfNotPresent
@@ -3136,10 +3197,10 @@ spec:
                       a container image
                     type: string
                   repository:
-                    default: bitnami/zookeeper
+                    default: docker.stackable.tech/stackable/hadoop
                     type: string
                   tag:
-                    default: "423"
+                    default: 3.3.4-stackable24.3.0
                     type: string
                 type: object
               journalNode:
@@ -4240,6 +4301,9 @@ spec:
                         additionalProperties:
                           type: string
                         type: object
+                      listenerClass:
+                        default: cluster-internal
+                        type: string
                       logging:
                         properties:
                           zookeeperCluster:
@@ -4589,7 +4653,32 @@ spec:
                     type: object
                   configOverrides:
                     properties:
-                      zoo.cfg:
+                      core-site.xml:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      hadoop-policy.xml:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      hdfs-site.xml:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      log4j.properties:
+                        additionalProperties:
+                          type: string
+                        description: only for nameNode
+                        type: object
+                      security.properties:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      ssl-client.xml:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      ssl-server.xml:
                         additionalProperties:
                           type: string
                         type: object
@@ -5814,6 +5903,9 @@ spec:
                               additionalProperties:
                                 type: string
                               type: object
+                            listenerClass:
+                              default: cluster-internal
+                              type: string
                             logging:
                               properties:
                                 zookeeperCluster:
@@ -6192,7 +6284,32 @@ spec:
                           type: object
                         configOverrides:
                           properties:
-                            zoo.cfg:
+                            core-site.xml:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            hadoop-policy.xml:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            hdfs-site.xml:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            log4j.properties:
+                              additionalProperties:
+                                type: string
+                              description: only for nameNode
+                              type: object
+                            security.properties:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            ssl-client.xml:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            ssl-server.xml:
                               additionalProperties:
                                 type: string
                               type: object
@@ -7307,6 +7424,9 @@ spec:
                         additionalProperties:
                           type: string
                         type: object
+                      listenerClass:
+                        default: cluster-internal
+                        type: string
                       logging:
                         properties:
                           zookeeperCluster:
@@ -7656,7 +7776,32 @@ spec:
                     type: object
                   configOverrides:
                     properties:
-                      zoo.cfg:
+                      core-site.xml:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      hadoop-policy.xml:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      hdfs-site.xml:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      log4j.properties:
+                        additionalProperties:
+                          type: string
+                        description: only for nameNode
+                        type: object
+                      security.properties:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      ssl-client.xml:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      ssl-server.xml:
                         additionalProperties:
                           type: string
                         type: object
@@ -8881,6 +9026,9 @@ spec:
                               additionalProperties:
                                 type: string
                               type: object
+                            listenerClass:
+                              default: cluster-internal
+                              type: string
                             logging:
                               properties:
                                 zookeeperCluster:
@@ -9259,7 +9407,32 @@ spec:
                           type: object
                         configOverrides:
                           properties:
-                            zoo.cfg:
+                            core-site.xml:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            hadoop-policy.xml:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            hdfs-site.xml:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            log4j.properties:
+                              additionalProperties:
+                                type: string
+                              description: only for nameNode
+                              type: object
+                            security.properties:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            ssl-client.xml:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            ssl-server.xml:
                               additionalProperties:
                                 type: string
                               type: object

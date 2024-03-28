@@ -50,20 +50,10 @@ func OverrideConfigFileContent(current string, override string) string {
 	return current + "\n" + override
 }
 
-type XmlNameValuePair struct {
-	Name  string `xml:"name"`
-	Value string `xml:"value"`
-}
-
-type Configuration struct {
-	XMLName    xml.Name           `xml:"configuration"`
-	Properties []XmlNameValuePair `xml:"property"`
-}
-
 // AppendXmlContent overrides the content of a xml file
 // append the override properties to the current xml dom
 func AppendXmlContent(current string, overrideProperties map[string]string) string {
-	var xmlDom Configuration
+	var xmlDom XmlConfiguration
 	//string -> dom
 	if err := xml.Unmarshal([]byte(current), &xmlDom); err != nil {
 		panic(err)
