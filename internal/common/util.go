@@ -206,3 +206,37 @@ func GetCommonContainerEnv(zkDiscoveryZNode string, container ContainerComponent
 func GetCommonCommand() []string {
 	return []string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}
 }
+
+const (
+	HdfsConsoleLogAppender = "CONSOLE"
+	HdfsFileLogAppender    = "FILE"
+)
+
+func CreateLog4jBuilder(containerLogging *hdfsv1alpha1.LoggingConfigSpec, consoleAppenderName,
+	fileAppenderName string) *Log4jLoggingDataBuilder {
+	log4jBuilder := &Log4jLoggingDataBuilder{}
+	if loggers := containerLogging.Loggers; loggers != nil {
+		builderLoggers := make([]LogBuilderLoggers, len(loggers))
+		for logger, level := range loggers {
+			builderLoggers = append(builderLoggers, LogBuilderLoggers{
+				logger: logger,
+				level:  level.Level,
+			})
+		}
+		log4jBuilder.Loggers = builderLoggers
+	}
+	if console := containerLogging.Console; console != nil {
+		log4jBuilder.Console = &LogBuilderAppender{
+			appenderName: consoleAppenderName,
+			level:        console.Level,
+		}
+	}
+	if file := containerLogging.File; file != nil {
+		log4jBuilder.File = &LogBuilderAppender{
+			appenderName: fileAppenderName,
+			level:        file.Level,
+		}
+	}
+
+	return log4jBuilder
+}

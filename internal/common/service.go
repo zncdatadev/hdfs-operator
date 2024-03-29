@@ -8,7 +8,6 @@ import (
 // ServiceBuilder service builder
 // contains: name, namespace, labels, ports, these should be required
 // optional: clusterIP, serviceType should be optional,
-// optional fields should be implemented by the struct that embeds ServiceBuilder
 type ServiceBuilder struct {
 	Name      string
 	Namespace string

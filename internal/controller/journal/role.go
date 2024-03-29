@@ -40,7 +40,7 @@ func (r *Role) RoleName() common.Role {
 }
 
 func (r *Role) CacheRoleGroupConfig() {
-	roleSpec := r.Instance.Spec.NameNode
+	roleSpec := r.Instance.Spec.JournalNode
 	groups := roleSpec.RoleGroups
 	// merge all the role-group cfg
 	// and cache it
@@ -52,7 +52,7 @@ func (r *Role) CacheRoleGroupConfig() {
 }
 
 func (r *Role) ReconcileRole(ctx context.Context) (ctrl.Result, error) {
-	roleCfg := r.Instance.Spec.NameNode
+	roleCfg := r.Instance.Spec.JournalNode
 	// role pdb
 	if roleCfg.Config != nil && roleCfg.Config.PodDisruptionBudget != nil {
 		pdb := common.NewReconcilePDB(r.Client, r.Scheme, r.Instance, r.Labels, string(r.RoleName()),
@@ -108,7 +108,7 @@ func NewRoleGroupReconciler(
 func (m *RoleGroup) RegisterResource() {
 	cfg := m.MergeGroupConfigSpec()
 	lables := m.MergeLabels(cfg)
-	mergedCfg := cfg.(*hdfsv1alpha1.RoleGroupSpec)
+	mergedCfg := cfg.(*hdfsv1alpha1.JournalNodeRoleGroupSpec)
 	pdbSpec := mergedCfg.Config.PodDisruptionBudget
 	//logDataBuilder := &LogDataBuilder{cfg: mergedCfg}
 
@@ -128,13 +128,13 @@ func (m *RoleGroup) MergeGroupConfigSpec() any {
 }
 
 func (m *RoleGroup) MergeLabels(mergedCfg any) map[string]string {
-	mergedMasterCfg := mergedCfg.(*hdfsv1alpha1.RoleGroupSpec)
+	mergedMasterCfg := mergedCfg.(*hdfsv1alpha1.JournalNodeRoleGroupSpec)
 	return m.AppendLabels(mergedMasterCfg.Config.NodeSelector)
 }
 
 // MergeConfig merge the role's config into the role group's config
-func MergeConfig(masterRole *hdfsv1alpha1.NameNodeSpec,
-	group *hdfsv1alpha1.RoleGroupSpec) *hdfsv1alpha1.RoleGroupSpec {
+func MergeConfig(masterRole *hdfsv1alpha1.JournalNodeSpec,
+	group *hdfsv1alpha1.JournalNodeRoleGroupSpec) *hdfsv1alpha1.JournalNodeRoleGroupSpec {
 	copiedRoleGroup := group.DeepCopy()
 	// Merge the role into the role group.
 	// if the role group has a config, and role group not has a config, will
