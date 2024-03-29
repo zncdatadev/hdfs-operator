@@ -26,7 +26,6 @@ func NewReconcilePDB[T client.Object](
 	name string,
 	pdb *hdfsv1alpha1.PodDisruptionBudgetSpec,
 ) *PDBReconciler[T] {
-	var cfg = &hdfsv1alpha1.RoleGroupSpec{}
 	return &PDBReconciler[T]{
 		GeneralResourceStyleReconciler: *NewGeneraResourceStyleReconciler[T, any](
 			schema,
@@ -34,7 +33,7 @@ func NewReconcilePDB[T client.Object](
 			client,
 			"",
 			labels,
-			cfg,
+			nil,
 		),
 		name:   name,
 		labels: labels,

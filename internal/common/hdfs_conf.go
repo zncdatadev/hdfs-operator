@@ -67,6 +67,7 @@ func (c *NameNodeHdfsSiteXmlGenerator) Generate() string {
 		c.makeNameNodeHttp(),
 		c.makeNameNodeRpc(),
 		c.makeNameNodeNameDir(),
+		c.makeJournalNodeDataDir(),
 	)
 }
 
@@ -219,7 +220,7 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeRpc() string {
 func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeNameDir() string {
 	statefulSetName := CreateNameNodeStatefulSetName(c.InstanceName, c.GroupName)
 	keyTemplate := fmt.Sprintf("dfs.namenode.name.dir.%s.%s-%%d", c.InstanceName, statefulSetName)
-	valueTemplate := fmt.Sprintf("/zncdata/data/namenode")
+	valueTemplate := "/zncdata/data/namenode"
 	return CreateXmlContentByReplicas(c.NameNodeReplicas, keyTemplate, valueTemplate)
 }
 
@@ -286,6 +287,9 @@ const hdfsSiteTemplate = `<?xml version="1.0"?>
   %s	
 
   <!-- name node name dir -->
+  %s
+
+  <!-- journal node dir -->
   %s
 
 </configuration>
