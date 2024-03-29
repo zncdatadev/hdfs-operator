@@ -114,9 +114,10 @@ func (m *RoleGroup) RegisterResource() {
 
 	pdb := common.NewReconcilePDB(m.Client, m.Scheme, m.Instance, lables, m.GroupName, pdbSpec)
 	cm := NewConfigMap(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg)
+	logging := NewJournalNodeLogging(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, common.JournalNode)
 	statefulSet := NewStatefulSet(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, mergedCfg.Replicas)
 	svc := NewServiceHeadless(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg)
-	m.Reconcilers = []common.ResourceReconciler{cm, pdb, statefulSet, svc}
+	m.Reconcilers = []common.ResourceReconciler{cm, logging, pdb, statefulSet, svc}
 }
 
 func (m *RoleGroup) MergeGroupConfigSpec() any {
