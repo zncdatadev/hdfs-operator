@@ -109,15 +109,16 @@ func NewRoleGroupReconciler(
 func (m *RoleGroup) RegisterResource() {
 	cfg := m.MergeGroupConfigSpec()
 	lables := m.MergeLabels(cfg)
-	mergedCfg := cfg.(*hdfsv1alpha1.RoleGroupSpec)
+	mergedCfg := cfg.(*hdfsv1alpha1.NameNodeRoleGroupSpec)
 	pdbSpec := mergedCfg.Config.PodDisruptionBudget
 	//logDataBuilder := &LogDataBuilder{cfg: mergedCfg}
 
 	pdb := common.NewReconcilePDB(m.Client, m.Scheme, m.Instance, lables, m.GroupName, pdbSpec)
 	cm := NewConfigMap(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg)
+	logging := NewNameNodeLogging(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, common.NameNode)
 	statefulSet := NewStatefulSet(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, mergedCfg.Replicas)
 	svc := NewServiceHeadless(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg)
-	m.Reconcilers = []common.ResourceReconciler{cm, pdb, statefulSet, svc}
+	m.Reconcilers = []common.ResourceReconciler{cm, logging, pdb, statefulSet, svc}
 }
 
 func (m *RoleGroup) MergeGroupConfigSpec() any {
@@ -129,13 +130,13 @@ func (m *RoleGroup) MergeGroupConfigSpec() any {
 }
 
 func (m *RoleGroup) MergeLabels(mergedCfg any) map[string]string {
-	mergedMasterCfg := mergedCfg.(*hdfsv1alpha1.RoleGroupSpec)
+	mergedMasterCfg := mergedCfg.(*hdfsv1alpha1.NameNodeRoleGroupSpec)
 	return m.AppendLabels(mergedMasterCfg.Config.NodeSelector)
 }
 
 // MergeConfig merge the role's config into the role group's config
 func MergeConfig(masterRole *hdfsv1alpha1.NameNodeSpec,
-	group *hdfsv1alpha1.RoleGroupSpec) *hdfsv1alpha1.RoleGroupSpec {
+	group *hdfsv1alpha1.NameNodeRoleGroupSpec) *hdfsv1alpha1.NameNodeRoleGroupSpec {
 	copiedRoleGroup := group.DeepCopy()
 	// Merge the role into the role group.
 	// if the role group has a config, and role group not has a config, will

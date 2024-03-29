@@ -48,6 +48,10 @@ func (f *FormatNameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
 	}
 }
 
+func (f *FormatNameNodeContainerBuilder) ContainerName() string {
+	return string(FormatNameNode)
+}
+
 func (f *FormatNameNodeContainerBuilder) Command() []string {
 	return common.GetCommonCommand()
 }

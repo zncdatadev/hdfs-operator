@@ -43,6 +43,10 @@ func (z *WaitNameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
 	}
 }
 
+func (z *WaitNameNodeContainerBuilder) ContainerName() string {
+	return string(WaitNameNode)
+}
+
 func (z *WaitNameNodeContainerBuilder) Command() []string {
 	return common.GetCommonCommand()
 }

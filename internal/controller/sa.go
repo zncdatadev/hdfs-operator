@@ -11,7 +11,7 @@ import (
 )
 
 type ServiceAccountReconciler struct {
-	common.GeneralResourceStyleReconciler[*hdfsv1alpha1.HdfsCluster, *hdfsv1alpha1.RoleGroupSpec]
+	common.GeneralResourceStyleReconciler[*hdfsv1alpha1.HdfsCluster, any]
 }
 
 // NewServiceAccount new a ServiceAccountReconciler
@@ -21,7 +21,7 @@ func NewServiceAccount(
 	client client.Client,
 	groupName string,
 	mergedLabels map[string]string,
-	mergedCfg *hdfsv1alpha1.RoleGroupSpec,
+	mergedCfg any,
 ) *ServiceAccountReconciler {
 	return &ServiceAccountReconciler{
 		GeneralResourceStyleReconciler: *common.NewGeneraResourceStyleReconciler(

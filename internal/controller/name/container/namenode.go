@@ -24,6 +24,11 @@ func NewNameNodeContainerBuilder(
 	}
 }
 
+// container name
+func (n *NameNodeContainerBuilder) ContainerName() string {
+	return string(NameNode)
+}
+
 func (n *NameNodeContainerBuilder) Command() []string {
 	return common.GetCommonCommand()
 }

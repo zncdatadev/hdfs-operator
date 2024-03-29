@@ -67,6 +67,7 @@ func (c *NameNodeHdfsSiteXmlGenerator) Generate() string {
 		c.makeNameNodeHttp(),
 		c.makeNameNodeRpc(),
 		c.makeNameNodeNameDir(),
+		c.makeJournalNodeDataDir(),
 	)
 }
 
@@ -120,7 +121,8 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeJournalNodeDataDir() string {
 // get journal node replicates
 func (c *NameNodeHdfsSiteXmlGenerator) getJournalNodeReplicates() int32 {
 	cfg := GetMergedRoleGroupCfg(JournalNode, c.InstanceName, c.GroupName)
-	return cfg.Replicas
+	journalCfg := cfg.(*hdfsv1alpha1.JournalNodeRoleGroupSpec)
+	return journalCfg.Replicas
 }
 
 // make name nodes
@@ -218,7 +220,7 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeRpc() string {
 func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeNameDir() string {
 	statefulSetName := CreateNameNodeStatefulSetName(c.InstanceName, c.GroupName)
 	keyTemplate := fmt.Sprintf("dfs.namenode.name.dir.%s.%s-%%d", c.InstanceName, statefulSetName)
-	valueTemplate := fmt.Sprintf("/zncdata/data/namenode")
+	valueTemplate := "/zncdata/data/namenode"
 	return CreateXmlContentByReplicas(c.NameNodeReplicas, keyTemplate, valueTemplate)
 }
 
@@ -285,6 +287,9 @@ const hdfsSiteTemplate = `<?xml version="1.0"?>
   %s	
 
   <!-- name node name dir -->
+  %s
+
+  <!-- journal node dir -->
   %s
 
 </configuration>
@@ -410,3 +415,20 @@ func (c *DataNodeHdfsSiteXmlGenerator) Generate() string {
 	nameNodeSiteXml := c.NameNodeHdfsSiteXmlGenerator.Generate()
 	return util.AppendXmlContent(nameNodeSiteXml, c.DataNodeConfig)
 }
+
+//type HdfsClusterLoggingDataBuilder struct {
+//	cfg     *hdfsv1alpha1.RoleGroupSpec
+//	current string
+//}
+//
+//func (h *HdfsClusterLoggingDataBuilder) MakeContainerLogData() map[string]string {
+//	return map[string]string{
+//		CreateRoleGroupLoggingConfigMapName(): h.MakeContainerLog4jData(),
+//	}
+//}
+//
+//func (h *HdfsClusterLoggingDataBuilder) MakeContainerLog4jData() string {
+//	if h.cfg.Config.Logging != nil {
+//
+//	}
+//}

@@ -13,7 +13,7 @@ import (
 )
 
 type ConfigMapReconciler struct {
-	common.ConfigurationStyleReconciler[*hdfsv1alpha1.HdfsCluster, *hdfsv1alpha1.RoleGroupSpec]
+	common.ConfigurationStyleReconciler[*hdfsv1alpha1.HdfsCluster, *hdfsv1alpha1.NameNodeRoleGroupSpec]
 }
 
 // NewConfigMap new a ConfigMapReconciler
@@ -23,7 +23,7 @@ func NewConfigMap(
 	client client.Client,
 	groupName string,
 	labels map[string]string,
-	mergedCfg *hdfsv1alpha1.RoleGroupSpec,
+	mergedCfg *hdfsv1alpha1.NameNodeRoleGroupSpec,
 ) *ConfigMapReconciler {
 	return &ConfigMapReconciler{
 		ConfigurationStyleReconciler: *common.NewConfigurationStyleReconciler(
