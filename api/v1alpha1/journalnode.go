@@ -61,5 +61,5 @@ type JournalNodeConfigSpec struct {
 }
 type JournalNodeContainerLoggingSpec struct {
 	// +kubebuilder:validation:Optional
-	JournalNode *LoggingConfigSpec `json:"JournalNode,omitempty"`
+	JournalNode *LoggingConfigSpec `json:"journalNode,omitempty"`
 }

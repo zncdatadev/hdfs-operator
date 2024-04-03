@@ -39,12 +39,20 @@ func (c *ClusterReconciler) RegisterRole() {
 	nameNodeRole := name.NewRoleNameNode(c.scheme, c.cr, c.client, c.Log)
 	jounalNodeRole := journal.NewRoleJournalNode(c.scheme, c.cr, c.client, c.Log)
 	dataNodeRole := data.NewRoleDataNode(c.scheme, c.cr, c.client, c.Log)
-	c.roleReconcilers = []common.RoleReconciler{nameNodeRole, jounalNodeRole, dataNodeRole}
+	c.roleReconcilers = []common.RoleReconciler{
+		jounalNodeRole,
+		nameNodeRole,
+		dataNodeRole,
+	}
 }
 
 func (c *ClusterReconciler) RegisterResource() {
-	// no cluster level resource
-	// recover config map should be handled by at last
+	// registry sa resource
+	labels := common.RoleLabels{
+		InstanceName: c.cr.Name,
+	}
+	sa := NewServiceAccount(c.scheme, c.cr, c.client, "", labels.GetLabels(), nil)
+	c.resourceReconcilers = []common.ResourceReconciler{sa}
 }
 
 func (c *ClusterReconciler) ReconcileCluster(ctx context.Context) (ctrl.Result, error) {
@@ -61,7 +69,7 @@ func (c *ClusterReconciler) ReconcileCluster(ctx context.Context) (ctrl.Result, 
 		}
 	}
 
-	// reconcile role
+	//reconcile role
 	for _, r := range c.roleReconcilers {
 		res, err := r.ReconcileRole(ctx)
 		if err != nil {

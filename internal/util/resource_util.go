@@ -20,12 +20,14 @@ var (
 )
 
 func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object) (bool, error) {
+
 	key := client.ObjectKeyFromObject(obj)
 	namespace := obj.GetNamespace()
-
 	kinds, _, _ := scheme.Scheme.ObjectKinds(obj)
-
 	name := obj.GetName()
+
+	logger.V(5).Info("Creating or updating object", "Kind", kinds, "Namespace", namespace, "Name", name)
+
 	current := obj.DeepCopyObject().(client.Object)
 	// Check if the object exists, if not create a new one
 	err := c.Get(ctx, key, current)

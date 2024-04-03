@@ -18,6 +18,10 @@ type StatefulSetReconciler struct {
 	common.WorkloadStyleReconciler[*hdfsv1alpha1.HdfsCluster, *hdfsv1alpha1.NameNodeRoleGroupSpec]
 }
 
+func (s *StatefulSetReconciler) GetConditions() *[]metav1.Condition {
+	return &s.Instance.Status.Conditions
+}
+
 // NewStatefulSetController new a StatefulSetReconciler
 
 func NewStatefulSet(
@@ -50,8 +54,9 @@ func (s *StatefulSetReconciler) Build(ctx context.Context) (client.Object, error
 			Labels:    s.MergedLabels,
 		},
 		Spec: appv1.StatefulSetSpec{
-			Replicas: s.getReplicates(),
-			Selector: &metav1.LabelSelector{MatchLabels: s.MergedLabels},
+			ServiceName: createServiceName(s.Instance.GetName(), s.GroupName),
+			Replicas:    s.getReplicates(),
+			Selector:    &metav1.LabelSelector{MatchLabels: s.MergedLabels},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: s.MergedLabels,
@@ -121,6 +126,8 @@ func (s *StatefulSetReconciler) makeFormatNameNodeContainer() corev1.Container {
 		image.PullPolicy,
 		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
 		s.getZookeeperDiscoveryZNode(),
+		*s.getReplicates(),
+		createStatefulSetName(s.Instance.GetName(), s.GroupName),
 	)
 	return formatNameNode.Build(formatNameNode)
 
@@ -192,6 +199,12 @@ func (s *StatefulSetReconciler) makeVolumes() []corev1.Volume {
 				ConfigMap: s.getNameNodeConfigMapSource(),
 			},
 		},
+		{
+			Name: container.FormatZookeeperLogVolumeName(),
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: s.getNameNodeConfigMapSource(),
+			},
+		},
 	}
 }
 
@@ -210,6 +223,7 @@ func (s *StatefulSetReconciler) createDataPvcTemplate() corev1.PersistentVolumeC
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			VolumeMode:  func() *corev1.PersistentVolumeMode { v := corev1.PersistentVolumeFilesystem; return &v }(),
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceStorage: resource.MustParse("2Gi"),
@@ -232,7 +246,8 @@ func (s *StatefulSetReconciler) createListenPvcTemplate() corev1.PersistentVolum
 			Annotations: common.GetListenerLabels(common.ListenerClass(listenerClass)), // important-1!!!!!
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+			VolumeMode:  func() *corev1.PersistentVolumeMode { v := corev1.PersistentVolumeFilesystem; return &v }(),
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceStorage: resource.MustParse("1Gi"),

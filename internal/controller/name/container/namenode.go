@@ -37,7 +37,7 @@ func (n *NameNodeContainerBuilder) ContainerEnv() []corev1.EnvVar {
 	envs := common.GetCommonContainerEnv(n.zookeeperDiscoveryZNode, NameNode)
 	envs = append(envs, corev1.EnvVar{
 		Name:  "HDFS_NAMENODE_OPTS",
-		Value: "-Djava.security.properties=/znclabs/config/namenode/security.properties -Xmx838860k",
+		Value: "-Djava.security.properties=/stackable/config/namenode/security.properties -Xmx838860k",
 	})
 	return envs
 }
@@ -46,23 +46,23 @@ func (n *NameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      LogVolumeName(),
-			MountPath: "/znclabs/log",
+			MountPath: "/stackable/log",
 		},
 		{
 			Name:      NameNodeConfVolumeName(),
-			MountPath: "/znclabs/mount/config/namenode",
+			MountPath: "/stackable/mount/config/namenode",
 		},
 		{
 			Name:      NameNodeLogVolumeName(),
-			MountPath: "/znclabs/mount/log/namenode",
+			MountPath: "/stackable/mount/log/namenode",
 		},
 		{
 			Name:      ListenerVolumeName(),
-			MountPath: "/znclabs/listener",
+			MountPath: "/stackable/listener",
 		},
 		{
 			Name:      DataVolumeName(),
-			MountPath: "/znclabs/data",
+			MountPath: "/stackable/data",
 		},
 	}
 }
@@ -121,9 +121,9 @@ func (n *NameNodeContainerBuilder) ContainerPorts() []corev1.ContainerPort {
 
 func (n *NameNodeContainerBuilder) CommandArgs() []string {
 	return []string{
-		`mkdir -p /znclabs/config/namenode
-cp /znclabs/mount/config/namenode/*.xml /znclabs/config/namenode
-cp /znclabs/mount/config/namenode/namenode.log4j.properties /znclabs/config/namenode/log4j.properties
+		`mkdir -p /stackable/config/namenode
+cp /stackable/mount/config/namenode/*.xml /stackable/config/namenode
+cp /stackable/mount/config/namenode/namenode.log4j.properties /stackable/config/namenode/log4j.properties
 \
 
 prepare_signal_handlers()
@@ -155,17 +155,17 @@ wait_for_termination()
   set -e
 }
 
-rm -f /znclabs/log/_vector/shutdown
+rm -f /stackable/log/_vector/shutdown
 prepare_signal_handlers
-if [[ -d /znclabs/listener ]]; then
-  export POD_ADDRESS=$(cat /znclabs/listener/default-address/address)
-  for i in /znclabs/listener/default-address/ports/*; do
+if [[ -d /stackable/listener ]]; then
+  export POD_ADDRESS=$(cat /stackable/listener/default-address/address)
+  for i in /stackable/listener/default-address/ports/*; do
 	  export $(basename $i | tr a-z A-Z)_PORT="$(cat $i)"
   done
 fi
-/znclabs/hadoop/bin/hdfs namenode &
+/stackable/hadoop/bin/hdfs namenode &
 wait_for_termination $!
-mkdir -p /znclabs/log/_vector && touch /znclabs/log/_vector/shutdown
+mkdir -p /stackable/log/_vector && touch /stackable/log/_vector/shutdown
 `,
 	}
 }

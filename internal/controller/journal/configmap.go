@@ -39,6 +39,9 @@ func NewConfigMap(
 func (c *ConfigMapReconciler) ConfigurationOverride(resource client.Object) {
 	cm := resource.(*corev1.ConfigMap)
 	overrides := c.MergedCfg.ConfigOverrides
+	if overrides == nil {
+		return
+	}
 	common.OverrideConfigurations(cm, overrides)
 	// only name node log4j,other component log4j not override, I think it is not necessary
 	if override := overrides.Log4j; override != nil {

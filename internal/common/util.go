@@ -136,7 +136,12 @@ func CreateKvContentByReplicas(replicas int32, keyTemplate string, valueTemplate
 	var res [][2]string
 	for i := int32(0); i < replicas; i++ {
 		key := fmt.Sprintf(keyTemplate, i)
-		value := fmt.Sprintf(valueTemplate, i)
+		var value string
+		if strings.Contains(valueTemplate, "%d") {
+			value = fmt.Sprintf(valueTemplate, i)
+		} else {
+			value = valueTemplate
+		}
 		res = append(res, [2]string{key, value})
 	}
 	return res
@@ -148,10 +153,10 @@ const xmlContentTemplate = `  <property>
   </property>\n
 `
 
-func CreateXmlContentByReplicas(replicas int32, keyTemplate string, valueTemplate string) string {
-	var res string
+func CreateXmlContentByReplicas(replicas int32, keyTemplate string, valueTemplate string) []util.XmlNameValuePair {
+	var res []util.XmlNameValuePair
 	for _, kv := range CreateKvContentByReplicas(replicas, keyTemplate, valueTemplate) {
-		res += fmt.Sprintf(xmlContentTemplate, kv[0], kv[1])
+		res = append(res, util.XmlNameValuePair{Name: kv[0], Value: kv[1]})
 	}
 	return res
 }
@@ -175,7 +180,7 @@ func GetCommonContainerEnv(zkDiscoveryZNode string, container ContainerComponent
 	return []corev1.EnvVar{
 		{
 			Name:  "HADOOP_CONF_DIR",
-			Value: "/znclabs/config/" + string(container),
+			Value: "/stackable/config/" + string(container),
 		},
 		{
 			Name:  "HADOOP_HOME",
@@ -216,7 +221,7 @@ func CreateLog4jBuilder(containerLogging *hdfsv1alpha1.LoggingConfigSpec, consol
 	fileAppenderName string) *Log4jLoggingDataBuilder {
 	log4jBuilder := &Log4jLoggingDataBuilder{}
 	if loggers := containerLogging.Loggers; loggers != nil {
-		builderLoggers := make([]LogBuilderLoggers, len(loggers))
+		var builderLoggers []LogBuilderLoggers
 		for logger, level := range loggers {
 			builderLoggers = append(builderLoggers, LogBuilderLoggers{
 				logger: logger,

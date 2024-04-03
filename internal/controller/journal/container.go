@@ -36,7 +36,7 @@ func (d *ContainerBuilder) ContainerEnv() []corev1.EnvVar {
 	envs := common.GetCommonContainerEnv(d.zookeeperDiscoveryZNode, ContainerJournalNode)
 	envs = append(envs, corev1.EnvVar{
 		Name:  "HDFS_DATANODE_OPTS",
-		Value: "-Djava.security.properties=/znclabs/config/journalnode/security.properties -Xmx419430k",
+		Value: "-Djava.security.properties=/stackable/config/journalnode/security.properties -Xmx419430k",
 	})
 	return envs
 }
@@ -45,19 +45,19 @@ func (d *ContainerBuilder) VolumeMount() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      logVolumeName(),
-			MountPath: "/znclabs/log",
+			MountPath: "/stackable/log",
 		},
 		{
 			Name:      journalNodeConfigVolumeName(),
-			MountPath: "/znclabs/mount/config/journalnode",
+			MountPath: "/stackable/mount/config/journalnode",
 		},
 		{
 			Name:      journalNodeLogVolumeName(),
-			MountPath: "/znclabs/mount/log/journalnode",
+			MountPath: "/stackable/mount/log/journalnode",
 		},
 		{
 			Name:      dataVolumeName(),
-			MountPath: "/znclabs/data",
+			MountPath: "/stackable/data",
 		},
 	}
 }
@@ -148,11 +148,12 @@ wait_for_termination() {
 rm -f /stackable/log/_vector/shutdown
 prepare_signal_handlers
 if [[ -d /stackable/listener ]]; then
-	export POD_ADDRESS=$(cat /stackable/listener/default-address/address)
-	for i in /stackable/listener/default-address/ports/*; do
-		export $(basename $i | tr a-z A-Z)_PORT="$(cat $i)"
-	done
+  export POD_ADDRESS=$(cat /stackable/listener/default-address/address)
+  for i in /stackable/listener/default-address/ports/*; do
+	  export $(basename $i | tr a-z A-Z)_PORT="$(cat $i)"
+  done
 fi
+
 /stackable/hadoop/bin/hdfs journalnode &
 wait_for_termination $!
 mkdir -p /stackable/log/_vector && touch /stackable/log/_vector/shutdown

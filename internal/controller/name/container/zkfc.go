@@ -29,9 +29,9 @@ func (z *ZkfcContainerBuilder) ContainerName() string {
 
 // CommandArgs zookeeper fail-over controller command args
 func (z *ZkfcContainerBuilder) CommandArgs() []string {
-	return []string{`mkdir -p /znclabs/config/zkfc
-cp /znclabs/mount/config/zkfc/*.xml /znclabs/config/zkfc
-cp /znclabs/mount/config/zkfc/zkfc.log4j.properties /znclabs/config/zkfc/log4j.properties
+	return []string{`mkdir -p /stackable/config/zkfc
+cp /stackable/mount/config/zkfc/*.xml /stackable/config/zkfc
+cp /stackable/mount/config/zkfc/zkfc.log4j.properties /stackable/config/zkfc/log4j.properties
 /stackable/hadoop/bin/hdfs zkfc
 `,
 	}
@@ -45,15 +45,15 @@ func (z *ZkfcContainerBuilder) VolumeMount() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      LogVolumeName(),
-			MountPath: "/znclabs/log",
+			MountPath: "/stackable/log",
 		},
 		{
 			Name:      ZkfcVolumeName(),
-			MountPath: "/znclabs/mount/config/zkfc",
+			MountPath: "/stackable/mount/config/zkfc",
 		},
 		{
 			Name:      ZkfcLogVolumeName(),
-			MountPath: "/znclabs/mount/log/zkfc",
+			MountPath: "/stackable/mount/log/zkfc",
 		},
 	}
 }

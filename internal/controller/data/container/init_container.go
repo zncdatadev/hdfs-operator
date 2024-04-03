@@ -30,15 +30,15 @@ func (z *WaitNameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      LogVolumeName(),
-			MountPath: "/znclabs/log",
+			MountPath: "/stackable/log",
 		},
 		{
 			Name:      WaitNameNodeConfigVolumeName(),
-			MountPath: "/znclabs/mount/config/wait-for-namenodes",
+			MountPath: "/stackable/mount/config/wait-for-namenodes",
 		},
 		{
 			Name:      WaitNameNodeLogVolumeName(),
-			MountPath: "/znclabs/mount/log/wait-for-namenodes",
+			MountPath: "/stackable/mount/log/wait-for-namenodes",
 		},
 	}
 }
@@ -56,9 +56,11 @@ cp /stackable/mount/config/wait-for-namenodes/*.xml /stackable/config/wait-for-n
 cp /stackable/mount/config/wait-for-namenodes/wait-for-namenodes.log4j.properties /stackable/config/wait-for-namenodes/log4j.properties
 echo "Waiting for namenodes to get ready:"
 n=0
-while [ ${n} -lt 12 ]; do
+while [ ${n} -lt 12 ]; 
+do
 	ALL_NODES_READY=true
-	for namenode_id in simple-hdfs-namenode-default-0 simple-hdfs-namenode-default-1 simple-hdfs-namenode-default-2; do
+	for namenode_id in simple-hdfs-namenode-default-0 simple-hdfs-namenode-default-1 simple-hdfs-namenode-default-2; 
+	do
 		echo -n "Checking pod $namenode_id... "
 		SERVICE_STATE=$(/stackable/hadoop/bin/hdfs haadmin -getServiceState $namenode_id | tail -n1 || true)
 		if [ "$SERVICE_STATE" = "active" ] || [ "$SERVICE_STATE" = "standby" ]; then
@@ -75,6 +77,6 @@ while [ ${n} -lt 12 ]; do
 	echo ""
 	n=$((n + 1))
 	sleep 5
-donee
+done
 `}
 }

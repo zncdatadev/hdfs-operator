@@ -1,14 +1,18 @@
 package container
 
 import (
+	"fmt"
 	"github.com/zncdata-labs/hdfs-operator/internal/common"
 	corev1 "k8s.io/api/core/v1"
+	"strings"
 )
 
 // FormatNameNodeContainerBuilder container builder
 type FormatNameNodeContainerBuilder struct {
 	common.ContainerBuilder
 	zookeeperDiscoveryZNode string
+	nameNodeReplicates      int32
+	statefulSetName         string
 }
 
 func NewFormatNameNodeContainerBuilder(
@@ -16,10 +20,14 @@ func NewFormatNameNodeContainerBuilder(
 	imagePullPolicy corev1.PullPolicy,
 	resource corev1.ResourceRequirements,
 	zookeeperDiscoveryZNode string,
+	nameNodeReplicates int32,
+	statefulSetName string,
 ) *FormatNameNodeContainerBuilder {
 	return &FormatNameNodeContainerBuilder{
 		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, resource),
 		zookeeperDiscoveryZNode: zookeeperDiscoveryZNode,
+		nameNodeReplicates:      nameNodeReplicates,
+		statefulSetName:         statefulSetName,
 	}
 }
 
@@ -31,19 +39,19 @@ func (f *FormatNameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      LogVolumeName(),
-			MountPath: "/znclabs/log",
+			MountPath: "/stackable/log",
 		},
 		{
 			Name:      FormatNameNodeVolumeName(),
-			MountPath: "/znclabs/mount/config/format-namenodes",
+			MountPath: "/stackable/mount/config/format-namenodes",
 		},
 		{
 			Name:      FormatNameNodeLogVolumeName(),
-			MountPath: "/znclabs/mount/log/format-namenodes",
+			MountPath: "/stackable/mount/log/format-namenodes",
 		},
 		{
 			Name:      DataVolumeName(),
-			MountPath: "/znclabs/data",
+			MountPath: "/stackable/data",
 		},
 	}
 }
@@ -56,12 +64,13 @@ func (f *FormatNameNodeContainerBuilder) Command() []string {
 	return common.GetCommonCommand()
 }
 func (f *FormatNameNodeContainerBuilder) CommandArgs() []string {
-	return []string{`mkdir -p /znclabs/config/format-namenodes
-cp /znclabs/mount/config/format-namenodes/*.xml /znclabs/config/format-namenodes
-cp /znclabs/mount/config/format-namenodes/format-namenodes.log4j.properties /znclabs/config/format-namenodes/log4j.properties
+	namenodeIds := strings.Join(f.PodNames(), " ")
+	return []string{`mkdir -p /stackable/config/format-namenodes
+cp /stackable/mount/config/format-namenodes/*.xml /stackable/config/format-namenodes
+cp /stackable/mount/config/format-namenodes/format-namenodes.log4j.properties /stackable/config/format-namenodes/log4j.properties
 echo "Start formatting namenode $POD_NAME. Checking for active namenodes:"
-for namenode_id in simple-hdfs-namenode-default-0 simple-hdfs-namenode-default-1 simple-hdfs-namenode-default-2
-do
+` + fmt.Sprintf("for namenode_id in %s", namenodeIds) + "\n" +
+		`do
 	echo -n "Checking pod $namenode_id... "
 	SERVICE_STATE=$(/stackable/hadoop/bin/hdfs haadmin -getServiceState $namenode_id | tail -n1 || true)
 	if [ "$SERVICE_STATE" == "active" ]
@@ -73,7 +82,7 @@ do
 	echo ""
 done
 
-if [ ! -f "/znclabs/data/namenode/current/VERSION" ]
+if [ ! -f "/stackable/data/namenode/current/VERSION" ]
 then
 	if [ -z ${ACTIVE_NAMENODE+x} ]
 	then
@@ -84,8 +93,12 @@ then
 	  /stackable/hadoop/bin/hdfs namenode -bootstrapStandby -nonInteractive
 	fi
 else
-	cat "/znclabs/data/namenode/current/VERSION"
+	cat "/stackable/data/namenode/current/VERSION"
 	echo "Pod $POD_NAME already formatted. Skipping..."
-  fi
+fi
 `}
+}
+
+func (f *FormatNameNodeContainerBuilder) PodNames() []string {
+	return common.CreatePodNamesByReplicas(f.nameNodeReplicates, f.statefulSetName)
 }

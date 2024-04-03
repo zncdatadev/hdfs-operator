@@ -80,7 +80,7 @@ type HdfsClusterSpec struct {
 	Image *ImageSpec `json:"image,omitempty"`
 
 	// +kubebuilder:validation:Required
-	ClusterConfigSpec *ClusterConfigSpec `json:"clusterConfigSpec,omitempty"`
+	ClusterConfigSpec *ClusterConfigSpec `json:"clusterConfig,omitempty"`
 
 	// roles defined: nameNode, dataNode, journalNode
 	// +kubebuilder:validation:Required

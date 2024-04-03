@@ -8,6 +8,11 @@ import (
 	"strings"
 )
 
+type NameValuePair struct {
+	Name  string
+	Value string
+}
+
 // MakeConfigFileContent returns the content of a configuration file
 // content such as:
 // ```
@@ -54,7 +59,7 @@ func OverrideConfigFileContent(current string, override string) string {
 
 // OverridePropertiesFileContent use bufio resolve properties
 func OverridePropertiesFileContent(current string, override map[string]string) (string, error) {
-	properties := make(map[string]string)
+	var properties []NameValuePair
 	//scan current
 	if err := ScanProperties(current, &properties); err != nil {
 		logger.Error(err, "failed to scan current properties")
@@ -65,13 +70,13 @@ func OverridePropertiesFileContent(current string, override map[string]string) (
 
 	// to string
 	var res string
-	for k, v := range properties {
-		res += fmt.Sprintf("%s=%s\n", k, v)
+	for _, v := range properties {
+		res += fmt.Sprintf("%s=%s\n", v.Name, v.Value)
 	}
 	return res, nil
 }
 
-func ScanProperties(current string, properties *map[string]string) error {
+func ScanProperties(current string, properties *[]NameValuePair) error {
 	scanner := bufio.NewScanner(strings.NewReader(current))
 
 	for scanner.Scan() {
@@ -82,18 +87,15 @@ func ScanProperties(current string, properties *map[string]string) error {
 
 		items := strings.Split(line, "=")
 		if len(items) == 2 {
-			(*properties)[items[0]] = items[1]
+			*properties = append(*properties, NameValuePair{
+				Name:  items[0],
+				Value: items[1],
+			})
 		} else {
 			return fmt.Errorf("invalid property line: %s", line)
 		}
 	}
 	return scanner.Err()
-}
-
-func OverrideProperties(override map[string]string, res *map[string]string) {
-	for k, v := range override {
-		(*res)[k] = v
-	}
 }
 
 // AppendXmlContent overrides the content of a xml file
@@ -123,4 +125,14 @@ func AppendXmlContent(current string, overrideProperties map[string]string) stri
 		logger.Error(err, "failed to encode xml")
 	}
 	return b.String()
+}
+
+func OverrideProperties(override map[string]string, current *[]NameValuePair) {
+	for _, v := range *current {
+		if value, ok := override[v.Name]; ok {
+			v.Value = value
+		} else {
+			*current = append(*current, v)
+		}
+	}
 }
