@@ -10,10 +10,21 @@ import (
 )
 
 func OverrideEnvVars(origin *[]corev1.EnvVar, override map[string]string) {
-	for _, env := range *origin {
+	var originVars = make(map[string]int)
+	for i, env := range *origin {
+		originVars[env.Name] = i
+	}
+
+	for k, v := range override {
 		// if env Name is in override, then override it
-		if value, ok := override[env.Name]; ok {
-			env.Value = value
+		if idx, ok := originVars[k]; ok {
+			(*origin)[idx].Value = v
+		} else {
+			// if override's key is new, then append it
+			*origin = append(*origin, corev1.EnvVar{
+				Name:  k,
+				Value: v,
+			})
 		}
 	}
 }
@@ -146,12 +157,6 @@ func CreateKvContentByReplicas(replicas int32, keyTemplate string, valueTemplate
 	}
 	return res
 }
-
-const xmlContentTemplate = `  <property>
-	<name>%s</name>
-	<value>%s</value>
-  </property>\n
-`
 
 func CreateXmlContentByReplicas(replicas int32, keyTemplate string, valueTemplate string) []util.XmlNameValuePair {
 	var res []util.XmlNameValuePair

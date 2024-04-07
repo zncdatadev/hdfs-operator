@@ -1,7 +1,6 @@
 package journal
 
 import (
-	"context"
 	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
 	"github.com/zncdata-labs/hdfs-operator/internal/common"
 	corev1 "k8s.io/api/core/v1"
@@ -16,15 +15,13 @@ func NewJournalNodeLogging(
 	groupName string,
 	mergedLabels map[string]string,
 	mergedCfg *hdfsv1alpha1.JournalNodeRoleGroupSpec,
-	role common.Role,
-) *common.LoggingRecociler[*hdfsv1alpha1.HdfsCluster, any] {
-	currrent, _ := NewConfigMap(scheme, instance, client, groupName, mergedLabels, mergedCfg).Build(context.TODO())
-	currrentConfigMap := currrent.(*corev1.ConfigMap)
+	currentConfigMap *corev1.ConfigMap,
+) *common.OverrideExistLoggingRecociler[*hdfsv1alpha1.HdfsCluster, any] {
 	logDataBuilder := LogDataBuilder{
 		cfg:              mergedCfg,
-		currentConfigMap: currrentConfigMap,
+		currentConfigMap: currentConfigMap,
 	}
-	return common.NewLoggingReconciler[*hdfsv1alpha1.HdfsCluster](
+	return common.NewOverrideExistLoggingRecociler[*hdfsv1alpha1.HdfsCluster](
 		scheme,
 		instance,
 		client,
@@ -32,9 +29,6 @@ func NewJournalNodeLogging(
 		mergedLabels,
 		mergedCfg,
 		&logDataBuilder,
-		role,
-		createConfigName(instance.GetName(), groupName),
-		currrentConfigMap,
 	)
 }
 

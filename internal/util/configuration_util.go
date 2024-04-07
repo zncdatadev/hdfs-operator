@@ -128,11 +128,23 @@ func AppendXmlContent(current string, overrideProperties map[string]string) stri
 }
 
 func OverrideProperties(override map[string]string, current *[]NameValuePair) {
-	for _, v := range *current {
-		if value, ok := override[v.Name]; ok {
-			v.Value = value
+	if len(override) == 0 {
+		return
+	}
+	var currentKeys = make(map[string]int)
+	for i, v := range *current {
+		currentKeys[v.Name] = i
+	}
+
+	for k, v := range override {
+		if _, ok := currentKeys[k]; ok {
+			(*current)[currentKeys[k]].Value = v // override
 		} else {
-			*current = append(*current, v)
+			// append new
+			*current = append(*current, NameValuePair{
+				Name:  k,
+				Value: v,
+			})
 		}
 	}
 }

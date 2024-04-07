@@ -70,18 +70,34 @@ func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) 
 	}, nil
 }
 func (s *StatefulSetReconciler) CommandOverride(resource client.Object) {
-	//TODO implement me
-	//panic("implement me")
+	dep := resource.(*appv1.StatefulSet)
+	containers := dep.Spec.Template.Spec.Containers
+	if cmdOverride := s.MergedCfg.CommandArgsOverrides; cmdOverride != nil {
+		for i := range containers {
+			if containers[i].Name == string(ContainerJournalNode) {
+				containers[i].Command = cmdOverride
+				break
+			}
+		}
+	}
 }
 
 func (s *StatefulSetReconciler) EnvOverride(resource client.Object) {
-	//TODO implement me
-	//panic("implement me")
-}
+	dep := resource.(*appv1.StatefulSet)
+	containers := dep.Spec.Template.Spec.Containers
+	if envOverride := s.MergedCfg.EnvOverrides; envOverride != nil {
+		for i := range containers {
+			if containers[i].Name == string(ContainerJournalNode) {
+				envVars := containers[i].Env
+				common.OverrideEnvVars(&envVars, s.MergedCfg.EnvOverrides)
+				break
+			}
 
-func (s *StatefulSetReconciler) LogOverride(resource client.Object) {
-	//TODO implement me
-	//panic("implement me")
+		}
+	}
+}
+func (s *StatefulSetReconciler) LogOverride(_ client.Object) {
+	// do nothing, see name node
 }
 
 // make name node container

@@ -39,18 +39,17 @@ func NewConfigMap(
 func (c *ConfigMapReconciler) ConfigurationOverride(resource client.Object) {
 	cm := resource.(*corev1.ConfigMap)
 	overrides := c.MergedCfg.ConfigOverrides
-	if overrides == nil {
-		return
+	if overrides != nil {
+		common.OverrideConfigurations(cm, overrides)
+		// only name node log4j,other component log4j not override, I think it is not necessary
+		if override := overrides.Log4j; override != nil {
+			origin := cm.Data[common.CreateComponentLog4jPropertiesName(container.DataNode)]
+			overrideContent := util.MakePropertiesFileContent(override)
+			cm.Data[common.CreateComponentLog4jPropertiesName(container.DataNode)] = util.OverrideConfigFileContent(origin,
+				overrideContent)
+		}
 	}
-	common.OverrideConfigurations(cm, overrides)
-	// only name node log4j,other component log4j not override, I think it is not necessary
-	if override := overrides.Log4j; override != nil {
-		origin := cm.Data[common.CreateComponentLog4jPropertiesName(container.DataNode)]
-		overrideContent := util.MakePropertiesFileContent(override)
-		cm.Data[common.CreateComponentLog4jPropertiesName(container.DataNode)] = util.OverrideConfigFileContent(origin,
-			overrideContent)
-	}
-
+	c.LoggingOverride(cm)
 }
 
 func (c *ConfigMapReconciler) Build(_ context.Context) (client.Object, error) {
@@ -99,4 +98,8 @@ func (c *ConfigMapReconciler) dataNodeConfig() map[string]string {
 	return map[string]string{
 		"dfs.datanode.data.dir": "[DISK]/stackable/data/data/datanode",
 	}
+}
+func (c *ConfigMapReconciler) LoggingOverride(current *corev1.ConfigMap) {
+	logging := NewDataNodeLogging(c.Scheme, c.Instance, c.Client, c.GroupName, c.MergedLabels, c.MergedCfg, current)
+	logging.OverrideExist(current)
 }
