@@ -71,30 +71,30 @@ cp /stackable/mount/config/format-namenodes/format-namenodes.log4j.properties /s
 echo "Start formatting namenode $POD_NAME. Checking for active namenodes:"
 ` + fmt.Sprintf("for namenode_id in %s", namenodeIds) + "\n" +
 		`do
-	echo -n "Checking pod $namenode_id... "
-	SERVICE_STATE=$(/stackable/hadoop/bin/hdfs haadmin -getServiceState $namenode_id | tail -n1 || true)
-	if [ "$SERVICE_STATE" == "active" ]
-	then
-		ACTIVE_NAMENODE=$namenode_id
-	  	echo "active"
-	  	break
-	fi
-	echo ""
+    echo -n "Checking pod $namenode_id... "
+    SERVICE_STATE=$(/stackable/hadoop/bin/hdfs haadmin -getServiceState $namenode_id | tail -n1 || true)
+    if [ "$SERVICE_STATE" == "active" ]
+    then
+        ACTIVE_NAMENODE=$namenode_id
+        echo "active"
+        break
+    fi
+    echo ""
 done
 
 if [ ! -f "/stackable/data/namenode/current/VERSION" ]
 then
-	if [ -z ${ACTIVE_NAMENODE+x} ]
-	then
-	  echo "Create pod $POD_NAME as active namenode."
-	  /stackable/hadoop/bin/hdfs namenode -format -noninteractive
-	else
-	  echo "Create pod $POD_NAME as standby namenode."
-	  /stackable/hadoop/bin/hdfs namenode -bootstrapStandby -nonInteractive
-	fi
+    if [ -z ${ACTIVE_NAMENODE+x} ]
+    then
+        echo "Create pod $POD_NAME as active namenode."
+        /stackable/hadoop/bin/hdfs namenode -format -noninteractive
+    else
+        echo "Create pod $POD_NAME as standby namenode."
+        /stackable/hadoop/bin/hdfs namenode -bootstrapStandby -nonInteractive
+    fi
 else
-	cat "/stackable/data/namenode/current/VERSION"
-	echo "Pod $POD_NAME already formatted. Skipping..."
+    cat "/stackable/data/namenode/current/VERSION"
+    echo "Pod $POD_NAME already formatted. Skipping..."
 fi
 `}
 }

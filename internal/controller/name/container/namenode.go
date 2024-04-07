@@ -136,9 +136,9 @@ prepare_signal_handlers()
 handle_term_signal()
 {
   if [ "${term_child_pid}" ]; then
-	  kill -TERM "${term_child_pid}" 2>/dev/null
+      kill -TERM "${term_child_pid}" 2>/dev/null
   else
-	  term_kill_needed="yes"
+      term_kill_needed="yes"
   fi
 }
 
@@ -147,7 +147,7 @@ wait_for_termination()
   set +e
   term_child_pid=$1
   if [[ -v term_kill_needed ]]; then
-	  kill -TERM "${term_child_pid}" 2>/dev/null
+      kill -TERM "${term_child_pid}" 2>/dev/null
   fi
   wait ${term_child_pid} 2>/dev/null
   trap - TERM
@@ -158,10 +158,10 @@ wait_for_termination()
 rm -f /stackable/log/_vector/shutdown
 prepare_signal_handlers
 if [[ -d /stackable/listener ]]; then
-  export POD_ADDRESS=$(cat /stackable/listener/default-address/address)
-  for i in /stackable/listener/default-address/ports/*; do
-	  export $(basename $i | tr a-z A-Z)_PORT="$(cat $i)"
-  done
+    export POD_ADDRESS=$(cat /stackable/listener/default-address/address)
+    for i in /stackable/listener/default-address/ports/*; do
+        export $(basename $i | tr a-z A-Z)_PORT="$(cat $i)"
+    done
 fi
 /stackable/hadoop/bin/hdfs namenode &
 wait_for_termination $!

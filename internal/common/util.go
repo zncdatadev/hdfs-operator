@@ -245,3 +245,11 @@ func CreateLog4jBuilder(containerLogging *hdfsv1alpha1.LoggingConfigSpec, consol
 
 	return log4jBuilder
 }
+
+func NameNodePodNames(instanceName string, groupName string) []string {
+	nameNodeStatefulSetName := CreateNameNodeStatefulSetName(instanceName, groupName)
+	nameNodeCfg := GetMergedRoleGroupCfg(NameNode, instanceName, groupName).(*hdfsv1alpha1.NameNodeRoleGroupSpec)
+	naneNodeReplicas := nameNodeCfg.Replicas
+	pods := CreatePodNamesByReplicas(naneNodeReplicas, nameNodeStatefulSetName)
+	return pods
+}

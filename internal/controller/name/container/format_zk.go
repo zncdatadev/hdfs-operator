@@ -57,21 +57,21 @@ cp /stackable/mount/config/format-zookeeper/*.xml /stackable/config/format-zooke
 cp /stackable/mount/config/format-zookeeper/format-zookeeper.log4j.properties /stackable/config/format-zookeeper/log4j.properties
 echo "Attempt to format ZooKeeper..."
 if [[ "0" -eq "$(echo $POD_NAME | sed -e 's/.*-//')" ]] ; then
-	set +e
-	/stackable/hadoop/bin/hdfs zkfc -formatZK -nonInteractive
-	EXITCODE=$?
-	set -e
-	if [[ $EXITCODE -eq 0 ]]; then
-		echo "Successfully formatted"
-	elif [[ $EXITCODE -eq 2 ]]; then
-		echo "ZNode already existed, did nothing"
-	else
-		echo "Zookeeper format failed with exit code $EXITCODE"
-		exit $EXITCODE
-	fi
+    set +e
+    /stackable/hadoop/bin/hdfs zkfc -formatZK -nonInteractive
+    EXITCODE=$?
+    set -e
+    if [[ $EXITCODE -eq 0 ]]; then
+        echo "Successfully formatted"
+    elif [[ $EXITCODE -eq 2 ]]; then
+        echo "ZNode already existed, did nothing"
+    else
+        echo "Zookeeper format failed with exit code $EXITCODE"
+        exit $EXITCODE
+    fi
 
 else
-	echo "ZooKeeper already formatted!"
+    echo "ZooKeeper already formatted!"
 fi
 `}
 }

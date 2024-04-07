@@ -107,6 +107,8 @@ func (s *StatefulSetReconciler) makeWaitNameNodeContainer() corev1.Container {
 		image.PullPolicy,
 		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
 		s.getZookeeperDiscoveryZNode(),
+		s.Instance.GetName(),
+		s.GroupName,
 	)
 	return initContainer.Build(initContainer)
 }

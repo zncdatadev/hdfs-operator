@@ -132,31 +132,31 @@ cp /stackable/mount/config/datanode/datanode.log4j.properties /stackable/config/
 
 prepare_signal_handlers()
 {
-	unset term_child_pid
-	unset term_kill_needed
-	trap 'handle_term_signal' TERM
+    unset term_child_pid
+    unset term_kill_needed
+    trap 'handle_term_signal' TERM
 }
 
 handle_term_signal()
 {
-	if [ "${term_child_pid}" ]; then
-		kill -TERM "${term_child_pid}" 2>/dev/null
-	else
-		term_kill_needed="yes"
-	fi
+    if [ "${term_child_pid}" ]; then
+        kill -TERM "${term_child_pid}" 2>/dev/null
+    else
+        term_kill_needed="yes"
+    fi
 }
 
 wait_for_termination()
 {
-	set +e
-	term_child_pid=$1
-	if [[ -v term_kill_needed ]]; then
-		kill -TERM "${term_child_pid}" 2>/dev/null
-	fi
-	wait ${term_child_pid} 2>/dev/null
-	trap - TERM
-	wait ${term_child_pid} 2>/dev/null
-	set -e
+    set +e
+    term_child_pid=$1
+    if [[ -v term_kill_needed ]]; then
+        kill -TERM "${term_child_pid}" 2>/dev/null
+    fi
+    wait ${term_child_pid} 2>/dev/null
+    trap - TERM
+    wait ${term_child_pid} 2>/dev/null
+    set -e
 }
 
 rm -f /stackable/log/_vector/shutdown
@@ -164,7 +164,7 @@ prepare_signal_handlers
 if [[ -d /stackable/listener ]]; then
   export POD_ADDRESS=$(cat /stackable/listener/default-address/address)
   for i in /stackable/listener/default-address/ports/*; do
-	  export $(basename $i | tr a-z A-Z)_PORT="$(cat $i)"
+      export $(basename $i | tr a-z A-Z)_PORT="$(cat $i)"
   done
 fi
 /stackable/hadoop/bin/hdfs datanode &

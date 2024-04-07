@@ -9,10 +9,6 @@ func createConfigName(instanceName string, groupName string) string {
 	return util.NewResourceNameGenerator(instanceName, string(common.NameNode), groupName).GenerateResourceName("")
 }
 
-func createStatefulSetName(instanceName string, groupName string) string {
-	return util.NewResourceNameGenerator(instanceName, string(common.NameNode), groupName).GenerateResourceName("")
-}
-
 func createServiceName(instanceName string, groupName string) string {
 	return util.NewResourceNameGenerator(instanceName, string(common.NameNode), groupName).GenerateResourceName("")
 }

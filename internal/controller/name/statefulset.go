@@ -46,10 +46,10 @@ func NewStatefulSet(
 	}
 }
 
-func (s *StatefulSetReconciler) Build(ctx context.Context) (client.Object, error) {
+func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) {
 	return &appv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      createStatefulSetName(s.Instance.GetName(), s.GroupName),
+			Name:      common.CreateNameNodeStatefulSetName(s.Instance.GetName(), s.GroupName),
 			Namespace: s.Instance.GetNamespace(),
 			Labels:    s.MergedLabels,
 		},
@@ -127,7 +127,7 @@ func (s *StatefulSetReconciler) makeFormatNameNodeContainer() corev1.Container {
 		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
 		s.getZookeeperDiscoveryZNode(),
 		*s.getReplicates(),
-		createStatefulSetName(s.Instance.GetName(), s.GroupName),
+		common.CreateNameNodeStatefulSetName(s.Instance.GetName(), s.GroupName),
 	)
 	return formatNameNode.Build(formatNameNode)
 

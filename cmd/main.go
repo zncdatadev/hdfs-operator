@@ -34,6 +34,7 @@ import (
 
 	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
 	"github.com/zncdata-labs/hdfs-operator/internal/controller"
+	listenerv1alpha1 "github.com/zncdata-labs/listener-operator/api/v1alpha1"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -46,6 +47,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(hdfsv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(listenerv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
