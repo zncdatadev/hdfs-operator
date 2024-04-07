@@ -39,15 +39,17 @@ func NewConfigMap(
 func (c *ConfigMapReconciler) ConfigurationOverride(resource client.Object) {
 	cm := resource.(*corev1.ConfigMap)
 	overrides := c.MergedCfg.ConfigOverrides
-	common.OverrideConfigurations(cm, overrides)
-	// only name node log4j,other component log4j not override, I think it is not necessary
-	if override := overrides.Log4j; override != nil {
-		origin := cm.Data[common.CreateComponentLog4jPropertiesName(container.DataNode)]
-		overrideContent := util.MakePropertiesFileContent(override)
-		cm.Data[common.CreateComponentLog4jPropertiesName(container.DataNode)] = util.OverrideConfigFileContent(origin,
-			overrideContent)
+	if overrides != nil {
+		common.OverrideConfigurations(cm, overrides)
+		// only name node log4j,other component log4j not override, I think it is not necessary
+		if override := overrides.Log4j; override != nil {
+			origin := cm.Data[common.CreateComponentLog4jPropertiesName(container.DataNode)]
+			overrideContent := util.MakePropertiesFileContent(override)
+			cm.Data[common.CreateComponentLog4jPropertiesName(container.DataNode)] = util.OverrideConfigFileContent(origin,
+				overrideContent)
+		}
 	}
-
+	c.LoggingOverride(cm)
 }
 
 func (c *ConfigMapReconciler) Build(_ context.Context) (client.Object, error) {
@@ -89,4 +91,8 @@ func (c *ConfigMapReconciler) getNameNodeReplicas() int32 {
 	cfg := common.GetMergedRoleGroupCfg(common.NameNode, c.Instance.GetName(), c.GroupName)
 	nameNodeCfg := cfg.(*hdfsv1alpha1.NameNodeRoleGroupSpec)
 	return nameNodeCfg.Replicas
+}
+func (c *ConfigMapReconciler) LoggingOverride(current *corev1.ConfigMap) {
+	logging := NewJournalNodeLogging(c.Scheme, c.Instance, c.Client, c.GroupName, c.MergedLabels, c.MergedCfg, current)
+	logging.OverrideExist(current)
 }

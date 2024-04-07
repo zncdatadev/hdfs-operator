@@ -34,7 +34,7 @@ spec:
           spec:
             description: HdfsClusterSpec defines the desired state of HdfsCluster
             properties:
-              clusterConfigSpec:
+              clusterConfig:
                 properties:
                   clusterDomain:
                     default: cluster.local
@@ -4446,7 +4446,7 @@ spec:
                         type: string
                       logging:
                         properties:
-                          JournalNode:
+                          journalNode:
                             properties:
                               console:
                                 description: LogLevelSpec level mapping example |---------------------|-----------------|
@@ -6048,7 +6048,7 @@ spec:
                               type: string
                             logging:
                               properties:
-                                JournalNode:
+                                journalNode:
                                   properties:
                                     console:
                                       description: LogLevelSpec level mapping example

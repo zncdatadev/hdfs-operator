@@ -55,7 +55,7 @@ func (r *Role) ReconcileRole(ctx context.Context) (ctrl.Result, error) {
 	roleCfg := r.Instance.Spec.JournalNode
 	// role pdb
 	if roleCfg.Config != nil && roleCfg.Config.PodDisruptionBudget != nil {
-		pdb := common.NewReconcilePDB(r.Client, r.Scheme, r.Instance, r.Labels, string(r.RoleName()),
+		pdb := common.NewReconcilePDB(r.Client, r.Scheme, r.Instance, r.GetLabels(), string(r.RoleName()),
 			roleCfg.PodDisruptionBudget)
 		res, err := pdb.ReconcileResource(ctx, common.NewSingleResourceBuilder(pdb))
 		if err != nil {
@@ -67,7 +67,7 @@ func (r *Role) ReconcileRole(ctx context.Context) (ctrl.Result, error) {
 	}
 	// reconciler groups
 	for name := range roleCfg.RoleGroups {
-		groupReconciler := NewRoleGroupReconciler(r.Scheme, r.Instance, r.Client, name, r.Labels, r.Log)
+		groupReconciler := NewRoleGroupReconciler(r.Scheme, r.Instance, r.Client, name, r.GetLabels(), r.Log)
 		res, err := groupReconciler.ReconcileGroup(ctx)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -114,10 +114,10 @@ func (m *RoleGroup) RegisterResource() {
 
 	pdb := common.NewReconcilePDB(m.Client, m.Scheme, m.Instance, lables, m.GroupName, pdbSpec)
 	cm := NewConfigMap(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg)
-	logging := NewJournalNodeLogging(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, common.JournalNode)
+	//logging := NewJournalNodeLogging(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, common.JournalNode)
 	statefulSet := NewStatefulSet(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, mergedCfg.Replicas)
 	svc := NewServiceHeadless(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg)
-	m.Reconcilers = []common.ResourceReconciler{cm, logging, pdb, statefulSet, svc}
+	m.Reconcilers = []common.ResourceReconciler{cm /* logging,*/, pdb, svc, statefulSet}
 }
 
 func (m *RoleGroup) MergeGroupConfigSpec() any {

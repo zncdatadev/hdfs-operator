@@ -48,13 +48,15 @@ func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) 
 			Labels:    s.MergedLabels,
 		},
 		Spec: appv1.StatefulSetSpec{
-			Replicas: s.getReplicates(),
-			Selector: &metav1.LabelSelector{MatchLabels: s.MergedLabels},
+			ServiceName: createServiceName(s.Instance.GetName(), s.GroupName),
+			Replicas:    s.getReplicates(),
+			Selector:    &metav1.LabelSelector{MatchLabels: s.MergedLabels},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: s.MergedLabels,
 				},
 				Spec: corev1.PodSpec{
+
 					ServiceAccountName: common.CreateServiceAccountName(s.Instance.GetName()),
 					SecurityContext:    s.MergedCfg.Config.SecurityContext,
 					Containers: []corev1.Container{
@@ -71,18 +73,35 @@ func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) 
 	}, nil
 }
 func (s *StatefulSetReconciler) CommandOverride(resource client.Object) {
-	//TODO implement me
-	//panic("implement me")
+	dep := resource.(*appv1.StatefulSet)
+	containers := dep.Spec.Template.Spec.Containers
+	if cmdOverride := s.MergedCfg.CommandArgsOverrides; cmdOverride != nil {
+		for i := range containers {
+			if containers[i].Name == string(container.DataNode) {
+				containers[i].Command = cmdOverride
+				break
+			}
+		}
+	}
 }
 
 func (s *StatefulSetReconciler) EnvOverride(resource client.Object) {
-	//TODO implement me
-	//panic("implement me")
+	dep := resource.(*appv1.StatefulSet)
+	containers := dep.Spec.Template.Spec.Containers
+	if envOverride := s.MergedCfg.EnvOverrides; envOverride != nil {
+		for i := range containers {
+			if containers[i].Name == string(container.DataNode) {
+				envVars := containers[i].Env
+				common.OverrideEnvVars(&envVars, s.MergedCfg.EnvOverrides)
+				break
+			}
+
+		}
+	}
 }
 
-func (s *StatefulSetReconciler) LogOverride(resource client.Object) {
-	//TODO implement me
-	//panic("implement me")
+func (s *StatefulSetReconciler) LogOverride(_ client.Object) {
+	// do nothing, see name node
 }
 
 // make name node container
@@ -100,11 +119,13 @@ func (s *StatefulSetReconciler) makeDataNodeContainer() corev1.Container {
 // make format name node container
 func (s *StatefulSetReconciler) makeWaitNameNodeContainer() corev1.Container {
 	image := s.getImageSpec()
-	initContainer := container.NewDataNodeContainerBuilder(
+	initContainer := container.NewWaitNameNodeContainerBuilder(
 		util.ImageRepository(image.Repository, image.Tag),
 		image.PullPolicy,
 		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
 		s.getZookeeperDiscoveryZNode(),
+		s.Instance.GetName(),
+		s.GroupName,
 	)
 	return initContainer.Build(initContainer)
 }
@@ -170,6 +191,7 @@ func (s *StatefulSetReconciler) createDataPvcTemplate() corev1.PersistentVolumeC
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			VolumeMode:  func() *corev1.PersistentVolumeMode { v := corev1.PersistentVolumeFilesystem; return &v }(),
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceStorage: resource.MustParse("2Gi"),
@@ -219,4 +241,7 @@ func (s *StatefulSetReconciler) getConfigMapSource() *corev1.ConfigMapVolumeSour
 // get zookeeper discovery znode
 func (s *StatefulSetReconciler) getZookeeperDiscoveryZNode() string {
 	return s.Instance.Spec.ClusterConfigSpec.ZookeeperDiscoveryZNode
+}
+func (s *StatefulSetReconciler) GetConditions() *[]metav1.Condition {
+	return &s.Instance.Status.Conditions
 }

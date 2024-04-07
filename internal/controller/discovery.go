@@ -105,7 +105,7 @@ func (d *Discovery) getPodNames(nameNodeGroups map[string]*hdfsv1alpha1.NameNode
 	var podNames []string
 	for groupName := range nameNodeGroups {
 		cacheKey := common.CreateRoleCfgCacheKey(d.Instance.Name, common.NameNode, groupName)
-		nameNodeStatefulSetName := common.CreateNameNodeStatefulSetName(d.Instance.Name, d.GroupName)
+		nameNodeStatefulSetName := common.CreateNameNodeStatefulSetName(d.Instance.Name, groupName)
 		if cfg, ok := common.MergedCache.Get(cacheKey); ok {
 			roleGroupCfg := cfg.(*hdfsv1alpha1.NameNodeRoleGroupSpec)
 			replicates := roleGroupCfg.Replicas
@@ -123,8 +123,6 @@ func (d *Discovery) makeDiscoveryHosts(podNames []string) util.XmlNameValuePair 
 		Value: strings.Join(podNames, ", "),
 	}
 }
-
-const ListenerPrefix = "listener"
 
 // create http and rpc address
 // http key pattern: "dfs.namenode.http-address.{hdfs_instance_name}.{podName}"
@@ -147,35 +145,49 @@ func (d *Discovery) createPortNameAddress(
 	ctx context.Context,
 	podNames []string,
 	portName string,
-	cache *map[string]*listenerv1alpha1.IngressAddressSpec) []util.XmlNameValuePair {
+	cache *map[string]*listenerv1alpha1.IngressAddressSpec) ([]util.XmlNameValuePair, error) {
 	var connections []util.XmlNameValuePair
 	for _, podName := range podNames {
-		var name string
-		var value string
-		name = fmt.Sprintf("dfs.namenode.%s-address.%s.%s", portName, d.Instance.GetName(), podName)
-		address := d.getListenerAddress(cache, ctx, podName)
+		var address *listenerv1alpha1.IngressAddressSpec
+		var err error
+		if address, err = d.getListenerAddress(cache, ctx, podName); err != nil {
+			return nil, err
+		}
 		port, err := d.getPort(address, portName)
 		if err != nil {
 			discoveryLog.Error(err, "failed to get port from address by port name", "address",
 				address, "portName", portName)
+			return nil, err
 		}
-		value = fmt.Sprintf("%s:%d", address.Address, port)
+
+		name := fmt.Sprintf("dfs.namenode.%s-address.%s.%s", portName, d.Instance.GetName(), podName)
+		value := fmt.Sprintf("%s:%d", address.Address, port)
 		connections = append(connections, util.XmlNameValuePair{Name: name, Value: value})
 	}
-	return connections
+	return connections, nil
 }
 
 // create discovery connections
 func (d *Discovery) createConnections(ctx context.Context, podNames []string) []util.XmlNameValuePair {
 	cache := make(map[string]*listenerv1alpha1.IngressAddressSpec)
-	// create http address
-	httpConnections := d.createPortNameAddress(ctx, podNames, hdfsv1alpha1.HttpName, &cache)
-	// create rpc address
-	rpcConnections := d.createPortNameAddress(ctx, podNames, hdfsv1alpha1.RpcName, &cache)
-
+	var httpConnections, rpcConnections []util.XmlNameValuePair
+	var err error
 	var connections []util.XmlNameValuePair
-	connections = append(connections, httpConnections...)
-	connections = append(connections, rpcConnections...)
+	// create http address
+	httpConnections, err = d.createPortNameAddress(ctx, podNames, hdfsv1alpha1.HttpName, &cache)
+	if err != nil {
+		discoveryLog.Error(err, "failed to create http connections")
+	} else {
+		connections = append(connections, httpConnections...)
+	}
+
+	// create rpc address
+	rpcConnections, err = d.createPortNameAddress(ctx, podNames, hdfsv1alpha1.RpcName, &cache)
+	if err != nil {
+		discoveryLog.Error(err, "failed to create rpc connections")
+	} else {
+		connections = append(connections, rpcConnections...)
+	}
 	return connections
 }
 
@@ -191,11 +203,11 @@ func (d *Discovery) getPort(address *listenerv1alpha1.IngressAddressSpec, portNa
 func (d *Discovery) getListenerAddress(
 	cache *map[string]*listenerv1alpha1.IngressAddressSpec,
 	ctx context.Context,
-	podName string) *listenerv1alpha1.IngressAddressSpec {
-	cacheKey := fmt.Sprintf("%s-%s", ListenerPrefix, podName)
+	podName string) (*listenerv1alpha1.IngressAddressSpec, error) {
+	cacheKey := podName
 	cacheObj := *cache
 	if address, ok := cacheObj[cacheKey]; ok {
-		return address
+		return address, nil
 	}
 
 	// get listener
@@ -208,9 +220,10 @@ func (d *Discovery) getListenerAddress(
 	resourceClient := common.NewResourceClient(ctx, d.Client, d.Instance.Namespace)
 	err := resourceClient.Get(listener)
 	if err != nil {
-		panic(err)
+		discoveryLog.Error(err, "failed to get listener", "cacheKey", cacheKey)
+		return nil, err
 	}
 	address := &listener.Status.IngressAddress[0]
 	cacheObj[cacheKey] = address
-	return address
+	return address, nil
 }

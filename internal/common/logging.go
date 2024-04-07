@@ -14,6 +14,10 @@ type RoleLoggingDataBuilder interface {
 	MakeContainerLogData() map[string]string
 }
 
+type OverrideExistLogging interface {
+	OverrideExist(exist *corev1.ConfigMap)
+}
+
 type BaseRoleLoggingDataBuilder struct {
 	Role Role
 }
@@ -25,11 +29,10 @@ func (b *BaseRoleLoggingDataBuilder) MakeContainerLogData() map[string]string {
 
 type LoggingRecociler[T client.Object, G any] struct {
 	GeneralResourceStyleReconciler[T, G]
-	RoleLoggingDataBuilder  RoleLoggingDataBuilder
-	role                    Role
-	InstanceGetter          InstanceAttributes
-	ConfigmapName           string
-	CurrentLoggingConfigmap *corev1.ConfigMap
+	RoleLoggingDataBuilder RoleLoggingDataBuilder
+	role                   Role
+	InstanceGetter         InstanceAttributes
+	ConfigmapName          string
 }
 
 // NewLoggingReconciler new logging reconcile
@@ -43,7 +46,6 @@ func NewLoggingReconciler[T client.Object](
 	logDataBuilder RoleLoggingDataBuilder,
 	role Role,
 	configmapName string,
-	currentConfigMap *corev1.ConfigMap,
 ) *LoggingRecociler[T, any] {
 	return &LoggingRecociler[T, any]{
 		GeneralResourceStyleReconciler: *NewGeneraResourceStyleReconciler(
@@ -54,10 +56,9 @@ func NewLoggingReconciler[T client.Object](
 			mergedLabels,
 			mergedCfg,
 		),
-		RoleLoggingDataBuilder:  logDataBuilder,
-		role:                    role,
-		ConfigmapName:           configmapName,
-		CurrentLoggingConfigmap: currentConfigMap,
+		RoleLoggingDataBuilder: logDataBuilder,
+		role:                   role,
+		ConfigmapName:          configmapName,
 	}
 }
 
@@ -66,10 +67,6 @@ func (l *LoggingRecociler[T, G]) Build(_ context.Context) (client.Object, error)
 	cmData := l.RoleLoggingDataBuilder.MakeContainerLogData()
 	if len(cmData) == 0 {
 		return nil, nil
-	}
-	if l.CurrentLoggingConfigmap != nil {
-		l.CurrentLoggingConfigmap.Data = cmData
-		return l.CurrentLoggingConfigmap, nil
 	}
 	obj := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -82,6 +79,44 @@ func (l *LoggingRecociler[T, G]) Build(_ context.Context) (client.Object, error)
 	return obj, nil
 }
 
+// OverrideExistLoggingRecociler override exist logging config reconciler
+// if log properties exist in some configmap, we need to override it
+type OverrideExistLoggingRecociler[T client.Object, G any] struct {
+	GeneralResourceStyleReconciler[T, G]
+	RoleLoggingDataBuilder RoleLoggingDataBuilder
+}
+
+// NewOverrideExistLoggingRecociler new OverrideExistLoggingReconcile
+func NewOverrideExistLoggingRecociler[T client.Object](
+	scheme *runtime.Scheme,
+	instance T,
+	client client.Client,
+	groupName string,
+	mergedLabels map[string]string,
+	mergedCfg any,
+	logDataBuilder RoleLoggingDataBuilder,
+) *OverrideExistLoggingRecociler[T, any] {
+	return &OverrideExistLoggingRecociler[T, any]{
+		GeneralResourceStyleReconciler: *NewGeneraResourceStyleReconciler(
+			scheme,
+			instance,
+			client,
+			groupName,
+			mergedLabels,
+			mergedCfg,
+		),
+		RoleLoggingDataBuilder: logDataBuilder,
+	}
+}
+
+// OverrideExist override exist logging config
+func (l *OverrideExistLoggingRecociler[T, G]) OverrideExist(exist *corev1.ConfigMap) {
+	exist.Data = l.RoleLoggingDataBuilder.MakeContainerLogData()
+}
+
+// LoggingPluggingDataBuilder all logging data builder abstract interface
+// for now, only support log4j
+// todo: support other log framework, such as logback, log4j2 etc
 type LoggingPluggingDataBuilder interface {
 	MakeContainerLogProperties(origin string) string
 }

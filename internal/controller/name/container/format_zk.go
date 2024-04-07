@@ -31,15 +31,15 @@ func (z *FormatZookeeperContainerBuilder) VolumeMount() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      LogVolumeName(),
-			MountPath: "/znclabs/log",
+			MountPath: "/stackable/log",
 		},
 		{
 			Name:      FormatZookeeperVolumeName(),
-			MountPath: "/znclabs/mount/config/format-zookeeper",
+			MountPath: "/stackable/mount/config/format-zookeeper",
 		},
 		{
 			Name:      FormatZookeeperLogVolumeName(),
-			MountPath: "/znclabs/mount/log/format-zookeeper",
+			MountPath: "/stackable/mount/log/format-zookeeper",
 		},
 	}
 }
@@ -52,26 +52,26 @@ func (z *FormatZookeeperContainerBuilder) Command() []string {
 	return common.GetCommonCommand()
 }
 func (z *FormatZookeeperContainerBuilder) CommandArgs() []string {
-	return []string{`mkdir -p /znclabs/config/format-zookeeper
-cp /znclabs/mount/config/format-zookeeper/*.xml /znclabs/config/format-zookeeper
-cp /znclabs/mount/config/format-zookeeper/format-zookeeper.log4j.properties /znclabs/config/format-zookeeper/log4j.properties
+	return []string{`mkdir -p /stackable/config/format-zookeeper
+cp /stackable/mount/config/format-zookeeper/*.xml /stackable/config/format-zookeeper
+cp /stackable/mount/config/format-zookeeper/format-zookeeper.log4j.properties /stackable/config/format-zookeeper/log4j.properties
 echo "Attempt to format ZooKeeper..."
 if [[ "0" -eq "$(echo $POD_NAME | sed -e 's/.*-//')" ]] ; then
-	set +e
-	/stackable/hadoop/bin/hdfs zkfc -formatZK -nonInteractive
-	EXITCODE=$?
-	set -e
-	if [[ $EXITCODE -eq 0 ]]; then
-		echo "Successfully formatted"
-	elif [[ $EXITCODE -eq 2 ]]; then
-		echo "ZNode already existed, did nothing"
-	else
-		echo "Zookeeper format failed with exit code $EXITCODE"
-		exit $EXITCODE
-	fi
+    set +e
+    /stackable/hadoop/bin/hdfs zkfc -formatZK -nonInteractive
+    EXITCODE=$?
+    set -e
+    if [[ $EXITCODE -eq 0 ]]; then
+        echo "Successfully formatted"
+    elif [[ $EXITCODE -eq 2 ]]; then
+        echo "ZNode already existed, did nothing"
+    else
+        echo "Zookeeper format failed with exit code $EXITCODE"
+        exit $EXITCODE
+    fi
 
 else
-	echo "ZooKeeper already formatted!"
+    echo "ZooKeeper already formatted!"
 fi
 `}
 }

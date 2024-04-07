@@ -2,7 +2,7 @@ package common
 
 // Listener
 
-const ListenerStorageClass = "listeners.zncdata.labs"
+const ListenerStorageClass = "listeners.zncdata.dev"
 const ListenerAnnotationKey = ListenerStorageClass + "/listener-class"
 
 type ListenerClass string

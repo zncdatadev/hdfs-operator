@@ -18,6 +18,10 @@ type StatefulSetReconciler struct {
 	common.WorkloadStyleReconciler[*hdfsv1alpha1.HdfsCluster, *hdfsv1alpha1.NameNodeRoleGroupSpec]
 }
 
+func (s *StatefulSetReconciler) GetConditions() *[]metav1.Condition {
+	return &s.Instance.Status.Conditions
+}
+
 // NewStatefulSetController new a StatefulSetReconciler
 
 func NewStatefulSet(
@@ -42,16 +46,17 @@ func NewStatefulSet(
 	}
 }
 
-func (s *StatefulSetReconciler) Build(ctx context.Context) (client.Object, error) {
+func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) {
 	return &appv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      createStatefulSetName(s.Instance.GetName(), s.GroupName),
+			Name:      common.CreateNameNodeStatefulSetName(s.Instance.GetName(), s.GroupName),
 			Namespace: s.Instance.GetNamespace(),
 			Labels:    s.MergedLabels,
 		},
 		Spec: appv1.StatefulSetSpec{
-			Replicas: s.getReplicates(),
-			Selector: &metav1.LabelSelector{MatchLabels: s.MergedLabels},
+			ServiceName: createServiceName(s.Instance.GetName(), s.GroupName),
+			Replicas:    s.getReplicates(),
+			Selector:    &metav1.LabelSelector{MatchLabels: s.MergedLabels},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: s.MergedLabels,
@@ -75,18 +80,35 @@ func (s *StatefulSetReconciler) Build(ctx context.Context) (client.Object, error
 	}, nil
 }
 func (s *StatefulSetReconciler) CommandOverride(resource client.Object) {
-	//TODO implement me
-	//panic("implement me")
+	dep := resource.(*appv1.StatefulSet)
+	containers := dep.Spec.Template.Spec.Containers
+	if cmdOverride := s.MergedCfg.CommandArgsOverrides; cmdOverride != nil {
+		for i := range containers {
+			if containers[i].Name == string(container.NameNode) {
+				containers[i].Command = cmdOverride
+				break
+			}
+		}
+	}
 }
 
 func (s *StatefulSetReconciler) EnvOverride(resource client.Object) {
-	//TODO implement me
-	//panic("implement me")
+	dep := resource.(*appv1.StatefulSet)
+	containers := dep.Spec.Template.Spec.Containers
+	if envOverride := s.MergedCfg.EnvOverrides; envOverride != nil {
+		for i := range containers {
+			if containers[i].Name == string(container.NameNode) {
+				envVars := containers[i].Env
+				common.OverrideEnvVars(&envVars, s.MergedCfg.EnvOverrides)
+				break
+			}
+		}
+	}
 }
 
-func (s *StatefulSetReconciler) LogOverride(resource client.Object) {
-	//TODO implement me
-	//panic("implement me")
+func (s *StatefulSetReconciler) LogOverride(_ client.Object) {
+	//because of existing log configuration, it will not use to override
+	//see common.OverrideExistLoggingRecociler
 }
 
 // make name node container
@@ -121,9 +143,10 @@ func (s *StatefulSetReconciler) makeFormatNameNodeContainer() corev1.Container {
 		image.PullPolicy,
 		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
 		s.getZookeeperDiscoveryZNode(),
+		*s.getReplicates(),
+		common.CreateNameNodeStatefulSetName(s.Instance.GetName(), s.GroupName),
 	)
 	return formatNameNode.Build(formatNameNode)
-
 }
 
 // make format zookeeper container
@@ -192,6 +215,12 @@ func (s *StatefulSetReconciler) makeVolumes() []corev1.Volume {
 				ConfigMap: s.getNameNodeConfigMapSource(),
 			},
 		},
+		{
+			Name: container.FormatZookeeperLogVolumeName(),
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: s.getNameNodeConfigMapSource(),
+			},
+		},
 	}
 }
 
@@ -210,6 +239,7 @@ func (s *StatefulSetReconciler) createDataPvcTemplate() corev1.PersistentVolumeC
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			VolumeMode:  func() *corev1.PersistentVolumeMode { v := corev1.PersistentVolumeFilesystem; return &v }(),
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceStorage: resource.MustParse("2Gi"),
@@ -232,7 +262,8 @@ func (s *StatefulSetReconciler) createListenPvcTemplate() corev1.PersistentVolum
 			Annotations: common.GetListenerLabels(common.ListenerClass(listenerClass)), // important-1!!!!!
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+			VolumeMode:  func() *corev1.PersistentVolumeMode { v := corev1.PersistentVolumeFilesystem; return &v }(),
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceStorage: resource.MustParse("1Gi"),

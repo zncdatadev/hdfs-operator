@@ -5,6 +5,7 @@ import (
 	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
 	"github.com/zncdata-labs/hdfs-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
+	"strconv"
 	"strings"
 )
 
@@ -59,63 +60,58 @@ func NewNameNodeHdfsSiteXmlGenerator(
 // make hdfs-site.xml data
 
 func (c *NameNodeHdfsSiteXmlGenerator) Generate() string {
-	return fmt.Sprintf(
-		hdfsSiteTemplate,
-		c.makeServiceId(),
-		c.makeHdfsReplication(),
-		c.makeNameNodeHosts(),
-		c.makeNameNodeHttp(),
-		c.makeNameNodeRpc(),
-		c.makeNameNodeNameDir(),
-		c.makeJournalNodeDataDir(),
-	)
+	var properties []util.XmlNameValuePair
+	properties = append(properties, c.makeServiceId()...)
+	properties = append(properties, c.makeHdfsReplication())
+	properties = append(properties, c.makeNameNodeHosts())
+	properties = append(properties, c.makeNameNodeHttp()...)
+	properties = append(properties, c.makeNameNodeRpc()...)
+	properties = append(properties, c.makeNameNodeNameDir()...)
+	properties = append(properties, c.makeJournalNodeDataDir())
+	return util.Append(hdfsSiteTemplate, properties)
 }
 
-// make service id
-const serviceIdTemplate = `
-  <property>
-    <name>dfs.nameservices</name>
-    <value>%s</value>
-  </property>
-`
-
-func (c *NameNodeHdfsSiteXmlGenerator) makeServiceId() string {
-	return fmt.Sprintf(serviceIdTemplate, c.InstanceName)
+func (c *NameNodeHdfsSiteXmlGenerator) makeServiceId() []util.XmlNameValuePair {
+	return []util.XmlNameValuePair{
+		{
+			Name:  "dfs.nameservices",
+			Value: c.InstanceName,
+		},
+		//<property>
+		//<name>dfs.client.failover.proxy.provider.simple-hdfs</name>
+		//<value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider</value>
+		//</property>
+		{
+			Name:  "dfs.client.failover.proxy.provider." + c.InstanceName,
+			Value: "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider",
+		},
+	}
 }
 
 // make hdfs replication number
-const hdfsReplicationTemplate = `
-  <property>
-	<name>dfs.replication</name>
-	<value>%d</value>
-  </property>
-`
-
-func (c *NameNodeHdfsSiteXmlGenerator) makeHdfsReplication() string {
-	return fmt.Sprintf(hdfsReplicationTemplate, c.hdfsReplication)
+func (c *NameNodeHdfsSiteXmlGenerator) makeHdfsReplication() util.XmlNameValuePair {
+	return util.XmlNameValuePair{
+		Name:  "dfs.replication",
+		Value: strconv.Itoa(int(c.hdfsReplication)),
+	}
 }
 
 // make journal node dir data
-
-const JournalNodeTemplate = `
-  <property>
-    <name>dfs.namenode.shared.edits.dir</name>
-    <value>%s</value>
-  </property>
-`
-
 // if journal node is multiple, just add more data, separated by ";"
 //
 //	<property>
 //		<name>dfs.namenode.shared.edits.dir</name>
 //		<value>qjournal://node1.example.com:8485;node2.example.com:8485;node3.example.com:8485/mycluster</value>
 //	</property>
-func (c *NameNodeHdfsSiteXmlGenerator) makeJournalNodeDataDir() string {
+func (c *NameNodeHdfsSiteXmlGenerator) makeJournalNodeDataDir() util.XmlNameValuePair {
 	journalStatefulSetName := CreateJournalNodeStatefulSetName(c.InstanceName, c.GroupName)
 	JournalSvcName := CreateJournalNodeServiceName(c.InstanceName, c.GroupName)
 	journalUrls := CreateNetworksByReplicates(c.getJournalNodeReplicates(), journalStatefulSetName, JournalSvcName, c.NameSpace, c.ClusterDomain, 8485)
 	journalConnection := CreateJournalUrl(journalUrls, c.InstanceName)
-	return fmt.Sprintf(JournalNodeTemplate, journalConnection)
+	return util.XmlNameValuePair{
+		Name:  "dfs.namenode.shared.edits.dir",
+		Value: journalConnection,
+	}
 }
 
 // get journal node replicates
@@ -125,14 +121,6 @@ func (c *NameNodeHdfsSiteXmlGenerator) getJournalNodeReplicates() int32 {
 	return journalCfg.Replicas
 }
 
-// make name nodes
-const nameNodeHostsTemplate = `
-  <property>
-    <name>dfs.ha.namenodes.simple-hdfs</name>
-    <value>%s</value>
-  </property>
-`
-
 // make name node hosts data
 // if multiple name nodes, just add more data, separated by ","
 // like below:
@@ -141,14 +129,15 @@ const nameNodeHostsTemplate = `
 //		<name>dfs.ha.namenodes.simple-hdfs</name>
 //		<value>simple-hdfs-namenode-default-0,simple-hdfs-namenode-default-1,simple-hdfs-namenode-default-2</value>
 //	</property>
-func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeHosts() string {
+func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeHosts() util.XmlNameValuePair {
 	nameNodeStatefulSetName := CreateNameNodeStatefulSetName(c.InstanceName, c.GroupName)
 	pods := CreatePodNamesByReplicas(c.NameNodeReplicas, nameNodeStatefulSetName)
 	podNames := strings.Join(pods, ",")
-	return fmt.Sprintf(nameNodeHostsTemplate, podNames)
+	return util.XmlNameValuePair{
+		Name:  "dfs.ha.namenodes." + c.InstanceName,
+		Value: podNames,
+	}
 }
-
-// make name node http address
 
 // make name node http address
 // if multiple name nodes, should config multiple http address
@@ -166,7 +155,7 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeHosts() string {
 //		<name>dfs.namenode.http-address.simple-hdfs.simple-hdfs-namenode-default-2</name>
 //		<value>simple-hdfs-namenode-default-2.simple-hdfs-namenode-default.default.svc.cluster.local:9870</value>
 //	</property>
-func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeHttp() string {
+func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeHttp() []util.XmlNameValuePair {
 	statefulSetName := CreateNameNodeStatefulSetName(c.InstanceName, c.GroupName)
 	svc := CreateNameNodeServiceName(c.InstanceName, c.GroupName)
 	dnsDomain := CreateDnsDomain(svc, c.NameSpace, c.ClusterDomain, hdfsv1alpha1.NameNodeHttpPort)
@@ -191,7 +180,7 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeHttp() string {
 //		<name>dfs.namenode.rpc-address.simple-hdfs.simple-hdfs-namenode-default-2</name>
 //		<value>simple-hdfs-namenode-default-2.simple-hdfs-namenode-default.default.svc.cluster.local:9868</value>
 //	</property>
-func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeRpc() string {
+func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeRpc() []util.XmlNameValuePair {
 	statefulSetName := CreateNameNodeStatefulSetName(c.InstanceName, c.GroupName)
 	svc := CreateNameNodeServiceName(c.InstanceName, c.GroupName)
 	dnsDomain := CreateDnsDomain(svc, c.NameSpace, c.ClusterDomain, hdfsv1alpha1.NameNodeRpcPort)
@@ -217,19 +206,15 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeRpc() string {
 //		<name>dfs.namenode.name.dir.simple-hdfs.simple-hdfs-namenode-default-2</name>
 //		<value>/zncdata/data/namenode</value>
 //	</property>
-func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeNameDir() string {
+func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeNameDir() []util.XmlNameValuePair {
 	statefulSetName := CreateNameNodeStatefulSetName(c.InstanceName, c.GroupName)
 	keyTemplate := fmt.Sprintf("dfs.namenode.name.dir.%s.%s-%%d", c.InstanceName, statefulSetName)
-	valueTemplate := "/zncdata/data/namenode"
+	valueTemplate := "/stackable/data/namenode"
 	return CreateXmlContentByReplicas(c.NameNodeReplicas, keyTemplate, valueTemplate)
 }
 
 const hdfsSiteTemplate = `<?xml version="1.0"?>
 <configuration>
-  <property>
-    <name>dfs.client.failover.proxy.provider.simple-hdfs</name>
-    <value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider</value>
-  </property>
   <property>
     <name>dfs.datanode.registered.hostname</name>
     <value>${env.POD_ADDRESS}</value>
@@ -260,7 +245,7 @@ const hdfsSiteTemplate = `<?xml version="1.0"?>
   </property>
   <property>
     <name>dfs.journalnode.edits.dir</name>
-    <value>/zncdata/data/journalnode</value>
+    <value>/stackable/data/journalnode</value>
   </property>
   <property>
     <name>dfs.namenode.datanode.registration.unsafe.allow-address-override</name>
@@ -268,30 +253,8 @@ const hdfsSiteTemplate = `<?xml version="1.0"?>
   </property>
   <property>
     <name>dfs.namenode.name.dir</name>
-    <value>/zncdata/data/namenode</value>
+    <value>/stackable/data/namenode</value>
   </property>
-
-  <!-- name service id -->
-  %s
-
-  <!-- hdfs replication number -->
-  %s
-
-  <!-- name node hosts -->
-  %s
-
-  <!-- name node http address -->
-  %s
-
-  <!-- name node rpc address -->
-  %s	
-
-  <!-- name node name dir -->
-  %s
-
-  <!-- journal node dir -->
-  %s
-
 </configuration>
 `
 
@@ -326,7 +289,7 @@ func MakeSslServerData() string {
 const log4jProperties = `log4j.rootLogger=INFO, CONSOLE, FILE
 
 log4j.appender.CONSOLE=org.apache.log4j.ConsoleAppender
-log4j.appender.CONSOLE.Threshold=INFO
+log4j.appender.CONSOLE.Threshold=DEBUG
 log4j.appender.CONSOLE.layout=org.apache.log4j.PatternLayout
 log4j.appender.CONSOLE.layout.ConversionPattern=%d{ISO8601} %-5p %c{2} (%F:%M(%L)) - %m%n
 
@@ -337,7 +300,7 @@ log4j.appender.FILE.MaxBackupIndex=1
 log4j.appender.FILE.layout=org.apache.log4j.PatternLayout
 log4j.appender.FILE.layout.ConversionPattern=%d{ISO8601} %-5p %c{2} (%F:%M(%L)) - %m%n
 `
-const fileLocationTemplate = `log4j.appender.FILE.File=/zncdata/log/%s/%s.log`
+const fileLocationTemplate = `log4j.appender.FILE.File=/stackable/log/%s/%s.log`
 
 func MakeLog4jPropertiesData(containerComponent ContainerComponent) string {
 	fileLocation := fmt.Sprintf(fileLocationTemplate, containerComponent, containerComponent)
@@ -351,6 +314,9 @@ func CreateComponentLog4jPropertiesName(component ContainerComponent) string {
 // OverrideConfigurations override configurations
 // override the content of the configMap
 func OverrideConfigurations(cm *corev1.ConfigMap, overrides *hdfsv1alpha1.ConfigOverridesSpec) {
+	if overrides == nil {
+		return
+	}
 	// core-site.xml
 	if override := overrides.CoreSite; override != nil {
 		origin := cm.Data[hdfsv1alpha1.CoreSiteFileName]
@@ -415,20 +381,3 @@ func (c *DataNodeHdfsSiteXmlGenerator) Generate() string {
 	nameNodeSiteXml := c.NameNodeHdfsSiteXmlGenerator.Generate()
 	return util.AppendXmlContent(nameNodeSiteXml, c.DataNodeConfig)
 }
-
-//type HdfsClusterLoggingDataBuilder struct {
-//	cfg     *hdfsv1alpha1.RoleGroupSpec
-//	current string
-//}
-//
-//func (h *HdfsClusterLoggingDataBuilder) MakeContainerLogData() map[string]string {
-//	return map[string]string{
-//		CreateRoleGroupLoggingConfigMapName(): h.MakeContainerLog4jData(),
-//	}
-//}
-//
-//func (h *HdfsClusterLoggingDataBuilder) MakeContainerLog4jData() string {
-//	if h.cfg.Config.Logging != nil {
-//
-//	}
-//}
