@@ -54,7 +54,7 @@ func (s *ServiceReconciler) makePorts() []corev1.ServicePort {
 			TargetPort: intstr.FromString(hdfsv1alpha1.MetricName),
 		},
 		{
-			Name:       hdfsv1alpha1.IpcName,
+			Name:       hdfsv1alpha1.RpcName,
 			Port:       ServiceRpcPort,
 			Protocol:   corev1.ProtocolTCP,
 			TargetPort: intstr.FromString(hdfsv1alpha1.RpcName),
