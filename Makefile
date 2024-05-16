@@ -249,11 +249,27 @@ bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metada
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) --no-cache .
 
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
 	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
+
+
+.PHONY: bundle-buildx
+bundle-buildx: ## Build the bundle image.
+	- $(CONTAINER_TOOL) buildx create --name project-v3-builder
+	$(CONTAINER_TOOL) buildx use project-v3-builder
+	$(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag $(BUNDLE_IMG) -f bundle.Dockerfile.cross .
+	$(CONTAINER_TOOL) buildx rm project-v3-builder
+
+.PHONY: bundle-run
+bundle-run: ## Run the bundle image.
+	$(OPERATOR_SDK) run bundle $(BUNDLE_IMG)
+
+.PHONY: bundle-cleanup
+bundle-cleanup: ## Clean up the bundle image.
+	$(OPERATOR_SDK) cleanup $(PROJECT_NAME)
 
 .PHONY: opm
 OPM = ./bin/opm
@@ -264,7 +280,7 @@ ifeq (,$(shell which opm 2>/dev/null))
 	set -e ;\
 	mkdir -p $(dir $(OPM)) ;\
 	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.23.0/$${OS}-$${ARCH}-opm ;\
+	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.39.0/$${OS}-$${ARCH}-opm ;\
 	chmod +x $(OPM) ;\
 	}
 else
@@ -276,9 +292,6 @@ endif
 # These images MUST exist in a registry and be pull-able.
 BUNDLE_IMGS ?= $(BUNDLE_IMG)
 
-# The image tag given to the resulting catalog image (e.g. make catalog-build CATALOG_IMG=example.com/operator-catalog:v0.2.0).
-CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:v$(VERSION)
-
 # Set CATALOG_BASE_IMG to an existing catalog image tag to add $BUNDLE_IMGS to that image.
 ifneq ($(origin CATALOG_BASE_IMG), undefined)
 FROM_INDEX_OPT := --from-index $(CATALOG_BASE_IMG)
@@ -287,11 +300,36 @@ endif
 # Build a catalog image by adding bundle images to an empty catalog using the operator package manager tool, 'opm'.
 # This recipe invokes 'opm' in 'semver' bundle add mode. For more information on add modes, see:
 # https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
+CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:latest
+
 .PHONY: catalog-build
-catalog-build: opm ## Build a catalog image.
-	$(OPM) index add --container-tool docker --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+catalog-build: opm ## Build a catalog manifests.
+	mkdir -p catalog
+	@if ! test -f ./catalog.Dockerfile; then \
+		$(OPM) generate dockerfile catalog; \
+	fi
+	$(OPM) alpha render-template basic -o yaml catalog-template.yaml > catalog/catalog.yaml
+
+.PHONY: catalog-validate
+catalog-validate: opm ## Validate a catalog manifests.
+	$(OPM) validate catalog
+
+#.PHONY: catalog-render
+#catalog-render: opm ## render a bundle to catalog.
+#	$(OPM) render $(BUNDLE_IMGS) --output=yaml >> catalog/catalog.yaml
+
+.PHONY: catalog-docker-build
+catalog-docker-build: ## Build a catalog image.
+	$(CONTAINER_TOOL) build -t ${CATALOG_IMG} -f catalog.Dockerfile .
 
 # Push the catalog image.
-.PHONY: catalog-push
-catalog-push: ## Push a catalog image.
+.PHONY: catalog-docker-push
+catalog-docker-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
+
+.PHONY: catalog-docker-buildx
+catalog-docker-buildx: ## Build and push a catalog image for cross-platform support
+	- $(CONTAINER_TOOL) buildx create --name project-v3-builder
+	$(CONTAINER_TOOL) buildx use project-v3-builder
+	$(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) -f catalog.Dockerfile --tag ${CATALOG_IMG} .
+	$(CONTAINER_TOOL) buildx rm project-v3-builder

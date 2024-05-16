@@ -1,0 +1,15 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: hdfs-catalog
+  namespace: olm
+spec:
+  sourceType: grpc
+  grpcPodConfig:
+    securityContextConfig: restricted
+  image: registry.cn-hangzhou.aliyuncs.com/luwei-dev/hdfs-operator-catalog:latest
+  displayName: hdfs-catalog
+  publisher: zncdata-labs
+  updateStrategy:
+    registryPoll:
+      interval: 20m
