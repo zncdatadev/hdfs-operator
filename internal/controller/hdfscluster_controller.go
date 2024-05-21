@@ -18,13 +18,14 @@ package controller
 
 import (
 	"context"
+
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 )
 
 // HdfsClusterReconciler reconciles a HdfsCluster object

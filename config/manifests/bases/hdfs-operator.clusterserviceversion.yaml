@@ -44,6 +44,6 @@ spec:
     name: luwei
   maturity: alpha
   provider:
-    name: zncdata-labs
-    url: https://github.com/zncdata-labs/hdfs-operator
+    name: zncdatadev
+    url: https://github.com/zncdatadev/hdfs-operator
   version: 0.0.0

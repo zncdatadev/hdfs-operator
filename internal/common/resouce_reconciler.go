@@ -3,15 +3,16 @@ package common
 import (
 	"context"
 	"fmt"
-	"github.com/zncdata-labs/hdfs-operator/internal/util"
-	opgostatus "github.com/zncdata-labs/operator-go/pkg/status"
+	"time"
+
+	"github.com/zncdatadev/hdfs-operator/internal/util"
+	opgostatus "github.com/zncdatadev/operator-go/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 // ResourceBuilderType union type for resource builder

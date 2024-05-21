@@ -9,7 +9,7 @@ spec:
     securityContextConfig: restricted
   image: registry.cn-hangzhou.aliyuncs.com/luwei-dev/hdfs-operator-catalog:latest
   displayName: hdfs-catalog
-  publisher: zncdata-labs
+  publisher: zncdatadev
   updateStrategy:
     registryPoll:
       interval: 20m

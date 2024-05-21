@@ -1,8 +1,8 @@
 package container
 
 import (
-	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
-	"github.com/zncdata-labs/hdfs-operator/internal/common"
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/common"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )

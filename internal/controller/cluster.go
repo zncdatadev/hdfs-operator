@@ -2,12 +2,13 @@ package controller
 
 import (
 	"context"
+
 	"github.com/go-logr/logr"
-	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
-	"github.com/zncdata-labs/hdfs-operator/internal/common"
-	"github.com/zncdata-labs/hdfs-operator/internal/controller/data"
-	"github.com/zncdata-labs/hdfs-operator/internal/controller/journal"
-	"github.com/zncdata-labs/hdfs-operator/internal/controller/name"
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/hdfs-operator/internal/controller/data"
+	"github.com/zncdatadev/hdfs-operator/internal/controller/journal"
+	"github.com/zncdatadev/hdfs-operator/internal/controller/name"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"

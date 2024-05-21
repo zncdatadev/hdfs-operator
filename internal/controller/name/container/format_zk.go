@@ -1,7 +1,7 @@
 package container
 
 import (
-	"github.com/zncdata-labs/hdfs-operator/internal/common"
+	"github.com/zncdatadev/hdfs-operator/internal/common"
 	corev1 "k8s.io/api/core/v1"
 )
 

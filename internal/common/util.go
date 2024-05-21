@@ -2,12 +2,14 @@ package common
 
 import (
 	"fmt"
-	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
-	"github.com/zncdata-labs/hdfs-operator/internal/util"
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strings"
+
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/util"
 )
 
 func OverrideEnvVars(origin *[]corev1.EnvVar, override map[string]string) {

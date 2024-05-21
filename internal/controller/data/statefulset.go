@@ -2,10 +2,11 @@ package data
 
 import (
 	"context"
-	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
-	"github.com/zncdata-labs/hdfs-operator/internal/common"
-	"github.com/zncdata-labs/hdfs-operator/internal/controller/data/container"
-	"github.com/zncdata-labs/hdfs-operator/internal/util"
+
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/hdfs-operator/internal/controller/data/container"
+	"github.com/zncdatadev/hdfs-operator/internal/util"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"

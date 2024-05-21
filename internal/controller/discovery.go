@@ -2,18 +2,19 @@ package controller
 
 import (
 	"context"
-	"emperror.dev/errors"
 	"fmt"
-	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
-	"github.com/zncdata-labs/hdfs-operator/internal/common"
-	"github.com/zncdata-labs/hdfs-operator/internal/util"
-	listenerv1alpha1 "github.com/zncdata-labs/listener-operator/api/v1alpha1"
+	"strings"
+
+	"emperror.dev/errors"
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/hdfs-operator/internal/util"
+	listenerv1alpha1 "github.com/zncdatadev/listener-operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strings"
 )
 
 var discoveryLog = ctrl.Log.WithName("discovery")
