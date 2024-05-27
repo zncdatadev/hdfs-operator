@@ -6,6 +6,7 @@ import (
 	"github.com/zncdata-labs/hdfs-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 )
 
@@ -257,4 +258,40 @@ func NameNodePodNames(instanceName string, groupName string) []string {
 	naneNodeReplicas := nameNodeCfg.Replicas
 	pods := CreatePodNamesByReplicas(naneNodeReplicas, nameNodeStatefulSetName)
 	return pods
+}
+
+func AffinityDefault(role Role, crName string) *corev1.Affinity {
+	return &corev1.Affinity{
+		PodAffinity: &corev1.PodAffinity{
+			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+				{
+					Weight: 20,
+					PodAffinityTerm: corev1.PodAffinityTerm{
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								LabelCrName: crName,
+							},
+						},
+						TopologyKey: corev1.LabelHostname,
+					},
+				},
+			},
+		},
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+				{
+					Weight: 70,
+					PodAffinityTerm: corev1.PodAffinityTerm{
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								LabelCrName:    crName,
+								LabelComponent: string(role),
+							},
+						},
+						TopologyKey: corev1.LabelHostname,
+					},
+				},
+			},
+		},
+	}
 }
