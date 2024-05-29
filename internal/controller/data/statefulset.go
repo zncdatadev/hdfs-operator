@@ -72,6 +72,16 @@ func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) 
 		},
 	}, nil
 }
+
+func (s *StatefulSetReconciler) SetAffinity(resource client.Object) {
+	dep := resource.(*appv1.StatefulSet)
+	if affinity := s.MergedCfg.Config.Affinity; affinity != nil {
+		dep.Spec.Template.Spec.Affinity = affinity
+	} else {
+		dep.Spec.Template.Spec.Affinity = common.AffinityDefault(common.DataNode, s.Instance.GetName())
+	}
+}
+
 func (s *StatefulSetReconciler) CommandOverride(resource client.Object) {
 	dep := resource.(*appv1.StatefulSet)
 	containers := dep.Spec.Template.Spec.Containers
