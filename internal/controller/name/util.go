@@ -1,8 +1,8 @@
 package name
 
 import (
-	"github.com/zncdata-labs/hdfs-operator/internal/common"
-	"github.com/zncdata-labs/hdfs-operator/internal/util"
+	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/hdfs-operator/internal/util"
 )
 
 func createConfigName(instanceName string, groupName string) string {

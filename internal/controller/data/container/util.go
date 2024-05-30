@@ -1,6 +1,6 @@
 package container
 
-import "github.com/zncdata-labs/hdfs-operator/internal/common"
+import "github.com/zncdatadev/hdfs-operator/internal/common"
 
 func DataNodeConfVolumeName() string {
 	return "datanode-config"

@@ -3,13 +3,14 @@ package common
 import (
 	"context"
 	"fmt"
-	"github.com/go-logr/logr"
-	"github.com/zncdata-labs/hdfs-operator/internal/util"
-	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
+	"strings"
+
+	"github.com/go-logr/logr"
+	"github.com/zncdatadev/hdfs-operator/internal/util"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strings"
 )
 
 type Role string

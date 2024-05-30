@@ -20,9 +20,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
+
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -35,9 +36,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
-	"github.com/zncdata-labs/hdfs-operator/internal/controller"
-	listenerv1alpha1 "github.com/zncdata-labs/listener-operator/api/v1alpha1"
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/controller"
+	listenerv1alpha1 "github.com/zncdatadev/listener-operator/api/v1alpha1"
 	//+kubebuilder:scaffold:imports
 )
 

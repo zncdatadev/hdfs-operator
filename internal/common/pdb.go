@@ -2,7 +2,8 @@ package common
 
 import (
 	"context"
-	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
+
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

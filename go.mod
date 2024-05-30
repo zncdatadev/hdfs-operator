@@ -1,4 +1,4 @@
-module github.com/zncdata-labs/hdfs-operator
+module github.com/zncdatadev/hdfs-operator
 
 go 1.21
 
@@ -6,10 +6,10 @@ require (
 	emperror.dev/errors v0.8.1
 	github.com/cisco-open/k8s-objectmatcher v1.9.0
 	github.com/go-logr/logr v1.4.1
-	github.com/onsi/ginkgo/v2 v2.17.2
+	github.com/onsi/ginkgo/v2 v2.17.3
 	github.com/onsi/gomega v1.33.1
-	github.com/zncdata-labs/listener-operator v0.0.0-20240327072052-627c01d79e82
-	github.com/zncdata-labs/operator-go v0.4.0
+	github.com/zncdatadev/listener-operator v0.0.0-20240521093857-96c738598120
+	github.com/zncdatadev/operator-go v0.5.0
 	k8s.io/api v0.29.3
 	k8s.io/apimachinery v0.29.3
 	k8s.io/client-go v0.29.3
@@ -55,7 +55,7 @@ require (
 	go.uber.org/zap v1.26.0 // indirect
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
 	golang.org/x/net v0.24.0 // indirect
-	golang.org/x/oauth2 v0.16.0 // indirect
+	golang.org/x/oauth2 v0.17.0 // indirect
 	golang.org/x/sys v0.19.0 // indirect
 	golang.org/x/term v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect

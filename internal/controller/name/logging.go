@@ -1,9 +1,9 @@
 package name
 
 import (
-	hdfsv1alpha1 "github.com/zncdata-labs/hdfs-operator/api/v1alpha1"
-	"github.com/zncdata-labs/hdfs-operator/internal/common"
-	"github.com/zncdata-labs/hdfs-operator/internal/controller/name/container"
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/hdfs-operator/internal/controller/name/container"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
