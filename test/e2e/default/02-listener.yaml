@@ -1,0 +1,37 @@
+apiVersion: listeners.zncdata.dev/v1alpha1
+kind: ListenerCSI
+metadata:
+  labels:
+    app.kubernetes.io/name: listenercsi
+    app.kubernetes.io/instance: listenercsi-sample
+    app.kubernetes.io/part-of: listener-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: listener-operator
+  name: listenercsi-sample
+  namespace: kubedatastack
+spec:
+  csiDriver:
+    repository: quay.io/zncdatadev/listener-csi-driver
+    tag: v0.0.1
+    pullPolicy: IfNotPresent
+    logging:
+      level: "10"
+  nodeDriverRegistrar:
+    repository: registry.k8s.io/sig-storage/csi-node-driver-registrar
+    tag: v2.8.0
+    pullPolicy: IfNotPresent
+    logging:
+      level: "10"
+  csiProvisioner:
+    repository: registry.k8s.io/sig-storage/csi-provisioner
+    tag: v3.5.0
+    pullPolicy: IfNotPresent
+    logging:
+      level: "10"
+  livenessProbe:
+    repository: registry.k8s.io/sig-storage/livenessprobe
+    tag: v2.11.0
+    pullPolicy: IfNotPresent
+    logging:
+      level: "10"
+

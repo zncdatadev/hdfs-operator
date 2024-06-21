@@ -1,0 +1,15 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Configuration
+metadata:
+  name: custom-config
+spec:
+  namespace: kubedatastack
+  timeouts:
+    apply: 420s
+    assert: 420s
+    cleanup: 120s
+    delete: 120s
+    error: 300s
+    exec: 200s
+  skipDelete: false
+  failFast: true

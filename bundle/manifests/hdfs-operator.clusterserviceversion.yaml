@@ -1,0 +1,393 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: |-
+      [
+        {
+          "apiVersion": "hdfs.zncdata.dev/v1alpha1",
+          "kind": "HdfsCluster",
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/created-by": "hdfs-operator",
+              "app.kubernetes.io/instance": "hdfscluster-sample",
+              "app.kubernetes.io/managed-by": "kustomize",
+              "app.kubernetes.io/name": "hdfscluster",
+              "app.kubernetes.io/part-of": "hdfs-operator"
+            },
+            "name": "hdfscluster-sample"
+          },
+          "spec": {
+            "clusterConfig": {
+              "zookeeperDiscoveryZNode": "sample-hdfs"
+            },
+            "dataNode": {
+              "roleGroups": {
+                "default": {
+                  "config": {
+                    "logging": {
+                      "datanode": {
+                        "console": {
+                          "level": "WARN"
+                        },
+                        "loggers": {
+                          "test": {
+                            "level": "DEBUG"
+                          }
+                        }
+                      }
+                    },
+                    "resources": {
+                      "cpu": {
+                        "max": 2,
+                        "min": 1
+                      },
+                      "memory": {
+                        "limit": "3Gi"
+                      }
+                    }
+                  },
+                  "replicas": 3
+                }
+              }
+            },
+            "image": {
+              "repository": "docker.stackable.tech/stackable/hadoop",
+              "tag": "3.3.4-stackable24.3.0"
+            },
+            "journalNode": {
+              "roleGroups": {
+                "default": {
+                  "config": {
+                    "logging": {
+                      "journalNode": {
+                        "console": {
+                          "level": "WARN"
+                        },
+                        "file": {
+                          "level": "ERROR"
+                        },
+                        "loggers": {
+                          "test": {
+                            "level": "DEBUG"
+                          }
+                        }
+                      }
+                    },
+                    "resources": {
+                      "cpu": {
+                        "max": 2,
+                        "min": 1
+                      },
+                      "memory": {
+                        "limit": "3Gi"
+                      }
+                    }
+                  },
+                  "replicas": 3
+                }
+              }
+            },
+            "nameNode": {
+              "roleGroups": {
+                "default": {
+                  "config": {
+                    "logging": {
+                      "formatNameNode": {
+                        "loggers": {
+                          "test-format": {
+                            "level": "DEBUG"
+                          }
+                        }
+                      },
+                      "namenode": {
+                        "console": {
+                          "level": "WARN"
+                        },
+                        "file": {
+                          "level": "ERROR"
+                        },
+                        "loggers": {
+                          "test": {
+                            "level": "DEBUG"
+                          }
+                        }
+                      }
+                    },
+                    "resources": {
+                      "cpu": {
+                        "max": 2,
+                        "min": 1
+                      },
+                      "memory": {
+                        "limit": "3Gi"
+                      }
+                    }
+                  },
+                  "replicas": 2
+                }
+              }
+            }
+          }
+        }
+      ]
+    capabilities: Basic Install
+    createdAt: "2024-05-14T06:19:02Z"
+    operators.operatorframework.io/builder: operator-sdk-v1.33.0
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
+  name: hdfs-operator.v0.0.1
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: HdfsCluster is the Schema for the hdfsclusters API
+      displayName: Hdfs Cluster
+      kind: HdfsCluster
+      name: hdfsclusters.hdfs.zncdata.dev
+      version: v1alpha1
+  description: Hdfs operator
+  displayName: hdfs-operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      clusterPermissions:
+      - rules:
+        - apiGroups:
+          - apps
+          resources:
+          - statefulsets
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - serviceaccounts
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - services
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - hdfs.zncdata.dev
+          resources:
+          - hdfsclusters
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - hdfs.zncdata.dev
+          resources:
+          - hdfsclusters/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - hdfs.zncdata.dev
+          resources:
+          - hdfsclusters/status
+          verbs:
+          - get
+          - patch
+          - update
+        - apiGroups:
+          - authentication.k8s.io
+          resources:
+          - tokenreviews
+          verbs:
+          - create
+        - apiGroups:
+          - authorization.k8s.io
+          resources:
+          - subjectaccessreviews
+          verbs:
+          - create
+        serviceAccountName: hdfs-operator-controller-manager
+      deployments:
+      - label:
+          app.kubernetes.io/component: manager
+          app.kubernetes.io/created-by: hdfs-operator
+          app.kubernetes.io/instance: controller-manager
+          app.kubernetes.io/managed-by: kustomize
+          app.kubernetes.io/name: deployment
+          app.kubernetes.io/part-of: hdfs-operator
+          control-plane: controller-manager
+        name: hdfs-operator-controller-manager
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              control-plane: controller-manager
+          strategy: {}
+          template:
+            metadata:
+              annotations:
+                kubectl.kubernetes.io/default-container: manager
+              labels:
+                control-plane: controller-manager
+            spec:
+              containers:
+              - args:
+                - --secure-listen-address=0.0.0.0:8443
+                - --upstream=http://127.0.0.1:8080/
+                - --logtostderr=true
+                - --v=0
+                image: docker.io/bitnami/kube-rbac-proxy:0.13.1
+                name: kube-rbac-proxy
+                ports:
+                - containerPort: 8443
+                  name: https
+                  protocol: TCP
+                resources:
+                  limits:
+                    cpu: 500m
+                    memory: 128Mi
+                  requests:
+                    cpu: 5m
+                    memory: 64Mi
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                    - ALL
+              - args:
+                - --health-probe-bind-address=:8081
+                - --metrics-bind-address=127.0.0.1:8080
+                - --leader-elect
+                command:
+                - /manager
+                image: quay.io/zncdatadev/hdfs-operator:v0.0.1
+                livenessProbe:
+                  httpGet:
+                    path: /healthz
+                    port: 8081
+                  initialDelaySeconds: 15
+                  periodSeconds: 20
+                name: manager
+                readinessProbe:
+                  httpGet:
+                    path: /readyz
+                    port: 8081
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                resources:
+                  limits:
+                    cpu: 500m
+                    memory: 128Mi
+                  requests:
+                    cpu: 10m
+                    memory: 64Mi
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                    - ALL
+              securityContext:
+                runAsNonRoot: true
+              serviceAccountName: hdfs-operator-controller-manager
+              terminationGracePeriodSeconds: 10
+      permissions:
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - coordination.k8s.io
+          resources:
+          - leases
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ""
+          resources:
+          - events
+          verbs:
+          - create
+          - patch
+        serviceAccountName: hdfs-operator-controller-manager
+    strategy: deployment
+  installModes:
+  - supported: true
+    type: OwnNamespace
+  - supported: true
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - hdfs
+  - operator
+  links:
+  - name: Hdfs Operator
+    url: https://hdfs-operator.domain
+  maintainers:
+  - email: lwpk110@163.com
+    name: luwei
+  maturity: alpha
+  provider:
+    name: zncdata-labs
+    url: https://github.com/zncdata-labs/hdfs-operator
+  version: 0.0.1

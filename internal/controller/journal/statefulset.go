@@ -117,7 +117,7 @@ func (s *StatefulSetReconciler) makeJournalNodeContainer() corev1.Container {
 	journalNode := NewJournalNodeContainerBuilder(
 		util.ImageRepository(image.Repository, image.Tag),
 		image.PullPolicy,
-		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
+		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
 		s.getZookeeperDiscoveryZNode(),
 	)
 	return journalNode.Build(journalNode)

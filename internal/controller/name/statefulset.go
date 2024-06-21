@@ -128,7 +128,7 @@ func (s *StatefulSetReconciler) makeNameNodeContainer() corev1.Container {
 	nameNode := container.NewNameNodeContainerBuilder(
 		util.ImageRepository(image.Repository, image.Tag),
 		image.PullPolicy,
-		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
+		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
 		s.getZookeeperDiscoveryZNode(),
 	)
 	return nameNode.Build(nameNode)
@@ -140,7 +140,7 @@ func (s *StatefulSetReconciler) makeZkfcContainer() corev1.Container {
 	zkfc := container.NewZkfcContainerBuilder(
 		util.ImageRepository(image.Repository, image.Tag),
 		image.PullPolicy,
-		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
+		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
 		s.getZookeeperDiscoveryZNode(),
 	)
 	return zkfc.Build(zkfc)
@@ -152,7 +152,7 @@ func (s *StatefulSetReconciler) makeFormatNameNodeContainer() corev1.Container {
 	formatNameNode := container.NewFormatNameNodeContainerBuilder(
 		util.ImageRepository(image.Repository, image.Tag),
 		image.PullPolicy,
-		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
+		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
 		s.getZookeeperDiscoveryZNode(),
 		*s.getReplicates(),
 		common.CreateNameNodeStatefulSetName(s.Instance.GetName(), s.GroupName),
@@ -166,7 +166,7 @@ func (s *StatefulSetReconciler) makeFormatZookeeperContainer() corev1.Container 
 	formatZookeeper := container.NewFormatZookeeperContainerBuilder(
 		util.ImageRepository(image.Repository, image.Tag),
 		image.PullPolicy,
-		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
+		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
 		s.getZookeeperDiscoveryZNode(),
 	)
 	return formatZookeeper.Build(formatZookeeper)

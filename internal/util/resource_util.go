@@ -5,11 +5,9 @@ import (
 	"fmt"
 
 	"github.com/cisco-open/k8s-objectmatcher/patch"
-	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -103,35 +101,6 @@ func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object) (bo
 
 	}
 	return false, err
-}
-
-func ConvertToResourceRequirements(resources *hdfsv1alpha1.ResourcesSpec) *corev1.ResourceRequirements {
-	var (
-		cpuMin      = resource.MustParse("100m")
-		cpuMax      = resource.MustParse("500")
-		memoryLimit = resource.MustParse("1Gi")
-	)
-	if resources != nil {
-		if resources.CPU != nil && resources.CPU.Min != nil {
-			cpuMin = *resources.CPU.Min
-		}
-		if resources.CPU != nil && resources.CPU.Max != nil {
-			cpuMax = *resources.CPU.Max
-		}
-		if resources.Memory != nil && resources.Memory.Limit != nil {
-			memoryLimit = *resources.Memory.Limit
-		}
-	}
-	return &corev1.ResourceRequirements{
-		Limits: corev1.ResourceList{
-			corev1.ResourceCPU:    cpuMax,
-			corev1.ResourceMemory: memoryLimit,
-		},
-		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    cpuMin,
-			corev1.ResourceMemory: memoryLimit,
-		},
-	}
 }
 
 func ImageRepository(name, tag string) string {

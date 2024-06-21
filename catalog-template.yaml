@@ -108,4 +108,4 @@ entries:
   - name: hdfs-operator.v0.0.1
 ---
 schema: olm.bundle
-image: registry.cn-hangzhou.aliyuncs.com/luwei-dev/hdfs-operator-bundle:v0.0.1
+image: quay.io/zncdatadev/hdfs-operator-bundle:v0.0.1
