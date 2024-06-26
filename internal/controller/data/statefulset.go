@@ -121,7 +121,7 @@ func (s *StatefulSetReconciler) makeDataNodeContainer() corev1.Container {
 	dateNode := container.NewDataNodeContainerBuilder(
 		util.ImageRepository(image.Repository, image.Tag),
 		image.PullPolicy,
-		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
+		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
 		s.getZookeeperDiscoveryZNode(),
 	)
 	return dateNode.Build(dateNode)
@@ -133,7 +133,7 @@ func (s *StatefulSetReconciler) makeWaitNameNodeContainer() corev1.Container {
 	initContainer := container.NewWaitNameNodeContainerBuilder(
 		util.ImageRepository(image.Repository, image.Tag),
 		image.PullPolicy,
-		*util.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
+		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
 		s.getZookeeperDiscoveryZNode(),
 		s.Instance.GetName(),
 		s.GroupName,

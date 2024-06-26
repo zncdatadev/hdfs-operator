@@ -5,8 +5,8 @@ import (
 )
 
 const (
-	CpuMin      = "1"
-	CpuMax      = "1.5"
+	CpuMin      = "100m"
+	CpuMax      = "500m"
 	MemoryLimit = "1.5Gi"
 )
 

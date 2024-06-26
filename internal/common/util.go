@@ -2,10 +2,10 @@ package common
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
@@ -42,31 +42,38 @@ func CreateRoleGroupLoggingConfigMapName(instanceName string, role string, group
 }
 
 func ConvertToResourceRequirements(resources *hdfsv1alpha1.ResourcesSpec) *corev1.ResourceRequirements {
-	var (
-		cpuMin      = resource.MustParse(hdfsv1alpha1.CpuMin)
-		cpuMax      = resource.MustParse(hdfsv1alpha1.CpuMax)
-		memoryLimit = resource.MustParse(hdfsv1alpha1.MemoryLimit)
-	)
 	if resources != nil {
+		request := corev1.ResourceList{}
+		limit := corev1.ResourceList{}
 		if resources.CPU != nil && resources.CPU.Min != nil {
-			cpuMin = *resources.CPU.Min
+			request[corev1.ResourceCPU] = *resources.CPU.Min
 		}
 		if resources.CPU != nil && resources.CPU.Max != nil {
-			cpuMax = *resources.CPU.Max
+			limit[corev1.ResourceCPU] = *resources.CPU.Max
 		}
 		if resources.Memory != nil && resources.Memory.Limit != nil {
-			memoryLimit = *resources.Memory.Limit
+			request[corev1.ResourceMemory] = *resources.Memory.Limit
+			limit[corev1.ResourceMemory] = *resources.Memory.Limit
 		}
-	}
-	return &corev1.ResourceRequirements{
-		Limits: corev1.ResourceList{
-			corev1.ResourceCPU:    cpuMax,
-			corev1.ResourceMemory: memoryLimit,
-		},
-		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    cpuMin,
-			corev1.ResourceMemory: memoryLimit,
-		},
+		r := &corev1.ResourceRequirements{}
+		if len(request) > 0 {
+			r.Requests = request
+		}
+		if len(limit) > 0 {
+			r.Limits = limit
+		}
+		return r
+	} else {
+		return &corev1.ResourceRequirements{
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse(hdfsv1alpha1.CpuMax),
+				corev1.ResourceMemory: resource.MustParse(hdfsv1alpha1.MemoryLimit),
+			},
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse(hdfsv1alpha1.CpuMin),
+				corev1.ResourceMemory: resource.MustParse(hdfsv1alpha1.MemoryLimit),
+			},
+		}
 	}
 }
 

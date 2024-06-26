@@ -26,13 +26,12 @@ Dockerfile.cross
 *~
 
 bundle.Dockerfile
-bundle
 
 **/__debug_*
-
-bundle*
 
 kind-kubeconfig*
 
 catalog.Dockerfile
 catalog
+
+*-local.yaml

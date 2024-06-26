@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubedatastack-operators
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubedatastack
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: zncdata-stack
+  namespace: kubedatastack-operators
+spec:
+  # if not specified, the operator group will target all namespaces
+  # so the operator will be able to watch and manage resources in all namespaces
+  targetNamespaces:
+    - kubedatastack
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: kubedata-catalog
+  namespace: olm
+spec:
+  sourceType: grpc
+  grpcPodConfig:
+    securityContextConfig: restricted
+  image: quay.io/zncdatadev/kubedata-catalog:latest
+  displayName: kubedata-catalog
+  publisher: zncdatadev
+  updateStrategy:
+    registryPoll:
+      interval: 20m
+
