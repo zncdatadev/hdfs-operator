@@ -5,7 +5,7 @@ go 1.22.3
 require (
 	emperror.dev/errors v0.8.1
 	github.com/cisco-open/k8s-objectmatcher v1.10.0
-	github.com/go-logr/logr v1.4.1
+	github.com/go-logr/logr v1.4.2
 	github.com/onsi/ginkgo/v2 v2.19.0
 	github.com/onsi/gomega v1.33.1
 	github.com/zncdatadev/listener-operator v0.0.0-20240521093857-96c738598120
