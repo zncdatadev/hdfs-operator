@@ -2,6 +2,9 @@ package container
 
 import (
 	"fmt"
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/util"
+	"maps"
 	"strings"
 
 	"github.com/zncdatadev/hdfs-operator/internal/common"
@@ -14,34 +17,38 @@ type FormatNameNodeContainerBuilder struct {
 	zookeeperDiscoveryZNode string
 	nameNodeReplicates      int32
 	statefulSetName         string
+	instanceName            string
+	namespace               string
+	clusterConfig           *hdfsv1alpha1.ClusterConfigSpec
 }
 
 func NewFormatNameNodeContainerBuilder(
-	image string,
-	imagePullPolicy corev1.PullPolicy,
+	instance *hdfsv1alpha1.HdfsCluster,
 	resource corev1.ResourceRequirements,
-	zookeeperDiscoveryZNode string,
 	nameNodeReplicates int32,
 	statefulSetName string,
 ) *FormatNameNodeContainerBuilder {
+	imageSpec := instance.Spec.Image
+	image := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
+	clusterConfig := instance.Spec.ClusterConfigSpec
 	return &FormatNameNodeContainerBuilder{
-		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, resource),
-		zookeeperDiscoveryZNode: zookeeperDiscoveryZNode,
+		ContainerBuilder:        *common.NewContainerBuilder(image, imageSpec.PullPolicy, resource),
+		zookeeperDiscoveryZNode: clusterConfig.ZookeeperDiscoveryZNode,
 		nameNodeReplicates:      nameNodeReplicates,
 		statefulSetName:         statefulSetName,
+		instanceName:            instance.Name,
+		namespace:               instance.Namespace,
+		clusterConfig:           clusterConfig,
 	}
 }
 
 func (f *FormatNameNodeContainerBuilder) ContainerEnv() []corev1.EnvVar {
-	return common.GetCommonContainerEnv(f.zookeeperDiscoveryZNode, FormatNameNode)
+	return common.GetCommonContainerEnv(f.clusterConfig, FormatNameNode)
 }
 
 func (f *FormatNameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
-		{
-			Name:      LogVolumeName(),
-			MountPath: "/stackable/log",
-		},
+	mounts := common.GetCommonVolumeMounts(f.clusterConfig)
+	fnMounts := []corev1.VolumeMount{
 		{
 			Name:      FormatNameNodeVolumeName(),
 			MountPath: "/stackable/mount/config/format-namenodes",
@@ -55,6 +62,7 @@ func (f *FormatNameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
 			MountPath: "/stackable/data",
 		},
 	}
+	return append(mounts, fnMounts...)
 }
 
 func (f *FormatNameNodeContainerBuilder) ContainerName() string {
@@ -66,9 +74,17 @@ func (f *FormatNameNodeContainerBuilder) Command() []string {
 }
 func (f *FormatNameNodeContainerBuilder) CommandArgs() []string {
 	namenodeIds := strings.Join(f.PodNames(), " ")
-	return []string{`mkdir -p /stackable/config/format-namenodes
+	tmpl := `mkdir -p /stackable/config/format-namenodes
 cp /stackable/mount/config/format-namenodes/*.xml /stackable/config/format-namenodes
 cp /stackable/mount/config/format-namenodes/format-namenodes.log4j.properties /stackable/config/format-namenodes/log4j.properties
+
+{{ if .kerberosEnabled }}
+{{- .kerberosEnv }}
+
+{{- .kinitScript }}
+
+{{- end }}
+
 echo "Start formatting namenode $POD_NAME. Checking for active namenodes:"
 ` + fmt.Sprintf("for namenode_id in %s", namenodeIds) + "\n" +
 		`do
@@ -97,7 +113,11 @@ else
     cat "/stackable/data/namenode/current/VERSION"
     echo "Pod $POD_NAME already formatted. Skipping..."
 fi
-`}
+`
+	data := common.CreateExportKrbRealmEnvData(f.clusterConfig)
+	principal := common.CreateKerberosPrincipal(f.instanceName, f.namespace, GetRole())
+	maps.Copy(data, common.CreateGetKerberosTicketData(principal))
+	return common.ParseKerberosScript(tmpl, data)
 }
 
 func (f *FormatNameNodeContainerBuilder) PodNames() []string {

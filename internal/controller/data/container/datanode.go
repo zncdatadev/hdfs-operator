@@ -3,6 +3,7 @@ package container
 import (
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/hdfs-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -10,17 +11,21 @@ import (
 type DataNodeContainerBuilder struct {
 	common.ContainerBuilder
 	zookeeperDiscoveryZNode string
+	clusterConfig           *hdfsv1alpha1.ClusterConfigSpec
 }
 
 func NewDataNodeContainerBuilder(
-	image string,
-	imagePullPolicy corev1.PullPolicy,
+	instance *hdfsv1alpha1.HdfsCluster,
 	resource corev1.ResourceRequirements,
-	zookeeperDiscoveryZNode string,
 ) *DataNodeContainerBuilder {
+	imageSpec := instance.Spec.Image
+	image := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
+	imagePullPolicy := imageSpec.PullPolicy
+	clusterConfig := instance.Spec.ClusterConfigSpec
 	return &DataNodeContainerBuilder{
 		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, resource),
-		zookeeperDiscoveryZNode: zookeeperDiscoveryZNode,
+		zookeeperDiscoveryZNode: clusterConfig.ZookeeperDiscoveryZNode,
+		clusterConfig:           clusterConfig,
 	}
 }
 
@@ -33,20 +38,13 @@ func (d *DataNodeContainerBuilder) Command() []string {
 }
 
 func (d *DataNodeContainerBuilder) ContainerEnv() []corev1.EnvVar {
-	envs := common.GetCommonContainerEnv(d.zookeeperDiscoveryZNode, DataNode)
-	envs = append(envs, corev1.EnvVar{
-		Name:  "HDFS_DATANODE_OPTS",
-		Value: "-Djava.security.properties=/stackable/config/datanode/security.properties -Xmx419430k",
-	})
+	envs := common.GetCommonContainerEnv(d.clusterConfig, DataNode)
 	return envs
 }
 
 func (d *DataNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
-		{
-			Name:      LogVolumeName(),
-			MountPath: "/stackable/log",
-		},
+	mounts := common.GetCommonVolumeMounts(d.clusterConfig)
+	datanodeMounts := []corev1.VolumeMount{
 		{
 			Name:      DataNodeConfVolumeName(),
 			MountPath: "/stackable/mount/config/datanode",
@@ -61,9 +59,10 @@ func (d *DataNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
 		},
 		{
 			Name:      DataVolumeName(),
-			MountPath: "/stackable/data/data",
+			MountPath: "/stackable/data/data", // !!! the last "data" is pvc name
 		},
 	}
+	return append(mounts, datanodeMounts...)
 }
 
 func (d *DataNodeContainerBuilder) LivenessProbe() *corev1.Probe {
@@ -124,11 +123,15 @@ func (d *DataNodeContainerBuilder) ContainerPorts() []corev1.ContainerPort {
 }
 
 func (d *DataNodeContainerBuilder) CommandArgs() []string {
-	return []string{
-		`mkdir -p /stackable/config/datanode
+
+	tmpl := `mkdir -p /stackable/config/datanode
 cp /stackable/mount/config/datanode/*.xml /stackable/config/datanode
 cp /stackable/mount/config/datanode/datanode.log4j.properties /stackable/config/datanode/log4j.properties
 \
+
+{{ if .kerberosEnabled }}
+{{- .kerberosEnv }}
+{{- end }}
 
 prepare_signal_handlers()
 {
@@ -170,6 +173,6 @@ fi
 /stackable/hadoop/bin/hdfs datanode &
 wait_for_termination $!
 mkdir -p /stackable/log/_vector && touch /stackable/log/_vector/shutdown
-`,
-	}
+`
+	return common.ParseKerberosScript(tmpl, common.CreateExportKrbRealmEnvData(d.clusterConfig))
 }

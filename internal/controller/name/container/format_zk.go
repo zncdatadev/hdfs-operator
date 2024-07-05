@@ -1,7 +1,9 @@
 package container
 
 import (
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/hdfs-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -9,30 +11,33 @@ import (
 type FormatZookeeperContainerBuilder struct {
 	common.ContainerBuilder
 	zookeeperDiscoveryZNode string
+	namespace               string
+	clusterConfig           *hdfsv1alpha1.ClusterConfigSpec
 }
 
 func NewFormatZookeeperContainerBuilder(
-	image string,
-	imagePullPolicy corev1.PullPolicy,
+	instance *hdfsv1alpha1.HdfsCluster,
 	resource corev1.ResourceRequirements,
 	zookeeperDiscoveryZNode string,
 ) *FormatZookeeperContainerBuilder {
+	imageSpec := instance.Spec.Image
+	image := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
+
 	return &FormatZookeeperContainerBuilder{
-		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, resource),
+		ContainerBuilder:        *common.NewContainerBuilder(image, imageSpec.PullPolicy, resource),
 		zookeeperDiscoveryZNode: zookeeperDiscoveryZNode,
+		namespace:               instance.Namespace,
+		clusterConfig:           instance.Spec.ClusterConfigSpec,
 	}
 }
 
 func (z *FormatZookeeperContainerBuilder) ContainerEnv() []corev1.EnvVar {
-	return common.GetCommonContainerEnv(z.zookeeperDiscoveryZNode, FormatZookeeper)
+	return common.GetCommonContainerEnv(z.clusterConfig, FormatZookeeper)
 }
 
 func (z *FormatZookeeperContainerBuilder) VolumeMount() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
-		{
-			Name:      LogVolumeName(),
-			MountPath: "/stackable/log",
-		},
+	mounts := common.GetCommonVolumeMounts(z.clusterConfig)
+	fzMounts := []corev1.VolumeMount{
 		{
 			Name:      FormatZookeeperVolumeName(),
 			MountPath: "/stackable/mount/config/format-zookeeper",
@@ -42,6 +47,7 @@ func (z *FormatZookeeperContainerBuilder) VolumeMount() []corev1.VolumeMount {
 			MountPath: "/stackable/mount/log/format-zookeeper",
 		},
 	}
+	return append(mounts, fzMounts...)
 }
 
 func (z *FormatZookeeperContainerBuilder) ContainerName() string {
@@ -52,9 +58,14 @@ func (z *FormatZookeeperContainerBuilder) Command() []string {
 	return common.GetCommonCommand()
 }
 func (z *FormatZookeeperContainerBuilder) CommandArgs() []string {
-	return []string{`mkdir -p /stackable/config/format-zookeeper
+	tmpl := `mkdir -p /stackable/config/format-zookeeper
 cp /stackable/mount/config/format-zookeeper/*.xml /stackable/config/format-zookeeper
 cp /stackable/mount/config/format-zookeeper/format-zookeeper.log4j.properties /stackable/config/format-zookeeper/log4j.properties
+
+{{ if .kerberosEnabled }}
+{{- .kerberosEnv }}
+{{- end }}
+
 echo "Attempt to format ZooKeeper..."
 if [[ "0" -eq "$(echo $POD_NAME | sed -e 's/.*-//')" ]] ; then
     set +e
@@ -73,5 +84,6 @@ if [[ "0" -eq "$(echo $POD_NAME | sed -e 's/.*-//')" ]] ; then
 else
     echo "ZooKeeper already formatted!"
 fi
-`}
+`
+	return common.ParseKerberosScript(tmpl, common.CreateExportKrbRealmEnvData(z.clusterConfig))
 }

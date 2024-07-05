@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubedatastack-operators
+status:
+  phase: Active
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubedatastack
+status:
+  phase: Active
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: kubedata-catalog
+  namespace: olm
+status:
+  connectionState:
+    lastObservedState: READY

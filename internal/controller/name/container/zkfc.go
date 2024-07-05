@@ -1,7 +1,9 @@
 package container
 
 import (
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/hdfs-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -9,17 +11,22 @@ import (
 type ZkfcContainerBuilder struct {
 	common.ContainerBuilder
 	zookeeperDiscoveryZNode string
+	clusterConfig           *hdfsv1alpha1.ClusterConfigSpec
 }
 
 func NewZkfcContainerBuilder(
-	image string,
-	imagePullPolicy corev1.PullPolicy,
+	instance *hdfsv1alpha1.HdfsCluster,
 	resource corev1.ResourceRequirements,
-	zookeeperDiscoveryZNode string,
 ) *ZkfcContainerBuilder {
+	imageSpec := instance.Spec.Image
+	image := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
+	imagePullPolicy := imageSpec.PullPolicy
+	clusterConfig := instance.Spec.ClusterConfigSpec
+	zookeeperDiscoveryZNode := clusterConfig.ZookeeperDiscoveryZNode
 	return &ZkfcContainerBuilder{
 		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, resource),
 		zookeeperDiscoveryZNode: zookeeperDiscoveryZNode,
+		clusterConfig:           clusterConfig,
 	}
 }
 
@@ -29,24 +36,25 @@ func (z *ZkfcContainerBuilder) ContainerName() string {
 
 // CommandArgs zookeeper fail-over controller command args
 func (z *ZkfcContainerBuilder) CommandArgs() []string {
-	return []string{`mkdir -p /stackable/config/zkfc
+	return common.ParseKerberosScript(`mkdir -p /stackable/config/zkfc
 cp /stackable/mount/config/zkfc/*.xml /stackable/config/zkfc
 cp /stackable/mount/config/zkfc/zkfc.log4j.properties /stackable/config/zkfc/log4j.properties
+
+{{ if .kerberosEnabled }}
+{{- .kerberosEnv }}
+{{- end }}
+
 /stackable/hadoop/bin/hdfs zkfc
-`,
-	}
+`, common.CreateExportKrbRealmEnvData(z.clusterConfig))
 }
 
 func (z *ZkfcContainerBuilder) ContainerEnv() []corev1.EnvVar {
-	return common.GetCommonContainerEnv(z.zookeeperDiscoveryZNode, Zkfc)
+	return common.GetCommonContainerEnv(z.clusterConfig, Zkfc)
 }
 
 func (z *ZkfcContainerBuilder) VolumeMount() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
-		{
-			Name:      LogVolumeName(),
-			MountPath: "/stackable/log",
-		},
+	mounts := common.GetCommonVolumeMounts(z.clusterConfig)
+	zkfcMounts := []corev1.VolumeMount{
 		{
 			Name:      ZkfcVolumeName(),
 			MountPath: "/stackable/mount/config/zkfc",
@@ -56,6 +64,7 @@ func (z *ZkfcContainerBuilder) VolumeMount() []corev1.VolumeMount {
 			MountPath: "/stackable/mount/log/zkfc",
 		},
 	}
+	return append(mounts, zkfcMounts...)
 }
 
 func (z *ZkfcContainerBuilder) Command() []string {

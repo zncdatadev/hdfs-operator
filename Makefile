@@ -273,6 +273,7 @@ bundle-cleanup: ## Clean up the bundle image.
 	$(OPERATOR_SDK) cleanup $(PROJECT_NAME)
 
 OPM_VERSION ?= v1.43.0
+CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:latest
 
 .PHONY: opm
 OPM = ./bin/opm
@@ -291,20 +292,6 @@ OPM = $(shell which opm)
 endif
 endif
 
-# A comma-separated list of bundle images (e.g. make catalog-build BUNDLE_IMGS=example.com/operator-bundle:v0.1.0,example.com/operator-bundle:v0.2.0).
-# These images MUST exist in a registry and be pull-able.
-BUNDLE_IMGS ?= $(BUNDLE_IMG)
-
-# Set CATALOG_BASE_IMG to an existing catalog image tag to add $BUNDLE_IMGS to that image.
-ifneq ($(origin CATALOG_BASE_IMG), undefined)
-FROM_INDEX_OPT := --from-index $(CATALOG_BASE_IMG)
-endif
-
-# Build a catalog image by adding bundle images to an empty catalog using the operator package manager tool, 'opm'.
-# This recipe invokes 'opm' in 'semver' bundle add mode. For more information on add modes, see:
-# https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
-CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:latest
-
 .PHONY: catalog-build
 catalog-build: opm ## Build a catalog manifests.
 	mkdir -p catalog
@@ -316,10 +303,6 @@ catalog-build: opm ## Build a catalog manifests.
 .PHONY: catalog-validate
 catalog-validate: opm ## Validate a catalog manifests.
 	$(OPM) validate catalog
-
-#.PHONY: catalog-render
-#catalog-render: opm ## render a bundle to catalog.
-#	$(OPM) render $(BUNDLE_IMGS) --output=yaml >> catalog/catalog.yaml
 
 .PHONY: catalog-docker-build
 catalog-docker-build: ## Build a catalog image.

@@ -82,7 +82,7 @@ func (c *ConfigMapReconciler) Build(_ context.Context) (client.Object, error) {
 // make core-site.xml data
 func (c *ConfigMapReconciler) makeCoreSiteData() string {
 	generator := &common.CoreSiteXmlGenerator{InstanceName: c.Instance.GetName()}
-	return generator.Generate()
+	return generator.EnableKerberos(c.Instance.Spec.ClusterConfigSpec, c.Instance.Namespace).Generate()
 }
 
 // make hdfs-site.xml data
@@ -91,7 +91,7 @@ func (c *ConfigMapReconciler) makeHdfsSiteData() string {
 	generator := common.NewNameNodeHdfsSiteXmlGenerator(c.Instance.GetName(), c.GroupName,
 		c.MergedCfg.Replicas, c.Instance.Namespace, clusterSpec.ClusterDomain,
 		clusterSpec.DfsReplication)
-	return generator.Generate()
+	return generator.EnablerKerberos(clusterSpec).Generate()
 }
 
 func (c *ConfigMapReconciler) LoggingOverride(current *corev1.ConfigMap) {

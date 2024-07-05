@@ -33,10 +33,14 @@ func dataVolumeName() string {
 	return "data"
 }
 
+func GetRole() common.Role {
+	return common.JournalNode
+}
+
 const (
 	ServiceHttpPort   = 8480
 	ServiceRpcPort    = 8485
 	ServiceMetricPort = 8081
 )
 
-const ContainerJournalNode common.ContainerComponent = "journalnode"
+const ContainerJournalNode common.ContainerComponent = common.ContainerComponent(common.JournalNode)

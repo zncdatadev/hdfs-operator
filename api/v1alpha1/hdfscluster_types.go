@@ -22,6 +22,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const KerberosMountPath = "/zncdata/kerberos"
+
 const (
 	CoreSiteFileName = "core-site.xml"
 	HdfsSiteFileName = "hdfs-site.xml"
@@ -172,6 +174,13 @@ type ClusterConfigSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default:="cluster.local"
+	ClusterName string `json:"clusterName,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	Authentication *AuthenticationSpec `json:"authentication,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default:="cluster.local"
 	ClusterDomain string `json:"clusterDomain,omitempty"`
 
 	// +kubebuilder:validation:Optional
@@ -180,6 +189,16 @@ type ClusterConfigSpec struct {
 
 	// +kubebuilder:validation:required
 	ZookeeperDiscoveryZNode string `json:"zookeeperDiscoveryZNode,omitempty"`
+}
+
+type AuthenticationSpec struct {
+	// +kubebuilder:validation:Optional
+	Kerberos *KerberosSpec `json:"kerberos,omitempty"`
+}
+
+type KerberosSpec struct {
+	// +kubebuilder:validation:Optional
+	SecretClass string `json:"secretClass,omitempty"`
 }
 
 type ConfigOverridesSpec struct {

@@ -41,7 +41,18 @@ spec:
             properties:
               clusterConfig:
                 properties:
+                  authentication:
+                    properties:
+                      kerberos:
+                        properties:
+                          secretClass:
+                            type: string
+                        type: object
+                    type: object
                   clusterDomain:
+                    default: cluster.local
+                    type: string
+                  clusterName:
                     default: cluster.local
                     type: string
                   dfsReplication:

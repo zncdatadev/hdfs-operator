@@ -10,9 +10,10 @@ require (
 	github.com/onsi/gomega v1.33.1
 	github.com/zncdatadev/listener-operator v0.0.0-20240521093857-96c738598120
 	github.com/zncdatadev/operator-go v0.7.0
-	k8s.io/api v0.30.1
+	github.com/zncdatadev/secret-operator v0.0.0-20240702125144-ea71dfd42d9f
+	k8s.io/api v0.30.2
 	k8s.io/apimachinery v0.30.2
-	k8s.io/client-go v0.30.1
+	k8s.io/client-go v0.30.2
 	sigs.k8s.io/controller-runtime v0.18.4
 )
 
@@ -55,7 +56,7 @@ require (
 	go.uber.org/zap v1.26.0 // indirect
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
 	golang.org/x/net v0.25.0 // indirect
-	golang.org/x/oauth2 v0.17.0 // indirect
+	golang.org/x/oauth2 v0.18.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/term v0.20.0 // indirect
 	golang.org/x/text v0.15.0 // indirect

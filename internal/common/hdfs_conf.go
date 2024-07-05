@@ -25,10 +25,24 @@ const coreSiteTemplate = `<?xml version="1.0"?>
 
 type CoreSiteXmlGenerator struct {
 	InstanceName string
+
+	properties []util.XmlNameValuePair
 }
 
 func (c *CoreSiteXmlGenerator) Generate() string {
-	return fmt.Sprintf(coreSiteTemplate, c.InstanceName)
+	xml := fmt.Sprintf(coreSiteTemplate, c.InstanceName)
+	if len(c.properties) != 0 {
+		return util.Append(xml, c.properties)
+	}
+	return xml
+}
+
+// EnableKerberos Enable kerberos
+func (c *CoreSiteXmlGenerator) EnableKerberos(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, ns string) *CoreSiteXmlGenerator {
+	if IsKerberosEnabled(clusterConfig) {
+		c.properties = append(c.properties, SecurityCoreSiteXml(c.InstanceName, ns)...)
+	}
+	return c
 }
 
 type NameNodeHdfsSiteXmlGenerator struct {
@@ -38,6 +52,8 @@ type NameNodeHdfsSiteXmlGenerator struct {
 	NameSpace        string
 	ClusterDomain    string
 	hdfsReplication  int32
+
+	properties []util.XmlNameValuePair
 }
 
 // NewNameNodeHdfsSiteXmlGenerator new a NameNodeHdfsSiteXmlGenerator
@@ -61,15 +77,22 @@ func NewNameNodeHdfsSiteXmlGenerator(
 // make hdfs-site.xml data
 
 func (c *NameNodeHdfsSiteXmlGenerator) Generate() string {
-	var properties []util.XmlNameValuePair
-	properties = append(properties, c.makeServiceId()...)
-	properties = append(properties, c.makeHdfsReplication())
-	properties = append(properties, c.makeNameNodeHosts())
-	properties = append(properties, c.makeNameNodeHttp()...)
-	properties = append(properties, c.makeNameNodeRpc()...)
-	properties = append(properties, c.makeNameNodeNameDir()...)
-	properties = append(properties, c.makeJournalNodeDataDir())
-	return util.Append(hdfsSiteTemplate, properties)
+	c.properties = append(c.properties, c.makeServiceId()...)
+	c.properties = append(c.properties, c.makeHdfsReplication())
+	c.properties = append(c.properties, c.makeNameNodeHosts())
+	c.properties = append(c.properties, c.makeNameNodeHttp()...)
+	c.properties = append(c.properties, c.makeNameNodeRpc()...)
+	c.properties = append(c.properties, c.makeNameNodeNameDir()...)
+	c.properties = append(c.properties, c.makeJournalNodeDataDir())
+	return util.Append(hdfsSiteTemplate, c.properties)
+}
+
+// enable kerberos
+func (c *NameNodeHdfsSiteXmlGenerator) EnablerKerberos(clusterConfig *hdfsv1alpha1.ClusterConfigSpec) *NameNodeHdfsSiteXmlGenerator {
+	if IsKerberosEnabled(clusterConfig) {
+		c.properties = append(c.properties, SecurityHdfsSiteXml()...)
+	}
+	return c
 }
 
 func (c *NameNodeHdfsSiteXmlGenerator) makeServiceId() []util.XmlNameValuePair {
