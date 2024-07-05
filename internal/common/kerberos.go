@@ -28,30 +28,30 @@ func SecurityHdfsSiteXml() []util.XmlNameValuePair {
 			Name:  "dfs.block.access.token.enable",
 			Value: "true",
 		},
-		//{
-		//	Name:  "dfs.http.policy",
-		//	Value: "HTTPS_ONLY",
-		//},
+		{
+			Name:  "dfs.http.policy",
+			Value: "HTTPS_ONLY",
+		},
 		{
 			Name:  "hadoop.kerberos.keytab.login.autorenewal.enabled",
 			Value: "true",
 		},
-		//{
-		//	Name:  "dfs.https.server.keystore.resource",
-		//	Value: "ssl-server.xml",
-		//},
-		//{
-		//	Name:  "dfs.https.client.keystore.resource",
-		//	Value: "ssl-client.xml",
-		//},
+		{
+			Name:  "dfs.https.server.keystore.resource",
+			Value: "ssl-server.xml",
+		},
+		{
+			Name:  "dfs.https.client.keystore.resource",
+			Value: "ssl-client.xml",
+		},
 		{
 			Name:  "dfs.encrypt.data.transfer",
 			Value: "true",
 		},
-		//{
-		//	Name:  "dfs.data.transfer.protection",
-		//	Value: "privacy",
-		//},
+		{
+			Name:  "dfs.data.transfer.protection",
+			Value: "privacy",
+		},
 	}
 }
 

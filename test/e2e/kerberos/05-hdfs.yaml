@@ -16,6 +16,9 @@ spec:
   clusterConfig:
     zookeeperDiscoveryZNode: sample-hdfs-znode
     authentication:
+      tls:
+        secretClass: tls
+        jksPassword: "123456"
       kerberos:
         secretClass: kerberos-hdfs
 

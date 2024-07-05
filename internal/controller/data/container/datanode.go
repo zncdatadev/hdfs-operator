@@ -76,7 +76,7 @@ func (d *DataNodeContainerBuilder) LivenessProbe() *corev1.Probe {
 			HTTPGet: &corev1.HTTPGetAction{
 				Path:   "/datanode.html",
 				Port:   intstr.FromString(hdfsv1alpha1.HttpName),
-				Scheme: corev1.URISchemeHTTP,
+				Scheme: common.WebUiPortProbe(d.clusterConfig),
 			},
 		},
 	}
@@ -97,7 +97,7 @@ func (d *DataNodeContainerBuilder) ReadinessProbe() *corev1.Probe {
 
 // ContainerPorts  make container ports of data node
 func (d *DataNodeContainerBuilder) ContainerPorts() []corev1.ContainerPort {
-	return []corev1.ContainerPort{
+	ports := []corev1.ContainerPort{
 		{
 			Name:          hdfsv1alpha1.MetricName,
 			ContainerPort: hdfsv1alpha1.DataNodeMetricPort,
@@ -114,12 +114,8 @@ func (d *DataNodeContainerBuilder) ContainerPorts() []corev1.ContainerPort {
 			ContainerPort: hdfsv1alpha1.DataNodeIpcPort,
 			Protocol:      corev1.ProtocolTCP,
 		},
-		{
-			Name:          hdfsv1alpha1.HttpName,
-			ContainerPort: hdfsv1alpha1.DataNodeHttpPort,
-			Protocol:      corev1.ProtocolTCP,
-		},
 	}
+	return append(ports, common.HttpPort(d.clusterConfig, hdfsv1alpha1.DataNodeHttpsPort, hdfsv1alpha1.DataNodeHttpPort))
 }
 
 func (d *DataNodeContainerBuilder) CommandArgs() []string {

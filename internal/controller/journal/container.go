@@ -72,7 +72,7 @@ func (d *ContainerBuilder) LivenessProbe() *corev1.Probe {
 			HTTPGet: &corev1.HTTPGetAction{
 				Path:   "/journalnode.html",
 				Port:   intstr.FromString(hdfsv1alpha1.HttpName),
-				Scheme: corev1.URISchemeHTTP,
+				Scheme: common.WebUiPortProbe(d.clusterConfig),
 			},
 		},
 	}
@@ -93,7 +93,7 @@ func (d *ContainerBuilder) ReadinessProbe() *corev1.Probe {
 
 // ContainerPorts  make container ports of data node
 func (d *ContainerBuilder) ContainerPorts() []corev1.ContainerPort {
-	return []corev1.ContainerPort{
+	ports := []corev1.ContainerPort{
 		{
 			Name:          hdfsv1alpha1.MetricName,
 			ContainerPort: hdfsv1alpha1.JournalNodeMetricPort,
@@ -104,12 +104,8 @@ func (d *ContainerBuilder) ContainerPorts() []corev1.ContainerPort {
 			ContainerPort: hdfsv1alpha1.JournalNodeRpcPort,
 			Protocol:      corev1.ProtocolTCP,
 		},
-		{
-			Name:          hdfsv1alpha1.HttpName,
-			ContainerPort: hdfsv1alpha1.JournalNodeHttpPort,
-			Protocol:      corev1.ProtocolTCP,
-		},
 	}
+	return append(ports, common.HttpPort(d.clusterConfig, hdfsv1alpha1.JournalNodeHttpsPort, hdfsv1alpha1.JournalNodeHttpPort))
 }
 
 func (d *ContainerBuilder) CommandArgs() []string {

@@ -259,6 +259,10 @@ func GetCommonVolumes(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, instanceNam
 		secretClass := clusterConfig.Authentication.Kerberos.SecretClass
 		volumes = append(volumes, CreateKerberosSecretPvc(secretClass, instanceName, role))
 	}
+	if IsTlsEnabled(clusterConfig) {
+		tlsSecretClass := clusterConfig.Authentication.Tls.SecretClass
+		volumes = append(volumes, CreateTlsSecretPvc(tlsSecretClass, clusterConfig.Authentication.Tls.JksPassword))
+	}
 	return volumes
 
 }
@@ -306,6 +310,9 @@ func GetCommonVolumeMounts(clusterConfig *hdfsv1alpha1.ClusterConfigSpec) []core
 	}
 	if IsKerberosEnabled(clusterConfig) {
 		mounts = append(mounts, SecurityVolumeMounts()...)
+	}
+	if IsTlsEnabled(clusterConfig) {
+		mounts = append(mounts, TlsVolumeMounts()...)
 	}
 	return mounts
 }

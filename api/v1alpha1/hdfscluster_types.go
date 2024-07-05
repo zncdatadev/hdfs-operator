@@ -22,7 +22,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const KerberosMountPath = "/zncdata/kerberos"
+const (
+	KerberosMountPath = "/zncdata/kerberos"
+	TlsMountPath      = "/zncdata/tls"
+)
 
 const (
 	CoreSiteFileName = "core-site.xml"
@@ -40,19 +43,23 @@ const (
 const (
 	MetricName            = "metric"
 	HttpName              = "http"
+	HttpsName             = "https"
 	RpcName               = "rpc"
 	IpcName               = "ipc"
 	DataName              = "data"
 	NameNodeHttpPort      = 9870
+	NameNodeHttpsPort     = 9871
 	NameNodeRpcPort       = 8020
 	NameNodeMetricPort    = 8183
 	DataNodeMetricPort    = 8082
 	DataNodeHttpPort      = 9864
+	DataNodeHttpsPort     = 9865
 	DataNodeDataPort      = 9866
 	DataNodeIpcPort       = 9867
 	JournalNodeMetricPort = 8081
 	JournalNodeRpcPort    = 8485
 	JournalNodeHttpPort   = 8480
+	JournalNodeHttpsPort  = 8481
 )
 
 //+kubebuilder:object:root=true
@@ -193,7 +200,20 @@ type ClusterConfigSpec struct {
 
 type AuthenticationSpec struct {
 	// +kubebuilder:validation:Optional
+	Tls *TlsSpec `json:"tls,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	Kerberos *KerberosSpec `json:"kerberos,omitempty"`
+}
+
+type TlsSpec struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default:="tls"
+	SecretClass string `json:"secretClass,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default:="changeit"
+	JksPassword string `json:"jksPassword,omitempty"`
 }
 
 type KerberosSpec struct {

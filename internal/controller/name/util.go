@@ -15,6 +15,7 @@ func createServiceName(instanceName string, groupName string) string {
 
 const (
 	ServiceHttpPort   = 9870
+	ServiceHttpsPort  = 9871
 	ServiceRpcPort    = 8020
 	ServiceMetricPort = 8183
 )

@@ -39,6 +39,7 @@ func GetRole() common.Role {
 
 const (
 	ServiceHttpPort   = 8480
+	ServiceHttpsPort  = 8481
 	ServiceRpcPort    = 8485
 	ServiceMetricPort = 8081
 )
