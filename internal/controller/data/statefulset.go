@@ -223,21 +223,12 @@ func (s *StatefulSetReconciler) getReplicates() *int32 {
 	return &s.MergedCfg.Replicas
 }
 
-// get image spec
-func (s *StatefulSetReconciler) getImageSpec() *hdfsv1alpha1.ImageSpec {
-	return s.Instance.Spec.Image
-}
-
 func (s *StatefulSetReconciler) getConfigMapSource() *corev1.ConfigMapVolumeSource {
 	return &corev1.ConfigMapVolumeSource{
 		LocalObjectReference: corev1.LocalObjectReference{
 			Name: createConfigName(s.Instance.GetName(), s.GroupName)}}
 }
 
-// get zookeeper discovery znode
-func (s *StatefulSetReconciler) getZookeeperDiscoveryZNode() string {
-	return s.Instance.Spec.ClusterConfigSpec.ZookeeperDiscoveryZNode
-}
 func (s *StatefulSetReconciler) GetConditions() *[]metav1.Condition {
 	return &s.Instance.Status.Conditions
 }

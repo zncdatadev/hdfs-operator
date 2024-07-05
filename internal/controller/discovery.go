@@ -46,7 +46,7 @@ func NewDiscovery(
 func (d *Discovery) Build(ctx context.Context) (client.Object, error) {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      d.Instance.GetName() + "-discovery",
+			Name:      d.Instance.GetName(),
 			Namespace: d.Instance.Namespace,
 			Labels:    d.MergedLabels,
 		},

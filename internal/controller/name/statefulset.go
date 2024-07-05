@@ -268,11 +268,6 @@ func (s *StatefulSetReconciler) getReplicates() *int32 {
 	return &s.MergedCfg.Replicas
 }
 
-// get image spec
-func (s *StatefulSetReconciler) getImageSpec() *hdfsv1alpha1.ImageSpec {
-	return s.Instance.Spec.Image
-}
-
 func (s *StatefulSetReconciler) getNameNodeConfigMapSource() *corev1.ConfigMapVolumeSource {
 	return &corev1.ConfigMapVolumeSource{
 		LocalObjectReference: corev1.LocalObjectReference{
