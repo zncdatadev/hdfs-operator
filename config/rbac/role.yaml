@@ -86,3 +86,15 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - listeners.zncdata.dev
+  resources:
+  - listeners
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

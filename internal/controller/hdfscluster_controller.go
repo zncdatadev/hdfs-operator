@@ -35,6 +35,7 @@ type HdfsClusterReconciler struct {
 	Log    logr.Logger
 }
 
+//+kubebuilder:rbac:groups=listeners.zncdata.dev,resources=listeners,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=hdfs.zncdata.dev,resources=hdfsclusters,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=hdfs.zncdata.dev,resources=hdfsclusters/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=hdfs.zncdata.dev,resources=hdfsclusters/finalizers,verbs=update
