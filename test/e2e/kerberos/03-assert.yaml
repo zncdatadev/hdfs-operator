@@ -1,0 +1,24 @@
+apiVersion: secrets.zncdata.dev/v1alpha1
+kind: SecretClass
+metadata:
+  name: kerberos-hdfs
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: secretcsi-sample-csi
+  namespace: kubedatastack
+status:
+  currentNumberScheduled: 1
+  desiredNumberScheduled: 1
+  numberAvailable: 1
+  numberMisscheduled: 0
+  numberReady: 1
+  observedGeneration: 1
+  updatedNumberScheduled: 1
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret-provisioner-keytab
+  namespace: kubedatastack

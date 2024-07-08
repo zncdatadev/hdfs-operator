@@ -134,7 +134,3 @@ func CreateTlsSecretPvc(secretClass string, jksPassword string) corev1.Volume {
 		},
 	}
 }
-
-func TlsVolumes() {
-
-}

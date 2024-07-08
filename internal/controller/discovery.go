@@ -59,12 +59,16 @@ func (d *Discovery) Build(ctx context.Context) (client.Object, error) {
 
 func (d *Discovery) makeCoreSiteXmlData() string {
 	generator := common.CoreSiteXmlGenerator{InstanceName: d.Instance.Name}
-	return generator.Generate()
+	return generator.EnableKerberos(d.Instance.Spec.ClusterConfigSpec, d.Instance.Namespace, true).Generate()
 }
 
 func (d *Discovery) makeHdfsSiteXmlData(ctx context.Context) string {
 	xml := util.NewXmlConfiguration(d.commonHdfsSiteXml())
-	return xml.String(d.makeDynamicHdfsSiteXml(ctx))
+	properties := d.makeDynamicHdfsSiteXml(ctx)
+	if common.IsKerberosEnabled(d.Instance.Spec.ClusterConfigSpec) {
+		properties = append(properties, common.SecurityDiscoveryHdfsSiteXml()...)
+	}
+	return xml.String(properties)
 }
 
 // make hdfs-site.xml data
