@@ -10,5 +10,5 @@ status:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: sample-hdfs
+  name: sample-hdfs-znode
   namespace: kubedatastack

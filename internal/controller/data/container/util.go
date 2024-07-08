@@ -29,7 +29,11 @@ func LogVolumeName() string {
 	return "log"
 }
 
+func GetRole() common.Role {
+	return common.DataNode
+}
+
 const (
-	DataNode     common.ContainerComponent = "datanode"
+	DataNode     common.ContainerComponent = common.ContainerComponent(common.DataNode)
 	WaitNameNode common.ContainerComponent = "wait-for-namenodes"
 )

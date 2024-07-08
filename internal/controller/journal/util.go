@@ -17,10 +17,6 @@ func createServiceName(instanceName string, groupName string) string {
 	return util.NewResourceNameGenerator(instanceName, string(common.JournalNode), groupName).GenerateResourceName("")
 }
 
-func logVolumeName() string {
-	return "log"
-}
-
 func journalNodeConfigVolumeName() string {
 	return "journalnode-config"
 }
@@ -33,10 +29,15 @@ func dataVolumeName() string {
 	return "data"
 }
 
+func GetRole() common.Role {
+	return common.JournalNode
+}
+
 const (
 	ServiceHttpPort   = 8480
+	ServiceHttpsPort  = 8481
 	ServiceRpcPort    = 8485
 	ServiceMetricPort = 8081
 )
 
-const ContainerJournalNode common.ContainerComponent = "journalnode"
+const ContainerJournalNode common.ContainerComponent = common.ContainerComponent(common.JournalNode)

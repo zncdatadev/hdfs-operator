@@ -65,8 +65,8 @@ func (c *ConfigMapReconciler) Build(_ context.Context) (client.Object, error) {
 			hdfsv1alpha1.HdfsSiteFileName:     c.makeHdfsSiteData(),
 			hdfsv1alpha1.HadoopPolicyFileName: common.MakeHadoopPolicyData(),
 			hdfsv1alpha1.SecurityFileName:     common.MakeSecurityPropertiesData(),
-			hdfsv1alpha1.SslClientFileName:    common.MakeSslClientData(),
-			hdfsv1alpha1.SslServerFileName:    common.MakeSslServerData(),
+			hdfsv1alpha1.SslClientFileName:    common.MakeSslClientData(c.Instance.Spec.ClusterConfigSpec),
+			hdfsv1alpha1.SslServerFileName:    common.MakeSslServerData(c.Instance.Spec.ClusterConfigSpec),
 			//log4j
 			common.CreateComponentLog4jPropertiesName(ContainerJournalNode): common.MakeLog4jPropertiesData(ContainerJournalNode),
 		},
@@ -76,7 +76,7 @@ func (c *ConfigMapReconciler) Build(_ context.Context) (client.Object, error) {
 // make core-site.xml data
 func (c *ConfigMapReconciler) makeCoreSiteData() string {
 	generator := &common.CoreSiteXmlGenerator{InstanceName: c.Instance.GetName()}
-	return generator.Generate()
+	return generator.EnableKerberos(c.Instance.Spec.ClusterConfigSpec, c.Instance.Namespace).Generate()
 }
 
 // make hdfs-site.xml data
@@ -84,8 +84,8 @@ func (c *ConfigMapReconciler) makeHdfsSiteData() string {
 	clusterSpec := c.Instance.Spec.ClusterConfigSpec
 	generator := common.NewNameNodeHdfsSiteXmlGenerator(
 		c.Instance.GetName(), c.GroupName, c.getNameNodeReplicas(), c.Instance.Namespace,
-		clusterSpec.ClusterDomain, clusterSpec.DfsReplication)
-	return generator.Generate()
+		c.Instance.Spec.ClusterConfigSpec, clusterSpec.ClusterDomain, clusterSpec.DfsReplication)
+	return generator.EnablerKerberos(clusterSpec).EnableHttps().Generate()
 }
 
 func (c *ConfigMapReconciler) getNameNodeReplicas() int32 {

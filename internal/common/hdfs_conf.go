@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	opgoutil "github.com/zncdatadev/operator-go/pkg/util"
 	"strconv"
 	"strings"
 
@@ -25,10 +26,24 @@ const coreSiteTemplate = `<?xml version="1.0"?>
 
 type CoreSiteXmlGenerator struct {
 	InstanceName string
+
+	properties []util.XmlNameValuePair
 }
 
 func (c *CoreSiteXmlGenerator) Generate() string {
-	return fmt.Sprintf(coreSiteTemplate, c.InstanceName)
+	xml := fmt.Sprintf(coreSiteTemplate, c.InstanceName)
+	if len(c.properties) != 0 {
+		return util.Append(xml, c.properties)
+	}
+	return xml
+}
+
+// EnableKerberos Enable kerberos
+func (c *CoreSiteXmlGenerator) EnableKerberos(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, ns string) *CoreSiteXmlGenerator {
+	if IsKerberosEnabled(clusterConfig) {
+		c.properties = append(c.properties, SecurityCoreSiteXml(c.InstanceName, ns)...)
+	}
+	return c
 }
 
 type NameNodeHdfsSiteXmlGenerator struct {
@@ -38,6 +53,9 @@ type NameNodeHdfsSiteXmlGenerator struct {
 	NameSpace        string
 	ClusterDomain    string
 	hdfsReplication  int32
+	clusterConfig    *hdfsv1alpha1.ClusterConfigSpec
+
+	properties []util.XmlNameValuePair
 }
 
 // NewNameNodeHdfsSiteXmlGenerator new a NameNodeHdfsSiteXmlGenerator
@@ -46,6 +64,7 @@ func NewNameNodeHdfsSiteXmlGenerator(
 	groupName string,
 	nameNodeReplicas int32,
 	nameSpace string,
+	clusterConfig *hdfsv1alpha1.ClusterConfigSpec,
 	clusterDomain string,
 	hdfsReplication int32) *NameNodeHdfsSiteXmlGenerator {
 	return &NameNodeHdfsSiteXmlGenerator{
@@ -55,21 +74,35 @@ func NewNameNodeHdfsSiteXmlGenerator(
 		NameSpace:        nameSpace,
 		ClusterDomain:    clusterDomain,
 		hdfsReplication:  hdfsReplication,
+		clusterConfig:    clusterConfig,
 	}
 }
 
 // make hdfs-site.xml data
 
 func (c *NameNodeHdfsSiteXmlGenerator) Generate() string {
-	var properties []util.XmlNameValuePair
-	properties = append(properties, c.makeServiceId()...)
-	properties = append(properties, c.makeHdfsReplication())
-	properties = append(properties, c.makeNameNodeHosts())
-	properties = append(properties, c.makeNameNodeHttp()...)
-	properties = append(properties, c.makeNameNodeRpc()...)
-	properties = append(properties, c.makeNameNodeNameDir()...)
-	properties = append(properties, c.makeJournalNodeDataDir())
-	return util.Append(hdfsSiteTemplate, properties)
+	c.properties = append(c.properties, c.makeServiceId()...)
+	c.properties = append(c.properties, c.makeHdfsReplication())
+	c.properties = append(c.properties, c.makeNameNodeHosts())
+	c.properties = append(c.properties, c.makeNameNodeHttp()...)
+	c.properties = append(c.properties, c.makeNameNodeRpc()...)
+	c.properties = append(c.properties, c.makeNameNodeNameDir()...)
+	c.properties = append(c.properties, c.makeJournalNodeDataDir())
+	return util.Append(hdfsSiteTemplate, c.properties)
+}
+
+// EnablerKerberos enable kerberos
+func (c *NameNodeHdfsSiteXmlGenerator) EnablerKerberos(clusterConfig *hdfsv1alpha1.ClusterConfigSpec) *NameNodeHdfsSiteXmlGenerator {
+	if IsKerberosEnabled(clusterConfig) {
+		c.properties = append(c.properties, SecurityHdfsSiteXml()...)
+	}
+	return c
+}
+
+// EnableHttps enable tls
+func (c *NameNodeHdfsSiteXmlGenerator) EnableHttps() *NameNodeHdfsSiteXmlGenerator {
+	c.properties = append(c.properties, TlsHdfsSiteXml(c.clusterConfig)...)
+	return c
 }
 
 func (c *NameNodeHdfsSiteXmlGenerator) makeServiceId() []util.XmlNameValuePair {
@@ -159,8 +192,7 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeHosts() util.XmlNameValuePair
 func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeHttp() []util.XmlNameValuePair {
 	statefulSetName := CreateNameNodeStatefulSetName(c.InstanceName, c.GroupName)
 	svc := CreateNameNodeServiceName(c.InstanceName, c.GroupName)
-	dnsDomain := CreateDnsDomain(svc, c.NameSpace, c.ClusterDomain, hdfsv1alpha1.NameNodeHttpPort)
-	keyTemplate := fmt.Sprintf("dfs.namenode.http-address.%s.%s-%%d", c.InstanceName, statefulSetName)
+	dnsDomain, keyTemplate := DfsNameNodeHttpAddressHa(c.clusterConfig, c.InstanceName, statefulSetName, svc, c.NameSpace)
 	valueTemplate := fmt.Sprintf("%s-%%d.%s", statefulSetName, dnsDomain)
 	return CreateXmlContentByReplicas(c.NameNodeReplicas, keyTemplate, valueTemplate)
 }
@@ -221,10 +253,6 @@ const hdfsSiteTemplate = `<?xml version="1.0"?>
     <value>${env.POD_ADDRESS}</value>
   </property>
   <property>
-    <name>dfs.datanode.registered.http.port</name>
-    <value>${env.HTTP_PORT}</value>
-  </property>
-  <property>
     <name>dfs.datanode.registered.ipc.port</name>
     <value>${env.IPC_PORT}</value>
   </property>
@@ -273,17 +301,67 @@ networkaddress.cache.ttl=30`
 }
 
 // MakeSslClientData make ssl-client.xml data
-func MakeSslClientData() string {
-	return `<?xml version="1.0"?>
+func MakeSslClientData(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) string {
+	if IsTlsEnabled(clusterSpec) {
+		jksPasswd := clusterSpec.Authentication.Tls.JksPassword
+		xmlConfig := []opgoutil.XmlNameValuePair{
+			{
+				Name:  "ssl.client.truststore.location",
+				Value: fmt.Sprintf("%s/truststore.p12", hdfsv1alpha1.TlsMountPath),
+			},
+			{
+				Name:  "ssl.client.truststore.type",
+				Value: "pkcs12",
+			},
+			{
+				Name:  "ssl.client.truststore.password",
+				Value: jksPasswd,
+			},
+		}
+		return opgoutil.NewXmlConfiguration(xmlConfig).String(nil)
+	} else {
+		return `<?xml version="1.0"?>
 <configuration>
 </configuration>`
+	}
 }
 
 // MakeSslServerData make ssl-server.xml data
-func MakeSslServerData() string {
-	return `<?xml version="1.0"?>
+func MakeSslServerData(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) string {
+	if IsTlsEnabled(clusterSpec) {
+		jksPasswd := clusterSpec.Authentication.Tls.JksPassword
+		xmlConfig := []opgoutil.XmlNameValuePair{
+			{
+				Name:  "ssl.server.truststore.location",
+				Value: fmt.Sprintf("%s/truststore.p12", hdfsv1alpha1.TlsMountPath),
+			},
+			{
+				Name:  "ssl.server.truststore.type",
+				Value: "pkcs12",
+			},
+			{
+				Name:  "ssl.server.truststore.password",
+				Value: jksPasswd,
+			},
+			{
+				Name:  "ssl.server.keystore.location",
+				Value: fmt.Sprintf("%s/keystore.p12", hdfsv1alpha1.TlsMountPath),
+			},
+			{
+				Name:  "ssl.server.keystore.type",
+				Value: "pkcs12",
+			},
+			{
+				Name:  "ssl.server.keystore.password",
+				Value: jksPasswd,
+			},
+		}
+		return opgoutil.NewXmlConfiguration(xmlConfig).String(nil)
+	} else {
+		return `<?xml version="1.0"?>
 <configuration>
 </configuration>`
+	}
 }
 
 // make log4j.properties data
@@ -358,21 +436,21 @@ type DataNodeHdfsSiteXmlGenerator struct {
 
 // NewDataNodeHdfsSiteXmlGenerator new a DataNodeHdfsSiteXmlGenerator
 func NewDataNodeHdfsSiteXmlGenerator(
-	instanceName string,
+	instance *hdfsv1alpha1.HdfsCluster,
 	groupName string,
 	nameNodeReplicas int32,
-	nameSpace string,
-	clusterDomain string,
-	hdfsReplication int32,
 	dataNodeConfig map[string]string) *DataNodeHdfsSiteXmlGenerator {
+
+	clusterSpec := instance.Spec.ClusterConfigSpec
 	return &DataNodeHdfsSiteXmlGenerator{
 		NameNodeHdfsSiteXmlGenerator: *NewNameNodeHdfsSiteXmlGenerator(
-			instanceName,
+			instance.Name,
 			groupName,
 			nameNodeReplicas,
-			nameSpace,
-			clusterDomain,
-			hdfsReplication),
+			instance.Namespace,
+			clusterSpec,
+			clusterSpec.ClusterDomain,
+			clusterSpec.DfsReplication),
 		DataNodeConfig: dataNodeConfig,
 	}
 }

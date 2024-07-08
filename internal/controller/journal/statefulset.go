@@ -5,8 +5,6 @@ import (
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
-	"github.com/zncdatadev/hdfs-operator/internal/controller/data/container"
-	"github.com/zncdatadev/hdfs-operator/internal/util"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -113,28 +111,17 @@ func (s *StatefulSetReconciler) LogOverride(_ client.Object) {
 
 // make name node container
 func (s *StatefulSetReconciler) makeJournalNodeContainer() corev1.Container {
-	image := s.getImageSpec()
 	journalNode := NewJournalNodeContainerBuilder(
-		util.ImageRepository(image.Repository, image.Tag),
-		image.PullPolicy,
+		s.Instance,
 		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
-		s.getZookeeperDiscoveryZNode(),
 	)
 	return journalNode.Build(journalNode)
 }
 
 // make volumes
 func (s *StatefulSetReconciler) makeVolumes() []corev1.Volume {
-	limit := resource.MustParse("150Mi")
-	return []corev1.Volume{
-		{
-			Name: logVolumeName(),
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{
-					SizeLimit: &limit,
-				},
-			},
-		},
+	volumes := common.GetCommonVolumes(s.Instance.Spec.ClusterConfigSpec, s.Instance.GetName(), GetRole())
+	journalNodeVolumes := []corev1.Volume{
 		{
 			Name: journalNodeConfigVolumeName(),
 			VolumeSource: corev1.VolumeSource{
@@ -148,6 +135,7 @@ func (s *StatefulSetReconciler) makeVolumes() []corev1.Volume {
 			},
 		},
 	}
+	return append(volumes, journalNodeVolumes...)
 }
 
 func (s *StatefulSetReconciler) makePvcTemplates() []corev1.PersistentVolumeClaim {
@@ -160,7 +148,7 @@ func (s *StatefulSetReconciler) makePvcTemplates() []corev1.PersistentVolumeClai
 func (s *StatefulSetReconciler) createDataPvcTemplate() corev1.PersistentVolumeClaim {
 	return corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: container.DataVolumeName(),
+			Name: dataVolumeName(),
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -178,21 +166,12 @@ func (s *StatefulSetReconciler) getReplicates() *int32 {
 	return &s.MergedCfg.Replicas
 }
 
-// get image spec
-func (s *StatefulSetReconciler) getImageSpec() *hdfsv1alpha1.ImageSpec {
-	return s.Instance.Spec.Image
-}
-
 func (s *StatefulSetReconciler) getConfigMapSource() *corev1.ConfigMapVolumeSource {
 	return &corev1.ConfigMapVolumeSource{
 		LocalObjectReference: corev1.LocalObjectReference{
 			Name: createConfigName(s.Instance.GetName(), s.GroupName)}}
 }
 
-// get zookeeper discovery znode
-func (s *StatefulSetReconciler) getZookeeperDiscoveryZNode() string {
-	return s.Instance.Spec.ClusterConfigSpec.ZookeeperDiscoveryZNode
-}
 func (s *StatefulSetReconciler) GetConditions() *[]metav1.Condition {
 	return &s.Instance.Status.Conditions
 }

@@ -47,13 +47,7 @@ func (s *ServiceReconciler) Build(_ context.Context) (client.Object, error) {
 }
 
 func (s *ServiceReconciler) makePorts() []corev1.ServicePort {
-	return []corev1.ServicePort{
-		{
-			Name:       hdfsv1alpha1.HttpName,
-			Port:       ServiceHttpPort,
-			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromString(hdfsv1alpha1.HttpName),
-		},
+	ports := []corev1.ServicePort{
 		{
 			Name:       hdfsv1alpha1.RpcName,
 			Port:       ServiceRpcPort,
@@ -67,4 +61,5 @@ func (s *ServiceReconciler) makePorts() []corev1.ServicePort {
 			TargetPort: intstr.FromString(hdfsv1alpha1.MetricName),
 		},
 	}
+	return append(ports, common.ServiceHttpPort(s.Instance.Spec.ClusterConfigSpec, ServiceHttpsPort, ServiceHttpPort))
 }

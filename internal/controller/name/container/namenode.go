@@ -3,6 +3,7 @@ package container
 import (
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/hdfs-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -10,21 +11,23 @@ import (
 type NameNodeContainerBuilder struct {
 	common.ContainerBuilder
 	zookeeperDiscoveryZNode string
+	clusterConfig           *hdfsv1alpha1.ClusterConfigSpec
 }
 
 func NewNameNodeContainerBuilder(
-	image string,
-	imagePullPolicy corev1.PullPolicy,
-	resource corev1.ResourceRequirements,
-	zookeeperDiscoveryZNode string,
-) *NameNodeContainerBuilder {
+	instance *hdfsv1alpha1.HdfsCluster,
+	resource corev1.ResourceRequirements) *NameNodeContainerBuilder {
+	imageSpec := instance.Spec.Image
+	image := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
+	imagePullPolicy := imageSpec.PullPolicy
+	zookeeperDiscoveryZNode := instance.Spec.ClusterConfigSpec.ZookeeperDiscoveryZNode
 	return &NameNodeContainerBuilder{
 		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, resource),
 		zookeeperDiscoveryZNode: zookeeperDiscoveryZNode,
+		clusterConfig:           instance.Spec.ClusterConfigSpec,
 	}
 }
 
-// container name
 func (n *NameNodeContainerBuilder) ContainerName() string {
 	return string(NameNode)
 }
@@ -34,20 +37,13 @@ func (n *NameNodeContainerBuilder) Command() []string {
 }
 
 func (n *NameNodeContainerBuilder) ContainerEnv() []corev1.EnvVar {
-	envs := common.GetCommonContainerEnv(n.zookeeperDiscoveryZNode, NameNode)
-	envs = append(envs, corev1.EnvVar{
-		Name:  "HDFS_NAMENODE_OPTS",
-		Value: "-Djava.security.properties=/stackable/config/namenode/security.properties -Xmx838860k",
-	})
+	envs := common.GetCommonContainerEnv(n.clusterConfig, NameNode)
 	return envs
 }
 
 func (n *NameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
-		{
-			Name:      LogVolumeName(),
-			MountPath: "/stackable/log",
-		},
+	mounts := common.GetCommonVolumeMounts(n.clusterConfig)
+	nnMounts := []corev1.VolumeMount{
 		{
 			Name:      NameNodeConfVolumeName(),
 			MountPath: "/stackable/mount/config/namenode",
@@ -65,6 +61,7 @@ func (n *NameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
 			MountPath: "/stackable/data",
 		},
 	}
+	return append(mounts, nnMounts...)
 }
 
 func (n *NameNodeContainerBuilder) LivenessProbe() *corev1.Probe {
@@ -78,7 +75,7 @@ func (n *NameNodeContainerBuilder) LivenessProbe() *corev1.Probe {
 			HTTPGet: &corev1.HTTPGetAction{
 				Path:   "/dfshealth.html",
 				Port:   intstr.FromString(hdfsv1alpha1.HttpName),
-				Scheme: corev1.URISchemeHTTP,
+				Scheme: common.WebUiPortProbe(n.clusterConfig),
 			},
 		},
 	}
@@ -100,12 +97,7 @@ func (n *NameNodeContainerBuilder) ReadinessProbe() *corev1.Probe {
 
 // ContainerPorts  make container ports of name node
 func (n *NameNodeContainerBuilder) ContainerPorts() []corev1.ContainerPort {
-	return []corev1.ContainerPort{
-		{
-			Name:          hdfsv1alpha1.HttpName,
-			ContainerPort: hdfsv1alpha1.NameNodeHttpPort,
-			Protocol:      corev1.ProtocolTCP,
-		},
+	ports := []corev1.ContainerPort{
 		{
 			Name:          hdfsv1alpha1.RpcName,
 			ContainerPort: hdfsv1alpha1.NameNodeRpcPort,
@@ -117,14 +109,18 @@ func (n *NameNodeContainerBuilder) ContainerPorts() []corev1.ContainerPort {
 			Protocol:      corev1.ProtocolTCP,
 		},
 	}
+	return append(ports, common.HttpPort(n.clusterConfig, hdfsv1alpha1.NameNodeHttpsPort, hdfsv1alpha1.NameNodeHttpPort))
 }
 
 func (n *NameNodeContainerBuilder) CommandArgs() []string {
-	return []string{
-		`mkdir -p /stackable/config/namenode
+	return common.ParseKerberosScript(`mkdir -p /stackable/config/namenode
 cp /stackable/mount/config/namenode/*.xml /stackable/config/namenode
 cp /stackable/mount/config/namenode/namenode.log4j.properties /stackable/config/namenode/log4j.properties
 \
+
+{{ if .kerberosEnabled }}
+{{- .kerberosEnv }}
+{{- end }}
 
 prepare_signal_handlers()
 {
@@ -166,6 +162,5 @@ fi
 /stackable/hadoop/bin/hdfs namenode &
 wait_for_termination $!
 mkdir -p /stackable/log/_vector && touch /stackable/log/_vector/shutdown
-`,
-	}
+`, common.CreateExportKrbRealmEnvData(n.clusterConfig))
 }

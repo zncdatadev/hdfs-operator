@@ -48,7 +48,7 @@ metadata:
     app.kubernetes.io/part-of: zookeeper-operator
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: zookeeper-operator
-  name: sample-hdfs
+  name: sample-hdfs-znode
   namespace: kubedatastack
 spec:
   clusterRef:

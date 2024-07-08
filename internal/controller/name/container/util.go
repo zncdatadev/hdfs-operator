@@ -49,9 +49,13 @@ func ListenerVolumeName() string {
 	return "listener"
 }
 
+func GetRole() common.Role {
+	return common.NameNode
+}
+
 const (
 	Zkfc            common.ContainerComponent = "zkfc"
-	NameNode        common.ContainerComponent = "namenode"
+	NameNode        common.ContainerComponent = common.ContainerComponent(common.NameNode)
 	FormatNameNode  common.ContainerComponent = "format-namenodes"
 	FormatZookeeper common.ContainerComponent = "format-zookeeper"
 )

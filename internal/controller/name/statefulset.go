@@ -6,7 +6,6 @@ import (
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	"github.com/zncdatadev/hdfs-operator/internal/controller/name/container"
-	"github.com/zncdatadev/hdfs-operator/internal/util"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -124,36 +123,26 @@ func (s *StatefulSetReconciler) LogOverride(_ client.Object) {
 
 // make name node container
 func (s *StatefulSetReconciler) makeNameNodeContainer() corev1.Container {
-	image := s.getImageSpec()
-	nameNode := container.NewNameNodeContainerBuilder(
-		util.ImageRepository(image.Repository, image.Tag),
-		image.PullPolicy,
+	nameNode := container.NewNameNodeContainerBuilder(s.Instance,
 		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
-		s.getZookeeperDiscoveryZNode(),
 	)
 	return nameNode.Build(nameNode)
 }
 
 // make zkfc container
 func (s *StatefulSetReconciler) makeZkfcContainer() corev1.Container {
-	image := s.getImageSpec()
 	zkfc := container.NewZkfcContainerBuilder(
-		util.ImageRepository(image.Repository, image.Tag),
-		image.PullPolicy,
+		s.Instance,
 		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
-		s.getZookeeperDiscoveryZNode(),
 	)
 	return zkfc.Build(zkfc)
 }
 
 // make format name node container
 func (s *StatefulSetReconciler) makeFormatNameNodeContainer() corev1.Container {
-	image := s.getImageSpec()
 	formatNameNode := container.NewFormatNameNodeContainerBuilder(
-		util.ImageRepository(image.Repository, image.Tag),
-		image.PullPolicy,
+		s.Instance,
 		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
-		s.getZookeeperDiscoveryZNode(),
 		*s.getReplicates(),
 		common.CreateNameNodeStatefulSetName(s.Instance.GetName(), s.GroupName),
 	)
@@ -162,10 +151,8 @@ func (s *StatefulSetReconciler) makeFormatNameNodeContainer() corev1.Container {
 
 // make format zookeeper container
 func (s *StatefulSetReconciler) makeFormatZookeeperContainer() corev1.Container {
-	image := s.getImageSpec()
 	formatZookeeper := container.NewFormatZookeeperContainerBuilder(
-		util.ImageRepository(image.Repository, image.Tag),
-		image.PullPolicy,
+		s.Instance,
 		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
 		s.getZookeeperDiscoveryZNode(),
 	)
@@ -174,16 +161,8 @@ func (s *StatefulSetReconciler) makeFormatZookeeperContainer() corev1.Container 
 
 // make volumes
 func (s *StatefulSetReconciler) makeVolumes() []corev1.Volume {
-	limit := resource.MustParse("150Mi")
-	return []corev1.Volume{
-		{
-			Name: container.LogVolumeName(),
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{
-					SizeLimit: &limit,
-				},
-			},
-		},
+	volumes := common.GetCommonVolumes(s.Instance.Spec.ClusterConfigSpec, s.Instance.GetName(), container.GetRole())
+	nameNodeVolumes := []corev1.Volume{
 		{
 			Name: container.NameNodeConfVolumeName(),
 			VolumeSource: corev1.VolumeSource{
@@ -233,6 +212,7 @@ func (s *StatefulSetReconciler) makeVolumes() []corev1.Volume {
 			},
 		},
 	}
+	return append(volumes, nameNodeVolumes...)
 }
 
 func (s *StatefulSetReconciler) makePvcTemplates() []corev1.PersistentVolumeClaim {
@@ -266,7 +246,6 @@ func (s *StatefulSetReconciler) createListenPvcTemplate() corev1.PersistentVolum
 	if listenerClass == "" {
 		listenerClass = string(common.ClusterIp)
 	}
-
 	return corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        container.ListenerVolumeName(),
@@ -287,11 +266,6 @@ func (s *StatefulSetReconciler) createListenPvcTemplate() corev1.PersistentVolum
 
 func (s *StatefulSetReconciler) getReplicates() *int32 {
 	return &s.MergedCfg.Replicas
-}
-
-// get image spec
-func (s *StatefulSetReconciler) getImageSpec() *hdfsv1alpha1.ImageSpec {
-	return s.Instance.Spec.Image
 }
 
 func (s *StatefulSetReconciler) getNameNodeConfigMapSource() *corev1.ConfigMapVolumeSource {

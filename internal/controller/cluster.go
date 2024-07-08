@@ -60,6 +60,7 @@ func (c *ClusterReconciler) ReconcileCluster(ctx context.Context) (ctrl.Result, 
 	c.preReconcile()
 
 	// reconcile resource of cluster level
+	c.Log.Info("Reconciling cluster resource")
 	if len(c.resourceReconcilers) > 0 {
 		res, err := common.ReconcilerDoHandler(ctx, c.resourceReconcilers)
 		if err != nil {
@@ -71,6 +72,7 @@ func (c *ClusterReconciler) ReconcileCluster(ctx context.Context) (ctrl.Result, 
 	}
 
 	//reconcile role
+	c.Log.Info("Reconciling role resource")
 	for _, r := range c.roleReconcilers {
 		res, err := r.ReconcileRole(ctx)
 		if err != nil {
@@ -81,7 +83,8 @@ func (c *ClusterReconciler) ReconcileCluster(ctx context.Context) (ctrl.Result, 
 		}
 	}
 
-	// reconcile discovery
+	// reconcile discovery\
+	c.Log.Info("Reconciling discovery resource")
 	res, err := c.ReconcileDiscovery(ctx)
 	if err != nil {
 		return ctrl.Result{}, err

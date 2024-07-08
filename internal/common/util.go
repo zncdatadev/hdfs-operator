@@ -191,8 +191,8 @@ func GetMergedRoleGroupCfg(role Role, instanceName string, groupName string) any
 	return cfg
 }
 
-func GetCommonContainerEnv(zkDiscoveryZNode string, container ContainerComponent) []corev1.EnvVar {
-	return []corev1.EnvVar{
+func GetCommonContainerEnv(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, container ContainerComponent) []corev1.EnvVar {
+	envs := []corev1.EnvVar{
 		{
 			Name:  "HADOOP_CONF_DIR",
 			Value: "/stackable/config/" + string(container),
@@ -214,17 +214,107 @@ func GetCommonContainerEnv(zkDiscoveryZNode string, container ContainerComponent
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: zkDiscoveryZNode,
+						Name: clusterConfig.ZookeeperDiscoveryZNode,
 					},
 					Key: ZookeeperHdfsDiscoveryKey,
 				},
 			},
 		},
 	}
+
+	var jvmArgs = make([]string, 0)
+	var envName string
+	if IsKerberosEnabled(clusterConfig) {
+		envs = append(envs, SecurityEnvs(container, &jvmArgs)...)
+	}
+	if envName = getEnvNameByContainerComponent(container); envName != "" {
+		jvmArgs = append(jvmArgs, "-Xmx419430k")
+		securityDir := getSubDirByContainerComponent(container)
+		securityConfigEnValue := fmt.Sprintf("-Djava.security.properties=/stackable/config/%s/security.properties", securityDir)
+		jvmArgs = append(jvmArgs, securityConfigEnValue)
+
+	}
+	if len(jvmArgs) != 0 && envName != "" {
+		envs = append(envs, corev1.EnvVar{
+			Name:  envName,
+			Value: strings.Join(jvmArgs, " "),
+		})
+	}
+	return envs
+}
+
+func GetCommonVolumes(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, instanceName string, role Role) []corev1.Volume {
+	limit := resource.MustParse("150Mi")
+	volumes := []corev1.Volume{
+		{
+			Name: LogVolumeName(),
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{
+					SizeLimit: &limit,
+				},
+			},
+		},
+	}
+	if IsKerberosEnabled(clusterConfig) {
+		secretClass := clusterConfig.Authentication.Kerberos.SecretClass
+		volumes = append(volumes, CreateKerberosSecretPvc(secretClass, instanceName, role))
+	}
+	if IsTlsEnabled(clusterConfig) {
+		tlsSecretClass := clusterConfig.Authentication.Tls.SecretClass
+		volumes = append(volumes, CreateTlsSecretPvc(tlsSecretClass, clusterConfig.Authentication.Tls.JksPassword))
+	}
+	return volumes
+
+}
+
+func getEnvNameByContainerComponent(container ContainerComponent) string {
+	switch string(container) {
+	case string(NameNode):
+		return "HDFS_NAMENODE_OPTS"
+	case string(DataNode):
+		return "HDFS_DATANODE_OPTS"
+	case string(JournalNode):
+		return "HDFS_JOURNALNODE_OPTS"
+	default:
+		return ""
+	}
+}
+
+func getSubDirByContainerComponent(container ContainerComponent) string {
+	switch string(container) {
+	case string(NameNode):
+		return "namenode"
+	case string(DataNode):
+		return "datanode"
+	case string(JournalNode):
+		return "journalnode"
+	default:
+		panic(fmt.Sprintf("unsupported container component for get sub dir: %s", container))
+	}
 }
 
 func GetCommonCommand() []string {
 	return []string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}
+}
+
+func LogVolumeName() string {
+	return "log"
+}
+
+func GetCommonVolumeMounts(clusterConfig *hdfsv1alpha1.ClusterConfigSpec) []corev1.VolumeMount {
+	mounts := []corev1.VolumeMount{
+		{
+			Name:      LogVolumeName(),
+			MountPath: "/stackable/log",
+		},
+	}
+	if IsKerberosEnabled(clusterConfig) {
+		mounts = append(mounts, SecurityVolumeMounts()...)
+	}
+	if IsTlsEnabled(clusterConfig) {
+		mounts = append(mounts, TlsVolumeMounts()...)
+	}
+	return mounts
 }
 
 const (

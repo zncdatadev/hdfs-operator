@@ -1,6 +1,9 @@
 package container
 
 import (
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/util"
+	"maps"
 	"strings"
 
 	"github.com/zncdatadev/hdfs-operator/internal/common"
@@ -12,34 +15,35 @@ type WaitNameNodeContainerBuilder struct {
 	zookeeperDiscoveryZNode string
 	instanceName            string
 	groupName               string
+	namespace               string
+	clusterConfig           *hdfsv1alpha1.ClusterConfigSpec
 }
 
 func NewWaitNameNodeContainerBuilder(
-	image string,
-	imagePullPolicy corev1.PullPolicy,
+	instance *hdfsv1alpha1.HdfsCluster,
 	resource corev1.ResourceRequirements,
-	zookeeperDiscoveryZNode string,
-	instanceName string,
 	groupName string,
 ) *WaitNameNodeContainerBuilder {
+	imageSpec := instance.Spec.Image
+	clusterConfigSpec := instance.Spec.ClusterConfigSpec
+	image := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
 	return &WaitNameNodeContainerBuilder{
-		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, resource),
-		zookeeperDiscoveryZNode: zookeeperDiscoveryZNode,
-		instanceName:            instanceName,
+		ContainerBuilder:        *common.NewContainerBuilder(image, imageSpec.PullPolicy, resource),
+		zookeeperDiscoveryZNode: clusterConfigSpec.ZookeeperDiscoveryZNode,
+		instanceName:            instance.Name,
 		groupName:               groupName,
+		namespace:               instance.Namespace,
+		clusterConfig:           clusterConfigSpec,
 	}
 }
 
 func (w *WaitNameNodeContainerBuilder) ContainerEnv() []corev1.EnvVar {
-	return common.GetCommonContainerEnv(w.zookeeperDiscoveryZNode, WaitNameNode)
+	return common.GetCommonContainerEnv(w.clusterConfig, WaitNameNode)
 }
 
 func (w *WaitNameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
-		{
-			Name:      LogVolumeName(),
-			MountPath: "/stackable/log",
-		},
+	mounts := common.GetCommonVolumeMounts(w.clusterConfig)
+	waitNameNodeMounts := []corev1.VolumeMount{
 		{
 			Name:      WaitNameNodeConfigVolumeName(),
 			MountPath: "/stackable/mount/config/wait-for-namenodes",
@@ -49,6 +53,7 @@ func (w *WaitNameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
 			MountPath: "/stackable/mount/log/wait-for-namenodes",
 		},
 	}
+	return append(mounts, waitNameNodeMounts...)
 }
 
 func (w *WaitNameNodeContainerBuilder) ContainerName() string {
@@ -59,9 +64,16 @@ func (w *WaitNameNodeContainerBuilder) Command() []string {
 	return common.GetCommonCommand()
 }
 func (w *WaitNameNodeContainerBuilder) CommandArgs() []string {
-	return []string{`mkdir -p /stackable/config/wait-for-namenodes
+	tmpl := `mkdir -p /stackable/config/wait-for-namenodes
 cp /stackable/mount/config/wait-for-namenodes/*.xml /stackable/config/wait-for-namenodes
 cp /stackable/mount/config/wait-for-namenodes/wait-for-namenodes.log4j.properties /stackable/config/wait-for-namenodes/log4j.properties
+
+{{ if .kerberosEnabled }}
+{{- .kerberosEnv }}
+
+{{- .kinitScript }}
+{{- end }}
+
 echo "Waiting for namenodes to get ready:"
 n=0
 while [ ${n} -lt 12 ]; 
@@ -86,7 +98,11 @@ do
     n=$((n + 1))
     sleep 5
 done
-`}
+`
+	data := common.CreateExportKrbRealmEnvData(w.clusterConfig)
+	principal := common.CreateKerberosPrincipal(w.instanceName, w.namespace, GetRole())
+	maps.Copy(data, common.CreateGetKerberosTicketData(principal))
+	return common.ParseKerberosScript(tmpl, data)
 }
 
 func (w *WaitNameNodeContainerBuilder) nameNodeIds() string {

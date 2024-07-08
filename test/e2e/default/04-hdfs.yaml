@@ -14,7 +14,7 @@ spec:
     repository: quay.io/zncdatadev/hadoop
     tag: 3.3.4
   clusterConfig:
-    zookeeperDiscoveryZNode: sample-hdfs
+    zookeeperDiscoveryZNode: sample-hdfs-znode
   nameNode:
     roleGroups:
       default:
