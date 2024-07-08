@@ -21,16 +21,15 @@ spec:
         jksPassword: "123456"
       kerberos:
         secretClass: kerberos-hdfs
-
   nameNode:
     roleGroups:
       default:
-        replicas: 2
+        replicas: 1
         config:
           resources:
             cpu:
               min: 200m
-              max: 1500m
+              max: 800m
             memory:
               limit: "2Gi"
           logging:
@@ -54,7 +53,7 @@ spec:
           resources:
             cpu:
               min: 100m
-              max: 1500m
+              max: 500m
             memory:
               limit: "1Gi"
           logging:
@@ -69,12 +68,12 @@ spec:
   dataNode:
     roleGroups:
       default:
-        replicas: 2
+        replicas: 1
         config:
           resources:
             cpu:
               min: 200m
-              max: 1500m
+              max: 600m
             memory:
               limit: "2Gi"
           logging:
