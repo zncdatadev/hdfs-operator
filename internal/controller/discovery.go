@@ -190,7 +190,11 @@ func (d *Discovery) createConnections(ctx context.Context, podNames []string) ([
 	var err error
 	var connections []util.XmlNameValuePair
 	// create http address
-	httpConnections, err = d.createPortNameAddress(ctx, podNames, common.PortHttpName(d.Instance.Spec.ClusterConfigSpec), &cache)
+	schema := "http"
+	if common.IsTlsEnabled(d.Instance.Spec.ClusterConfigSpec) {
+		schema = "https"
+	}
+	httpConnections, err = d.createPortNameAddress(ctx, podNames, schema, &cache)
 	if err != nil {
 		discoveryLog.Error(err, "failed to create http connections")
 		return nil, err

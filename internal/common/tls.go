@@ -75,14 +75,6 @@ func WebUiPortProbe(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) corev1.URISchem
 	}
 }
 
-func PortHttpName(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) string {
-	if IsTlsEnabled(clusterSpec) {
-		return hdfsv1alpha1.HttpsName
-	} else {
-		return hdfsv1alpha1.HttpName
-	}
-}
-
 func TlsVolumeMounts() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
