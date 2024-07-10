@@ -39,9 +39,16 @@ func (c *CoreSiteXmlGenerator) Generate() string {
 }
 
 // EnableKerberos Enable kerberos
-func (c *CoreSiteXmlGenerator) EnableKerberos(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, ns string) *CoreSiteXmlGenerator {
+func (c *CoreSiteXmlGenerator) EnableKerberos(
+	clusterConfig *hdfsv1alpha1.ClusterConfigSpec,
+	ns string,
+	isDiscovery bool) *CoreSiteXmlGenerator {
 	if IsKerberosEnabled(clusterConfig) {
-		c.properties = append(c.properties, SecurityCoreSiteXml(c.InstanceName, ns)...)
+		if isDiscovery {
+			c.properties = append(c.properties, SecurityDiscoveryCoreSiteXml(c.InstanceName, ns)...)
+		} else {
+			c.properties = append(c.properties, SecurityCoreSiteXml(c.InstanceName, ns)...)
+		}
 	}
 	return c
 }

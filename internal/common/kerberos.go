@@ -55,6 +55,49 @@ func SecurityHdfsSiteXml() []util.XmlNameValuePair {
 	}
 }
 
+func SecurityDiscoveryHdfsSiteXml() []util.XmlNameValuePair {
+	return []util.XmlNameValuePair{
+		{
+			Name:  "hadoop.kerberos.keytab.login.autorenewal.enabled",
+			Value: "true",
+		},
+		{
+			Name:  "dfs.data.transfer.protection",
+			Value: "privacy",
+		},
+		{
+			Name:  "dfs.encrypt.data.transfer",
+			Value: "true",
+		},
+	}
+}
+
+func SecurityDiscoveryCoreSiteXml(instanceName string, ns string) []util.XmlNameValuePair {
+	principalHostPart := PrincipalHostPart(instanceName, ns)
+	return []util.XmlNameValuePair{
+		{
+			Name:  "hadoop.security.authentication",
+			Value: "kerberos",
+		},
+		{
+			Name:  "dfs.journalnode.kerberos.principal",
+			Value: fmt.Sprintf("jn/%s", principalHostPart),
+		},
+		{
+			Name:  "dfs.namenode.kerberos.principal",
+			Value: fmt.Sprintf("nn/%s", principalHostPart),
+		},
+		{
+			Name:  "dfs.datanode.kerberos.principal",
+			Value: fmt.Sprintf("dn/%s", principalHostPart),
+		},
+		{
+			Name:  "hadoop.rpc.protection",
+			Value: "privacy",
+		},
+	}
+}
+
 // SecurityCoreSiteXml make kerberos config for core-site.xml
 func SecurityCoreSiteXml(instanceName string, ns string) []util.XmlNameValuePair {
 	principalHostPart := PrincipalHostPart(instanceName, ns)
@@ -63,10 +106,6 @@ func SecurityCoreSiteXml(instanceName string, ns string) []util.XmlNameValuePair
 			Name:  "hadoop.security.authentication",
 			Value: "kerberos",
 		},
-		//{
-		//	Name:  "hadoop.registry.kerberos.realm",
-		//	Value: "${env.KERBEROS_REALM}",
-		//},
 		{
 			Name:  "dfs.journalnode.kerberos.principal",
 			Value: fmt.Sprintf("jn/%s", principalHostPart),

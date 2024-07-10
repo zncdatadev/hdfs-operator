@@ -44,27 +44,39 @@ func NewDiscovery(
 
 // Build implements the ResourceBuilder interface
 func (d *Discovery) Build(ctx context.Context) (client.Object, error) {
-	return &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      d.Instance.GetName(),
-			Namespace: d.Instance.Namespace,
-			Labels:    d.MergedLabels,
-		},
-		Data: map[string]string{
-			"core-site.xml": d.makeCoreSiteXmlData(),
-			"hdfs-site.xml": d.makeHdfsSiteXmlData(ctx),
-		},
-	}, nil
+	if hdfsSiteXml, err := d.makeHdfsSiteXmlData(ctx); err != nil {
+		return nil, err
+	} else {
+
+		return &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      d.Instance.GetName(),
+				Namespace: d.Instance.Namespace,
+				Labels:    d.MergedLabels,
+			},
+			Data: map[string]string{
+				"core-site.xml": d.makeCoreSiteXmlData(),
+				"hdfs-site.xml": hdfsSiteXml,
+			},
+		}, nil
+	}
 }
 
 func (d *Discovery) makeCoreSiteXmlData() string {
 	generator := common.CoreSiteXmlGenerator{InstanceName: d.Instance.Name}
-	return generator.Generate()
+	return generator.EnableKerberos(d.Instance.Spec.ClusterConfigSpec, d.Instance.Namespace, true).Generate()
 }
 
-func (d *Discovery) makeHdfsSiteXmlData(ctx context.Context) string {
+func (d *Discovery) makeHdfsSiteXmlData(ctx context.Context) (string, error) {
 	xml := util.NewXmlConfiguration(d.commonHdfsSiteXml())
-	return xml.String(d.makeDynamicHdfsSiteXml(ctx))
+	properties, err := d.makeDynamicHdfsSiteXml(ctx)
+	if err != nil {
+		return "", err
+	}
+	if common.IsKerberosEnabled(d.Instance.Spec.ClusterConfigSpec) {
+		properties = append(properties, common.SecurityDiscoveryHdfsSiteXml()...)
+	}
+	return xml.String(properties), nil
 }
 
 // make hdfs-site.xml data
@@ -81,10 +93,11 @@ func (d *Discovery) commonHdfsSiteXml() []util.XmlNameValuePair {
 	}
 }
 
-func (d *Discovery) makeDynamicHdfsSiteXml(ctx context.Context) []util.XmlNameValuePair {
+func (d *Discovery) makeDynamicHdfsSiteXml(ctx context.Context) ([]util.XmlNameValuePair, error) {
 	var hosts util.XmlNameValuePair
 	var podNames []string
 	var connections []util.XmlNameValuePair
+	var err error
 	nameNodeGroups := d.Instance.Spec.NameNode.RoleGroups
 
 	// get pod names
@@ -92,12 +105,14 @@ func (d *Discovery) makeDynamicHdfsSiteXml(ctx context.Context) []util.XmlNameVa
 	// make discovery hosts
 	hosts = d.makeDiscoveryHosts(podNames)
 	// make connections
-	connections = d.createConnections(ctx, podNames)
+	if connections, err = d.createConnections(ctx, podNames); err != nil {
+		return nil, err
+	}
 
 	var all []util.XmlNameValuePair
 	all = append(all, hosts)
 	all = append(all, connections...)
-	return all
+	return all, nil
 }
 
 // get pod names
@@ -169,15 +184,20 @@ func (d *Discovery) createPortNameAddress(
 }
 
 // create discovery connections
-func (d *Discovery) createConnections(ctx context.Context, podNames []string) []util.XmlNameValuePair {
+func (d *Discovery) createConnections(ctx context.Context, podNames []string) ([]util.XmlNameValuePair, error) {
 	cache := make(map[string]*listenerv1alpha1.IngressAddressSpec)
 	var httpConnections, rpcConnections []util.XmlNameValuePair
 	var err error
 	var connections []util.XmlNameValuePair
 	// create http address
-	httpConnections, err = d.createPortNameAddress(ctx, podNames, hdfsv1alpha1.HttpName, &cache)
+	schema := "http"
+	if common.IsTlsEnabled(d.Instance.Spec.ClusterConfigSpec) {
+		schema = "https"
+	}
+	httpConnections, err = d.createPortNameAddress(ctx, podNames, schema, &cache)
 	if err != nil {
 		discoveryLog.Error(err, "failed to create http connections")
+		return nil, err
 	} else {
 		connections = append(connections, httpConnections...)
 	}
@@ -189,7 +209,7 @@ func (d *Discovery) createConnections(ctx context.Context, podNames []string) []
 	} else {
 		connections = append(connections, rpcConnections...)
 	}
-	return connections
+	return connections, nil
 }
 
 // get port from address by port name
