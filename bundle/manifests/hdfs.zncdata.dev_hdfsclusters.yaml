@@ -48,6 +48,15 @@ spec:
                           secretClass:
                             type: string
                         type: object
+                      tls:
+                        properties:
+                          jksPassword:
+                            default: changeit
+                            type: string
+                          secretClass:
+                            default: tls
+                            type: string
+                        type: object
                     type: object
                   clusterDomain:
                     default: cluster.local
