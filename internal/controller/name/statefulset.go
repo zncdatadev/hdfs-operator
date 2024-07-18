@@ -244,7 +244,7 @@ func (s *StatefulSetReconciler) createDataPvcTemplate() corev1.PersistentVolumeC
 func (s *StatefulSetReconciler) createListenPvcTemplate() corev1.PersistentVolumeClaim {
 	listenerClass := s.MergedCfg.Config.ListenerClass
 	if listenerClass == "" {
-		listenerClass = string(common.ClusterIp)
+		listenerClass = string(common.LoadBalancerClass)
 	}
 	return corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{

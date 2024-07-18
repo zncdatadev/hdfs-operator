@@ -25,7 +25,7 @@ type DataNodeConfigSpec struct {
 	Resources *ResourcesSpec `json:"resources,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default:="cluster-internal"
+	// +kubebuilder:default="external-unstable"
 	ListenerClass string `json:"listenerClass,omitempty"`
 
 	// +kubebuilder:validation:Optional
