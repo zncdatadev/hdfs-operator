@@ -10,8 +10,8 @@ import (
 
 type DataNodeContainerBuilder struct {
 	common.ContainerBuilder
-	zookeeperDiscoveryZNode string
-	clusterConfig           *hdfsv1alpha1.ClusterConfigSpec
+	zookeeperConfigMapName string
+	clusterConfig          *hdfsv1alpha1.ClusterConfigSpec
 }
 
 func NewDataNodeContainerBuilder(
@@ -23,9 +23,9 @@ func NewDataNodeContainerBuilder(
 	imagePullPolicy := imageSpec.PullPolicy
 	clusterConfig := instance.Spec.ClusterConfigSpec
 	return &DataNodeContainerBuilder{
-		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, resource),
-		zookeeperDiscoveryZNode: clusterConfig.ZookeeperConfigMapName,
-		clusterConfig:           clusterConfig,
+		ContainerBuilder:       *common.NewContainerBuilder(image, imagePullPolicy, resource),
+		zookeeperConfigMapName: clusterConfig.ZookeeperConfigMapName,
+		clusterConfig:          clusterConfig,
 	}
 }
 
