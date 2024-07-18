@@ -24,7 +24,7 @@ func NewJournalNodeContainerBuilder(
 	clusterConfig := instance.Spec.ClusterConfigSpec
 	return &ContainerBuilder{
 		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, resource),
-		zookeeperDiscoveryZNode: clusterConfig.ZookeeperDiscoveryZNode,
+		zookeeperDiscoveryZNode: clusterConfig.ZookeeperConfigMapName,
 		clusterConfig:           clusterConfig,
 	}
 }

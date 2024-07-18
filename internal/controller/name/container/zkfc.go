@@ -22,7 +22,7 @@ func NewZkfcContainerBuilder(
 	image := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
 	imagePullPolicy := imageSpec.PullPolicy
 	clusterConfig := instance.Spec.ClusterConfigSpec
-	zookeeperDiscoveryZNode := clusterConfig.ZookeeperDiscoveryZNode
+	zookeeperDiscoveryZNode := clusterConfig.ZookeeperConfigMapName
 	return &ZkfcContainerBuilder{
 		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, resource),
 		zookeeperDiscoveryZNode: zookeeperDiscoveryZNode,

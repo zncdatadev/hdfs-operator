@@ -276,5 +276,5 @@ func (s *StatefulSetReconciler) getNameNodeConfigMapSource() *corev1.ConfigMapVo
 
 // get zookeeper discovery znode
 func (s *StatefulSetReconciler) getZookeeperDiscoveryZNode() string {
-	return s.Instance.Spec.ClusterConfigSpec.ZookeeperDiscoveryZNode
+	return s.Instance.Spec.ClusterConfigSpec.ZookeeperConfigMapName
 }

@@ -214,7 +214,7 @@ func GetCommonContainerEnv(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, contai
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: clusterConfig.ZookeeperDiscoveryZNode,
+						Name: clusterConfig.ZookeeperConfigMapName,
 					},
 					Key: ZookeeperHdfsDiscoveryKey,
 				},

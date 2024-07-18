@@ -195,7 +195,7 @@ type ClusterConfigSpec struct {
 	DfsReplication int32 `json:"dfsReplication,omitempty"`
 
 	// +kubebuilder:validation:required
-	ZookeeperDiscoveryZNode string `json:"zookeeperDiscoveryZNode,omitempty"`
+	ZookeeperConfigMapName string `json:"zookeeperConfigMapName,omitempty"`
 }
 
 type AuthenticationSpec struct {

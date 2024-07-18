@@ -29,7 +29,7 @@ func NewWaitNameNodeContainerBuilder(
 	image := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
 	return &WaitNameNodeContainerBuilder{
 		ContainerBuilder:        *common.NewContainerBuilder(image, imageSpec.PullPolicy, resource),
-		zookeeperDiscoveryZNode: clusterConfigSpec.ZookeeperDiscoveryZNode,
+		zookeeperDiscoveryZNode: clusterConfigSpec.ZookeeperConfigMapName,
 		instanceName:            instance.Name,
 		groupName:               groupName,
 		namespace:               instance.Namespace,

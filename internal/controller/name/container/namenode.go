@@ -20,7 +20,7 @@ func NewNameNodeContainerBuilder(
 	imageSpec := instance.Spec.Image
 	image := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
 	imagePullPolicy := imageSpec.PullPolicy
-	zookeeperDiscoveryZNode := instance.Spec.ClusterConfigSpec.ZookeeperDiscoveryZNode
+	zookeeperDiscoveryZNode := instance.Spec.ClusterConfigSpec.ZookeeperConfigMapName
 	return &NameNodeContainerBuilder{
 		ContainerBuilder:        *common.NewContainerBuilder(image, imagePullPolicy, resource),
 		zookeeperDiscoveryZNode: zookeeperDiscoveryZNode,

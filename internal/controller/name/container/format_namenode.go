@@ -33,7 +33,7 @@ func NewFormatNameNodeContainerBuilder(
 	clusterConfig := instance.Spec.ClusterConfigSpec
 	return &FormatNameNodeContainerBuilder{
 		ContainerBuilder:        *common.NewContainerBuilder(image, imageSpec.PullPolicy, resource),
-		zookeeperDiscoveryZNode: clusterConfig.ZookeeperDiscoveryZNode,
+		zookeeperDiscoveryZNode: clusterConfig.ZookeeperConfigMapName,
 		nameNodeReplicates:      nameNodeReplicates,
 		statefulSetName:         statefulSetName,
 		instanceName:            instance.Name,
