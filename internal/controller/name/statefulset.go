@@ -154,7 +154,7 @@ func (s *StatefulSetReconciler) makeFormatZookeeperContainer() corev1.Container 
 	formatZookeeper := container.NewFormatZookeeperContainerBuilder(
 		s.Instance,
 		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
-		s.getZookeeperDiscoveryZNode(),
+		s.getZookeeperConfigMapName(),
 	)
 	return formatZookeeper.Build(formatZookeeper)
 }
@@ -275,6 +275,6 @@ func (s *StatefulSetReconciler) getNameNodeConfigMapSource() *corev1.ConfigMapVo
 }
 
 // get zookeeper discovery znode
-func (s *StatefulSetReconciler) getZookeeperDiscoveryZNode() string {
-	return s.Instance.Spec.ClusterConfigSpec.ZookeeperDiscoveryZNode
+func (s *StatefulSetReconciler) getZookeeperConfigMapName() string {
+	return s.Instance.Spec.ClusterConfigSpec.ZookeeperConfigMapName
 }

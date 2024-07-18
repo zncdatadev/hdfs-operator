@@ -86,7 +86,7 @@ spec:
                           for a service
                         type: string
                     type: object
-                  zookeeperDiscoveryZNode:
+                  zookeeperConfigMapName:
                     type: string
                 type: object
               dataNode:

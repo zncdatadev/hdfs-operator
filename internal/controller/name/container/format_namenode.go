@@ -14,12 +14,12 @@ import (
 // FormatNameNodeContainerBuilder container builder
 type FormatNameNodeContainerBuilder struct {
 	common.ContainerBuilder
-	zookeeperDiscoveryZNode string
-	nameNodeReplicates      int32
-	statefulSetName         string
-	instanceName            string
-	namespace               string
-	clusterConfig           *hdfsv1alpha1.ClusterConfigSpec
+	zookeeperConfigMapName string
+	nameNodeReplicates     int32
+	statefulSetName        string
+	instanceName           string
+	namespace              string
+	clusterConfig          *hdfsv1alpha1.ClusterConfigSpec
 }
 
 func NewFormatNameNodeContainerBuilder(
@@ -32,13 +32,13 @@ func NewFormatNameNodeContainerBuilder(
 	image := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
 	clusterConfig := instance.Spec.ClusterConfigSpec
 	return &FormatNameNodeContainerBuilder{
-		ContainerBuilder:        *common.NewContainerBuilder(image, imageSpec.PullPolicy, resource),
-		zookeeperDiscoveryZNode: clusterConfig.ZookeeperDiscoveryZNode,
-		nameNodeReplicates:      nameNodeReplicates,
-		statefulSetName:         statefulSetName,
-		instanceName:            instance.Name,
-		namespace:               instance.Namespace,
-		clusterConfig:           clusterConfig,
+		ContainerBuilder:       *common.NewContainerBuilder(image, imageSpec.PullPolicy, resource),
+		zookeeperConfigMapName: clusterConfig.ZookeeperConfigMapName,
+		nameNodeReplicates:     nameNodeReplicates,
+		statefulSetName:        statefulSetName,
+		instanceName:           instance.Name,
+		namespace:              instance.Namespace,
+		clusterConfig:          clusterConfig,
 	}
 }
 

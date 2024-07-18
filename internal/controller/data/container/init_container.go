@@ -12,11 +12,11 @@ import (
 
 type WaitNameNodeContainerBuilder struct {
 	common.ContainerBuilder
-	zookeeperDiscoveryZNode string
-	instanceName            string
-	groupName               string
-	namespace               string
-	clusterConfig           *hdfsv1alpha1.ClusterConfigSpec
+	zookeeperConfigMapName string
+	instanceName           string
+	groupName              string
+	namespace              string
+	clusterConfig          *hdfsv1alpha1.ClusterConfigSpec
 }
 
 func NewWaitNameNodeContainerBuilder(
@@ -28,12 +28,12 @@ func NewWaitNameNodeContainerBuilder(
 	clusterConfigSpec := instance.Spec.ClusterConfigSpec
 	image := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
 	return &WaitNameNodeContainerBuilder{
-		ContainerBuilder:        *common.NewContainerBuilder(image, imageSpec.PullPolicy, resource),
-		zookeeperDiscoveryZNode: clusterConfigSpec.ZookeeperDiscoveryZNode,
-		instanceName:            instance.Name,
-		groupName:               groupName,
-		namespace:               instance.Namespace,
-		clusterConfig:           clusterConfigSpec,
+		ContainerBuilder:       *common.NewContainerBuilder(image, imageSpec.PullPolicy, resource),
+		zookeeperConfigMapName: clusterConfigSpec.ZookeeperConfigMapName,
+		instanceName:           instance.Name,
+		groupName:              groupName,
+		namespace:              instance.Namespace,
+		clusterConfig:          clusterConfigSpec,
 	}
 }
 

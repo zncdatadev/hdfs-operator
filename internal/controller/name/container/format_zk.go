@@ -10,24 +10,24 @@ import (
 // FormatZookeeperContainerBuilder container builder
 type FormatZookeeperContainerBuilder struct {
 	common.ContainerBuilder
-	zookeeperDiscoveryZNode string
-	namespace               string
-	clusterConfig           *hdfsv1alpha1.ClusterConfigSpec
+	zookeeperConfigMapName string
+	namespace              string
+	clusterConfig          *hdfsv1alpha1.ClusterConfigSpec
 }
 
 func NewFormatZookeeperContainerBuilder(
 	instance *hdfsv1alpha1.HdfsCluster,
 	resource corev1.ResourceRequirements,
-	zookeeperDiscoveryZNode string,
+	zookeeperConfigMapName string,
 ) *FormatZookeeperContainerBuilder {
 	imageSpec := instance.Spec.Image
 	image := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
 
 	return &FormatZookeeperContainerBuilder{
-		ContainerBuilder:        *common.NewContainerBuilder(image, imageSpec.PullPolicy, resource),
-		zookeeperDiscoveryZNode: zookeeperDiscoveryZNode,
-		namespace:               instance.Namespace,
-		clusterConfig:           instance.Spec.ClusterConfigSpec,
+		ContainerBuilder:       *common.NewContainerBuilder(image, imageSpec.PullPolicy, resource),
+		zookeeperConfigMapName: zookeeperConfigMapName,
+		namespace:              instance.Namespace,
+		clusterConfig:          instance.Spec.ClusterConfigSpec,
 	}
 }
 
