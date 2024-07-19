@@ -1038,7 +1038,7 @@ spec:
                           type: string
                         type: object
                       listenerClass:
-                        default: cluster-internal
+                        default: external-unstable
                         type: string
                       logging:
                         properties:
@@ -2514,7 +2514,7 @@ spec:
                                 type: string
                               type: object
                             listenerClass:
-                              default: cluster-internal
+                              default: external-unstable
                               type: string
                             logging:
                               properties:
@@ -6766,7 +6766,7 @@ spec:
                           type: string
                         type: object
                       listenerClass:
-                        default: cluster-internal
+                        default: external-stable
                         type: string
                       logging:
                         properties:
@@ -8408,7 +8408,7 @@ spec:
                                 type: string
                               type: object
                             listenerClass:
-                              default: cluster-internal
+                              default: external-stable
                               type: string
                             logging:
                               properties:
