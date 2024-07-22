@@ -11,9 +11,9 @@ require (
 	github.com/zncdatadev/listener-operator v0.0.0-20240718111709-11519a396dfb
 	github.com/zncdatadev/operator-go v0.7.0
 	github.com/zncdatadev/secret-operator v0.0.0-20240702125144-ea71dfd42d9f
-	k8s.io/api v0.30.2
-	k8s.io/apimachinery v0.30.2
-	k8s.io/client-go v0.30.2
+	k8s.io/api v0.30.3
+	k8s.io/apimachinery v0.30.3
+	k8s.io/client-go v0.30.3
 	sigs.k8s.io/controller-runtime v0.18.4
 )
 
