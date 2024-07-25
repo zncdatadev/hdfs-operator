@@ -76,7 +76,7 @@ func (c *ConfigMapReconciler) Build(_ context.Context) (client.Object, error) {
 // make core-site.xml data
 func (c *ConfigMapReconciler) makeCoreSiteData() string {
 	generator := &common.CoreSiteXmlGenerator{InstanceName: c.Instance.GetName()}
-	return generator.EnableKerberos(c.Instance.Spec.ClusterConfigSpec, c.Instance.Namespace, false).Generate()
+	return generator.EnableKerberos(c.Instance.Spec.ClusterConfigSpec, c.Instance.Namespace).HaZookeeperQuorum().Generate()
 }
 
 // make hdfs-site.xml data
