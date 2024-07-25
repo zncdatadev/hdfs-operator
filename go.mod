@@ -8,8 +8,7 @@ require (
 	github.com/go-logr/logr v1.4.2
 	github.com/onsi/ginkgo/v2 v2.19.0
 	github.com/onsi/gomega v1.33.1
-	github.com/zncdatadev/listener-operator v0.0.0-20240718111709-11519a396dfb
-	github.com/zncdatadev/operator-go v0.7.0
+	github.com/zncdatadev/operator-go v0.8.3
 	github.com/zncdatadev/secret-operator v0.0.0-20240702125144-ea71dfd42d9f
 	k8s.io/api v0.30.2
 	k8s.io/apimachinery v0.30.2
@@ -69,7 +68,6 @@ require (
 	k8s.io/apiextensions-apiserver v0.30.1 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240521025948-451ce29f5b89 // indirect
-	k8s.io/kubectl v0.30.1 // indirect
 	k8s.io/utils v0.0.0-20240502163921-fe8a2dddb1d0 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect

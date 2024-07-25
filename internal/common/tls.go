@@ -75,6 +75,22 @@ func WebUiPortProbe(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) corev1.URISchem
 	}
 }
 
+func TlsHttpGetAction(clusterSpec *hdfsv1alpha1.ClusterConfigSpec, probePath string) *corev1.HTTPGetAction {
+	if IsTlsEnabled(clusterSpec) {
+		return &corev1.HTTPGetAction{
+			Path:   probePath,
+			Port:   intstr.FromString(hdfsv1alpha1.HttpsName),
+			Scheme: corev1.URISchemeHTTPS,
+		}
+	} else {
+		return &corev1.HTTPGetAction{
+			Path:   probePath,
+			Port:   intstr.FromString(hdfsv1alpha1.HttpName),
+			Scheme: corev1.URISchemeHTTP,
+		}
+	}
+}
+
 func TlsVolumeMounts() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{

@@ -311,21 +311,15 @@ networkaddress.cache.ttl=30`
 func MakeSslClientData(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) string {
 	if IsTlsEnabled(clusterSpec) {
 		jksPasswd := clusterSpec.Authentication.Tls.JksPassword
-		xmlConfig := []opgoutil.XmlNameValuePair{
-			{
-				Name:  "ssl.client.truststore.location",
-				Value: fmt.Sprintf("%s/truststore.p12", hdfsv1alpha1.TlsMountPath),
-			},
-			{
-				Name:  "ssl.client.truststore.type",
-				Value: "pkcs12",
-			},
-			{
-				Name:  "ssl.client.truststore.password",
-				Value: jksPasswd,
-			},
+		if xml, err := opgoutil.NewXMLConfigurationFromMap(map[string]string{
+			"ssl.client.truststore.location": fmt.Sprintf("%s/truststore.p12", hdfsv1alpha1.TlsMountPath),
+			"ssl.client.truststore.type":     "pkcs12",
+			"ssl.client.truststore.password": jksPasswd,
+		}).Marshal(); err == nil {
+			return xml
+		} else {
+			panic(err)
 		}
-		return opgoutil.NewXmlConfiguration(xmlConfig).String(nil)
 	} else {
 		return `<?xml version="1.0"?>
 <configuration>
@@ -337,33 +331,18 @@ func MakeSslClientData(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) string {
 func MakeSslServerData(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) string {
 	if IsTlsEnabled(clusterSpec) {
 		jksPasswd := clusterSpec.Authentication.Tls.JksPassword
-		xmlConfig := []opgoutil.XmlNameValuePair{
-			{
-				Name:  "ssl.server.truststore.location",
-				Value: fmt.Sprintf("%s/truststore.p12", hdfsv1alpha1.TlsMountPath),
-			},
-			{
-				Name:  "ssl.server.truststore.type",
-				Value: "pkcs12",
-			},
-			{
-				Name:  "ssl.server.truststore.password",
-				Value: jksPasswd,
-			},
-			{
-				Name:  "ssl.server.keystore.location",
-				Value: fmt.Sprintf("%s/keystore.p12", hdfsv1alpha1.TlsMountPath),
-			},
-			{
-				Name:  "ssl.server.keystore.type",
-				Value: "pkcs12",
-			},
-			{
-				Name:  "ssl.server.keystore.password",
-				Value: jksPasswd,
-			},
+		if xml, err := opgoutil.NewXMLConfigurationFromMap(map[string]string{
+			"ssl.server.truststore.location": fmt.Sprintf("%s/truststore.p12", hdfsv1alpha1.TlsMountPath),
+			"ssl.server.truststore.type":     "pkcs12",
+			"ssl.server.truststore.password": jksPasswd,
+			"ssl.server.keystore.location":   fmt.Sprintf("%s/keystore.p12", hdfsv1alpha1.TlsMountPath),
+			"ssl.server.keystore.type":       "pkcs12",
+			"ssl.server.keystore.password":   jksPasswd,
+		}).Marshal(); err == nil {
+			return xml
+		} else {
+			panic(err)
 		}
-		return opgoutil.NewXmlConfiguration(xmlConfig).String(nil)
 	} else {
 		return `<?xml version="1.0"?>
 <configuration>

@@ -73,11 +73,7 @@ func (d *DataNodeContainerBuilder) LivenessProbe() *corev1.Probe {
 		SuccessThreshold:    1,
 		TimeoutSeconds:      1,
 		ProbeHandler: corev1.ProbeHandler{
-			HTTPGet: &corev1.HTTPGetAction{
-				Path:   "/datanode.html",
-				Port:   intstr.FromString(hdfsv1alpha1.HttpName),
-				Scheme: common.WebUiPortProbe(d.clusterConfig),
-			},
+			HTTPGet: common.TlsHttpGetAction(d.clusterConfig, "/datanode.html"),
 		},
 	}
 }

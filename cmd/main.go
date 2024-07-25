@@ -38,7 +38,7 @@ import (
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/controller"
-	listenerv1alpha1 "github.com/zncdatadev/listener-operator/api/v1alpha1"
+	listenerv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/listeners/v1alpha1"
 	//+kubebuilder:scaffold:imports
 )
 
