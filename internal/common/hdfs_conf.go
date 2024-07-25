@@ -21,8 +21,7 @@ const coreSiteTemplate = `<?xml version="1.0"?>
     <name>ha.zookeeper.quorum</name>
     <value>${env.ZOOKEEPER}</value>
   </property>
-</configuration> 
-`
+</configuration>`
 
 type CoreSiteXmlGenerator struct {
 	InstanceName string
