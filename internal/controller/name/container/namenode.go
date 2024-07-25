@@ -72,11 +72,7 @@ func (n *NameNodeContainerBuilder) LivenessProbe() *corev1.Probe {
 		SuccessThreshold:    1,
 		TimeoutSeconds:      1,
 		ProbeHandler: corev1.ProbeHandler{
-			HTTPGet: &corev1.HTTPGetAction{
-				Path:   "/dfshealth.html",
-				Port:   intstr.FromString(hdfsv1alpha1.HttpName),
-				Scheme: common.WebUiPortProbe(n.clusterConfig),
-			},
+			HTTPGet: common.TlsHttpGetAction(n.clusterConfig, "dfshealth.html"),
 		},
 	}
 }

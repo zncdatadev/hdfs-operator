@@ -9,7 +9,7 @@ import (
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	"github.com/zncdatadev/hdfs-operator/internal/util"
-	listenerv1alpha1 "github.com/zncdatadev/listener-operator/api/v1alpha1"
+	listenerv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/listeners/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -214,9 +214,9 @@ func (d *Discovery) createConnections(ctx context.Context, podNames []string) ([
 
 // get port from address by port name
 func (d *Discovery) getPort(address *listenerv1alpha1.IngressAddressSpec, portName string) (int32, error) {
-	for _, port := range *address.Ports {
-		if port.Name == portName {
-			return port.Port, nil
+	for name, port := range address.Ports {
+		if name == portName {
+			return port, nil
 		}
 	}
 	return 0, errors.Errorf("not found port in address %s by port name", portName)
@@ -244,7 +244,7 @@ func (d *Discovery) getListenerAddress(
 		discoveryLog.Error(err, "failed to get listener", "cacheKey", cacheKey)
 		return nil, err
 	}
-	address := &listener.Status.IngressAddress[0]
+	address := &listener.Status.IngressAddresses[0]
 	cacheObj[cacheKey] = address
 	return address, nil
 }
