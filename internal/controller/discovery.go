@@ -87,7 +87,7 @@ func (d *Discovery) commonHdfsSiteXml() []util.XmlNameValuePair {
 			Value: d.Instance.GetName(),
 		},
 		{
-			Name:  "dfs.client.failover.proxy.provider.simple-hdfs",
+			Name:  "dfs.client.failover.proxy.provider." + d.Instance.GetName(),
 			Value: "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider",
 		},
 	}
@@ -136,7 +136,7 @@ func (d *Discovery) getPodNames(nameNodeGroups map[string]*hdfsv1alpha1.NameNode
 func (d *Discovery) makeDiscoveryHosts(podNames []string) util.XmlNameValuePair {
 	return util.XmlNameValuePair{
 		Name:  "dfs.ha.namenodes." + d.Instance.GetName(),
-		Value: strings.Join(podNames, ", "),
+		Value: strings.Join(podNames, ","),
 	}
 }
 

@@ -133,7 +133,7 @@ metadata:
       ]
     capabilities: Basic Install
     categories: Big Data
-    createdAt: "2024-07-19T10:21:45Z"
+    createdAt: "2024-07-25T10:03:33Z"
     operators.operatorframework.io/builder: operator-sdk-v1.35.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: hdfs-operator.v0.0.1
