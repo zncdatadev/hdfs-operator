@@ -252,7 +252,7 @@ func (s *StatefulSetReconciler) createListenPvcTemplate() corev1.PersistentVolum
 			Annotations: common.GetListenerLabels(common.ListenerClass(listenerClass)), // important-1!!!!!
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			VolumeMode:  func() *corev1.PersistentVolumeMode { v := corev1.PersistentVolumeFilesystem; return &v }(),
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
