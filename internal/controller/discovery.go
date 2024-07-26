@@ -244,6 +244,13 @@ func (d *Discovery) getListenerAddress(
 		discoveryLog.Error(err, "failed to get listener", "cacheKey", cacheKey)
 		return nil, err
 	}
+
+	listenerAddresses := listener.Status.IngressAddresses
+	if len(listenerAddresses) == 0 {
+		discoveryLog.Info("not found listener address", "namespace", d.Instance.Namespace,
+			"name", d.Instance.Name, "listener.status", listener.Status)
+		return nil, errors.New("not found listener address")
+	}
 	address := &listener.Status.IngressAddresses[0]
 	cacheObj[cacheKey] = address
 	return address, nil
