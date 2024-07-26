@@ -17,14 +17,12 @@ const coreSiteTemplate = `<?xml version="1.0"?>
     <name>fs.defaultFS</name>
     <value>hdfs://%s/</value>
   </property>
-  <property>
-    <name>ha.zookeeper.quorum</name>
-    <value>${env.ZOOKEEPER}</value>
-  </property>
 </configuration>`
 
 type CoreSiteXmlGenerator struct {
 	InstanceName string
+
+	IsDiscovery bool
 
 	properties []util.XmlNameValuePair
 }
@@ -37,13 +35,19 @@ func (c *CoreSiteXmlGenerator) Generate() string {
 	return xml
 }
 
+func (c *CoreSiteXmlGenerator) HaZookeeperQuorum() *CoreSiteXmlGenerator {
+	c.properties = append(c.properties, util.XmlNameValuePair{
+		Name:  "ha.zookeeper.quorum",
+		Value: "${env.ZOOKEEPER}",
+	})
+	return c
+}
+
 // EnableKerberos Enable kerberos
 func (c *CoreSiteXmlGenerator) EnableKerberos(
-	clusterConfig *hdfsv1alpha1.ClusterConfigSpec,
-	ns string,
-	isDiscovery bool) *CoreSiteXmlGenerator {
+	clusterConfig *hdfsv1alpha1.ClusterConfigSpec, ns string) *CoreSiteXmlGenerator {
 	if IsKerberosEnabled(clusterConfig) {
-		if isDiscovery {
+		if c.IsDiscovery {
 			c.properties = append(c.properties, SecurityDiscoveryCoreSiteXml(c.InstanceName, ns)...)
 		} else {
 			c.properties = append(c.properties, SecurityCoreSiteXml(c.InstanceName, ns)...)

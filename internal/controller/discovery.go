@@ -63,8 +63,8 @@ func (d *Discovery) Build(ctx context.Context) (client.Object, error) {
 }
 
 func (d *Discovery) makeCoreSiteXmlData() string {
-	generator := common.CoreSiteXmlGenerator{InstanceName: d.Instance.Name}
-	return generator.EnableKerberos(d.Instance.Spec.ClusterConfigSpec, d.Instance.Namespace, true).Generate()
+	generator := common.CoreSiteXmlGenerator{InstanceName: d.Instance.Name, IsDiscovery: true}
+	return generator.EnableKerberos(d.Instance.Spec.ClusterConfigSpec, d.Instance.Namespace).Generate()
 }
 
 func (d *Discovery) makeHdfsSiteXmlData(ctx context.Context) (string, error) {
