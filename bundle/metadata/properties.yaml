@@ -2,8 +2,8 @@ properties:
   - type: olm.package.required
     value:
       packageName: zookeeper-operator
-      version: ">=0.0.1"
+      versionRange: ">=0.0.1"
   - type: olm.package.required
     value:
       packageName: listener-operator
-      version: ">=0.0.1"
+      versionRange: ">=0.0.1"
