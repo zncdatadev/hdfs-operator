@@ -40,8 +40,7 @@ type MemoryResource struct {
 
 type StorageResource struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="10Gi"
-	Capacity resource.Quantity `json:"capacity,omitempty"`
+	Capacity *resource.Quantity `json:"capacity,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	StorageClass string `json:"storageClass,omitempty"`

@@ -181,6 +181,7 @@ func (s *StatefulSetReconciler) makePvcTemplates() []corev1.PersistentVolumeClai
 
 // create data pvc template
 func (s *StatefulSetReconciler) createDataPvcTemplate() corev1.PersistentVolumeClaim {
+	storageSize := s.MergedCfg.Config.Resources.Storage.Capacity
 	return corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: container.DataVolumeName(),
@@ -190,7 +191,7 @@ func (s *StatefulSetReconciler) createDataPvcTemplate() corev1.PersistentVolumeC
 			VolumeMode:  func() *corev1.PersistentVolumeMode { v := corev1.PersistentVolumeFilesystem; return &v }(),
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: resource.MustParse("2Gi"),
+					corev1.ResourceStorage: *storageSize,
 				},
 			},
 		},
@@ -212,7 +213,7 @@ func (s *StatefulSetReconciler) createListenPvcTemplate() *corev1.PersistentVolu
 			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: resource.MustParse("1Gi"),
+					corev1.ResourceStorage: resource.MustParse(common.ListenerPvcStorage),
 				},
 			},
 		},

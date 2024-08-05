@@ -19,6 +19,11 @@ import (
 
 var discoveryLog = ctrl.Log.WithName("discovery")
 
+var (
+	ErrListenerNotFound          = errors.New("listener resource not found")
+	ErrListenerAddressesNotFound = errors.New("listener addresses not found")
+)
+
 type Discovery struct {
 	common.GeneralResourceStyleReconciler[*hdfsv1alpha1.HdfsCluster, any]
 }
@@ -196,7 +201,7 @@ func (d *Discovery) createConnections(ctx context.Context, podNames []string) ([
 	}
 	httpConnections, err = d.createPortNameAddress(ctx, podNames, schema, &cache)
 	if err != nil {
-		discoveryLog.Error(err, "failed to create http connections")
+		discoveryLog.Info("failed to create http connections")
 		return nil, err
 	} else {
 		connections = append(connections, httpConnections...)
@@ -205,7 +210,7 @@ func (d *Discovery) createConnections(ctx context.Context, podNames []string) ([
 	// create rpc address
 	rpcConnections, err = d.createPortNameAddress(ctx, podNames, hdfsv1alpha1.RpcName, &cache)
 	if err != nil {
-		discoveryLog.Error(err, "failed to create rpc connections")
+		discoveryLog.Info("failed to create rpc connections")
 	} else {
 		connections = append(connections, rpcConnections...)
 	}
@@ -241,15 +246,15 @@ func (d *Discovery) getListenerAddress(
 	resourceClient := common.NewResourceClient(ctx, d.Client, d.Instance.Namespace)
 	err := resourceClient.Get(listener)
 	if err != nil {
-		discoveryLog.Error(err, "failed to get listener", "cacheKey", cacheKey)
-		return nil, err
+		discoveryLog.Info("failed to get listener", "cacheKey", cacheKey)
+		return nil, ErrListenerNotFound
 	}
 
 	listenerAddresses := listener.Status.IngressAddresses
 	if len(listenerAddresses) == 0 {
 		discoveryLog.Info("not found listener address", "namespace", d.Instance.Namespace,
 			"name", d.Instance.Name, "listener.status", listener.Status)
-		return nil, errors.New("not found listener address")
+		return nil, ErrListenerAddressesNotFound
 	}
 	address := &listener.Status.IngressAddresses[0]
 	cacheObj[cacheKey] = address
