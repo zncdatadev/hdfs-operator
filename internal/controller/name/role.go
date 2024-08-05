@@ -111,8 +111,11 @@ func (m *RoleGroup) RegisterResource() {
 	cfg := m.MergeGroupConfigSpec()
 	lables := m.MergeLabels(cfg)
 	mergedCfg := cfg.(*hdfsv1alpha1.NameNodeRoleGroupSpec)
-	pdbSpec := mergedCfg.Config.PodDisruptionBudget
+	// merge default and merged config
+	nameNodeDefaultConfig := common.DefaultNameNodeConfig(m.Instance.GetName())
+	nameNodeDefaultConfig.MergeDefaultConfig(mergedCfg)
 
+	pdbSpec := mergedCfg.Config.PodDisruptionBudget
 	pdb := common.NewReconcilePDB(m.Client, m.Scheme, m.Instance, lables, m.GroupName, pdbSpec)
 	cm := NewConfigMap(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg)
 	//logging := NewNameNodeLogging(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, common.NameNode)

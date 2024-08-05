@@ -20,12 +20,6 @@ spec:
       default:
         replicas: 2
         config:
-          resources:
-            cpu:
-              min: 200m
-              max: 500m
-            memory:
-              limit: "1Gi"
           logging:
             namenode:
               loggers:
@@ -44,12 +38,6 @@ spec:
       default:
         replicas: 1
         config:
-          resources:
-            cpu:
-              min: 100m
-              max: 300m
-            memory:
-              limit: "1Gi"
           logging:
             journalNode:
               loggers:
@@ -64,12 +52,6 @@ spec:
       default:
         replicas: 2
         config:
-          resources:
-            cpu:
-              min: 200m
-              max: 500m
-            memory:
-              limit: "1Gi"
           logging:
             datanode:
               loggers:

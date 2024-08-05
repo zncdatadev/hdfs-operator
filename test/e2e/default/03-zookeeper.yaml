@@ -14,9 +14,7 @@ spec:
     repository: docker.io/bitnami/zookeeper
     tag: 3.9.1-debian-12-r15
   clusterConfig:
-    service:
-      type: NodePort
-      port: 2181
+    listenerClass: external-unstable
   server:
     config:
       resources:

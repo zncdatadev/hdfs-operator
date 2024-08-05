@@ -18,10 +18,11 @@ package controller
 
 import (
 	"context"
+	"emperror.dev/errors"
+	"time"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -72,29 +73,15 @@ func (r *HdfsClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// reconcile order by "cluster -> role -> role-group -> resource"
 	result, err := NewClusterReconciler(r.Client, r.Scheme, cr).ReconcileCluster(ctx)
 	if err != nil {
+		if errors.Is(err, ErrListenerNotFound) || errors.Is(err, ErrListenerAddressesNotFound) {
+			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+		}
 		return ctrl.Result{}, err
 	} else if result.RequeueAfter > 0 {
 		return result, nil
 	}
 	r.Log.Info("Reconcile successfully ", "Name", cr.Name)
 	return ctrl.Result{}, nil
-}
-
-// UpdateStatus updates the status of the HdfsCluster resource
-// https://stackoverflow.com/questions/76388004/k8s-controller-update-status-and-condition
-func (r *HdfsClusterReconciler) UpdateStatus(ctx context.Context, instance *hdfsv1alpha1.HdfsCluster) error {
-	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		return r.Status().Update(ctx, instance)
-		//return r.Status().Patch(ctx, instance, client.MergeFrom(instance))
-	})
-
-	if retryErr != nil {
-		r.Log.Error(retryErr, "Failed to update vfm status after retries")
-		return retryErr
-	}
-
-	r.Log.V(1).Info("Successfully patched object status")
-	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
