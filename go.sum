@@ -96,6 +96,8 @@ github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9de
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/zncdatadev/operator-go v0.8.6-0.20240807064449-2f720432db30 h1:emnA3zOqxh7MYdhi25KZQhKhUf6dc3tvrw+ivftk1dg=
 github.com/zncdatadev/operator-go v0.8.6-0.20240807064449-2f720432db30/go.mod h1:wwISwqkAhgyeaJ6OSBji2PB1a3Jsz0Yu0uTabmWxUpM=
+github.com/zncdatadev/operator-go v0.8.6 h1:9JaJRNs8U8JQdVcA5Zd7MjCIpWxl6brYLD2jaNF47h4=
+github.com/zncdatadev/operator-go v0.8.6/go.mod h1:wwISwqkAhgyeaJ6OSBji2PB1a3Jsz0Yu0uTabmWxUpM=
 go.uber.org/atomic v1.7.0/go.mod h1:fEN4uk6kAWBTFdckzkM89CLk9XfWZrxpCo0nPH17wJc=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
 go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
