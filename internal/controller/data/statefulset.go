@@ -41,7 +41,7 @@ func NewStatefulSet(
 }
 
 func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) {
-	return &appv1.StatefulSet{
+	sts := &appv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      createStatefulSetName(s.Instance.GetName(), s.GroupName),
 			Namespace: s.Instance.GetNamespace(),
@@ -70,7 +70,16 @@ func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) 
 			},
 			VolumeClaimTemplates: s.makePvcTemplates(),
 		},
-	}, nil
+	}
+
+	isVectorEnabled, err := common.IsVectorEnable(s.MergedCfg.Config.Logging)
+	if err != nil {
+		return nil, err
+	} else if isVectorEnabled {
+		common.ExtendStatefulSetByVector(nil, sts, createConfigName(s.Instance.GetName(), s.GroupName))
+	}
+
+	return sts, nil
 }
 
 func (s *StatefulSetReconciler) SetAffinity(resource client.Object) {

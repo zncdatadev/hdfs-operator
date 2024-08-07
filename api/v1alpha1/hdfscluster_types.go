@@ -177,6 +177,9 @@ type ImageSpec struct {
 
 type ClusterConfigSpec struct {
 	// +kubebuilder:validation:Optional
+	VectorAggregatorConfigMapName string `json:"vectorAggregatorConfigMapName,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	Service *ServiceSpec `json:"service,omitempty"`
 
 	// +kubebuilder:validation:Optional

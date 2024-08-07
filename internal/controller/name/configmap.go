@@ -2,7 +2,6 @@ package name
 
 import (
 	"context"
-
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	"github.com/zncdatadev/hdfs-operator/internal/controller/name/container"
@@ -50,32 +49,49 @@ func (c *ConfigMapReconciler) ConfigurationOverride(resource client.Object) {
 			cm.Data[common.CreateComponentLog4jPropertiesName(container.NameNode)] = util.OverrideConfigFileContent(origin,
 				overrideContent)
 		}
-
 	}
 	// logging override
 	c.LoggingOverride(cm)
 }
 
-func (c *ConfigMapReconciler) Build(_ context.Context) (client.Object, error) {
+func (c *ConfigMapReconciler) Build(ctx context.Context) (client.Object, error) {
+	data := map[string]string{
+		hdfsv1alpha1.CoreSiteFileName:     c.makeCoreSiteData(),
+		hdfsv1alpha1.HdfsSiteFileName:     c.makeHdfsSiteData(),
+		hdfsv1alpha1.HadoopPolicyFileName: common.MakeHadoopPolicyData(),
+		hdfsv1alpha1.SecurityFileName:     common.MakeSecurityPropertiesData(),
+		hdfsv1alpha1.SslClientFileName:    common.MakeSslClientData(c.Instance.Spec.ClusterConfigSpec),
+		hdfsv1alpha1.SslServerFileName:    common.MakeSslServerData(c.Instance.Spec.ClusterConfigSpec),
+		//log4j
+		common.CreateComponentLog4jPropertiesName(container.NameNode):        common.MakeLog4jPropertiesData(container.NameNode),
+		common.CreateComponentLog4jPropertiesName(container.Zkfc):            common.MakeLog4jPropertiesData(container.Zkfc),
+		common.CreateComponentLog4jPropertiesName(container.FormatNameNode):  common.MakeLog4jPropertiesData(container.FormatNameNode),
+		common.CreateComponentLog4jPropertiesName(container.FormatZookeeper): common.MakeLog4jPropertiesData(container.FormatZookeeper),
+	}
+
+	if isVectorEnabled, err := common.IsVectorEnable(c.MergedCfg.Config.Logging); err != nil {
+		return nil, err
+	} else if isVectorEnabled {
+		common.ExtendConfigMapByVector(
+			ctx,
+			common.VectorConfigParams{
+				Client:        c.Client,
+				ClusterConfig: c.Instance.Spec.ClusterConfigSpec,
+				Namespace:     c.Instance.GetNamespace(),
+				InstanceName:  c.Instance.GetName(),
+				Role:          string(common.NameNode),
+				GroupName:     c.GroupName,
+			},
+			data)
+	}
+
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      createConfigName(c.Instance.GetName(), c.GroupName),
 			Namespace: c.Instance.GetNamespace(),
 			Labels:    c.MergedLabels,
 		},
-		Data: map[string]string{
-			hdfsv1alpha1.CoreSiteFileName:     c.makeCoreSiteData(),
-			hdfsv1alpha1.HdfsSiteFileName:     c.makeHdfsSiteData(),
-			hdfsv1alpha1.HadoopPolicyFileName: common.MakeHadoopPolicyData(),
-			hdfsv1alpha1.SecurityFileName:     common.MakeSecurityPropertiesData(),
-			hdfsv1alpha1.SslClientFileName:    common.MakeSslClientData(c.Instance.Spec.ClusterConfigSpec),
-			hdfsv1alpha1.SslServerFileName:    common.MakeSslServerData(c.Instance.Spec.ClusterConfigSpec),
-			//log4j
-			common.CreateComponentLog4jPropertiesName(container.NameNode):        common.MakeLog4jPropertiesData(container.NameNode),
-			common.CreateComponentLog4jPropertiesName(container.Zkfc):            common.MakeLog4jPropertiesData(container.Zkfc),
-			common.CreateComponentLog4jPropertiesName(container.FormatNameNode):  common.MakeLog4jPropertiesData(container.FormatNameNode),
-			common.CreateComponentLog4jPropertiesName(container.FormatZookeeper): common.MakeLog4jPropertiesData(container.FormatZookeeper),
-		},
+		Data: data,
 	}, nil
 }
 

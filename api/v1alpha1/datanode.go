@@ -62,6 +62,9 @@ type DataNodeConfigSpec struct {
 
 type DataNodeContainerLoggingSpec struct {
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=false
+	EnableVectorAgent bool `json:"enableVectorAgent,omitempty"`
+	// +kubebuilder:validation:Optional
 	DataNode     *LoggingConfigSpec `json:"datanode,omitempty"`
 	WaitNameNode *LoggingConfigSpec `json:"waitNamenode,omitempty"`
 	// +kubebuilder:validation:Optional

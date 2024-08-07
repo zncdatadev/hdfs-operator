@@ -2,10 +2,11 @@ package common
 
 import (
 	"fmt"
+
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/util"
 	"github.com/zncdatadev/operator-go/pkg/config"
-	"github.com/zncdatadev/secret-operator/pkg/volume"
+	"github.com/zncdatadev/operator-go/pkg/constants"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -191,9 +192,9 @@ func CreateKerberosSecretPvc(secretClass string, instanceName string, role Role)
 				VolumeClaimTemplate: &corev1.PersistentVolumeClaimTemplate{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{
-							volume.SecretsZncdataClass:                secretClass,
-							volume.SecretsZncdataScope:                fmt.Sprintf("service=%s", instanceName),
-							volume.SecretsZncdataKerberosServiceNames: kerberosServiceName + ",HTTP",
+							constants.AnnotationSecretsClass:                secretClass,
+							constants.AnnotationSecretsScope:                fmt.Sprintf("service=%s", instanceName),
+							constants.AnnotationSecretsKerberosServiceNames: kerberosServiceName + ",HTTP",
 						},
 					},
 					Spec: corev1.PersistentVolumeClaimSpec{
