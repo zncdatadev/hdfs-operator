@@ -61,6 +61,9 @@ type NameNodeConfigSpec struct {
 }
 type NameNodeContainerLoggingSpec struct {
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=false
+	EnableVectorAgent bool `json:"enableVectorAgent,omitempty"`
+	// +kubebuilder:validation:Optional
 	NameNode *LoggingConfigSpec `json:"namenode,omitempty"`
 	// +kubebuilder:validation:Optional
 	Zkfc *LoggingConfigSpec `json:"zkfc,omitempty"`

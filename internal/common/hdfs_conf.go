@@ -2,9 +2,10 @@ package common
 
 import (
 	"fmt"
-	opgoutil "github.com/zncdatadev/operator-go/pkg/util"
 	"strconv"
 	"strings"
+
+	opgoutil "github.com/zncdatadev/operator-go/pkg/util"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/util"
@@ -365,10 +366,10 @@ log4j.appender.FILE=org.apache.log4j.RollingFileAppender
 log4j.appender.FILE.Threshold=INFO
 log4j.appender.FILE.MaxFileSize=5MB
 log4j.appender.FILE.MaxBackupIndex=1
-log4j.appender.FILE.layout=org.apache.log4j.PatternLayout
+log4j.appender.FILE.layout=org.apache.log4j.xml.XMLLayout
 log4j.appender.FILE.layout.ConversionPattern=%d{ISO8601} %-5p %c{2} (%F:%M(%L)) - %m%n
 `
-const fileLocationTemplate = `log4j.appender.FILE.File=/stackable/log/%s/%s.log`
+const fileLocationTemplate = `log4j.appender.FILE.File=/stackable/log/%s/%s.log4j.xml`
 
 func MakeLog4jPropertiesData(containerComponent ContainerComponent) string {
 	fileLocation := fmt.Sprintf(fileLocationTemplate, containerComponent, containerComponent)

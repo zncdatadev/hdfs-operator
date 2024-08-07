@@ -4,7 +4,7 @@ import (
 	"fmt"
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/util"
-	"github.com/zncdatadev/secret-operator/pkg/volume"
+	"github.com/zncdatadev/operator-go/pkg/constants"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -126,10 +126,10 @@ func CreateTlsSecretPvc(secretClass string, jksPassword string) corev1.Volume {
 				VolumeClaimTemplate: &corev1.PersistentVolumeClaimTemplate{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{
-							volume.SecretsZncdataClass:  secretClass,
-							volume.SecretsZncdataScope:  "pod,node",
-							volume.SecretsZncdataFormat: "tls-p12",
-							volume.PKCS12Password:       jksPassword,
+							constants.AnnotationSecretsClass:          secretClass,
+							constants.AnnotationSecretsScope:          "pod,node",
+							constants.AnnotationSecretsFormat:         "tls-p12",
+							constants.AnnotationSecretsPKCS12Password: jksPassword,
 						},
 					},
 					Spec: corev1.PersistentVolumeClaimSpec{

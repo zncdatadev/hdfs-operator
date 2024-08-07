@@ -1,0 +1,41 @@
+apiVersion: hdfs.zncdata.dev/v1alpha1
+kind: HdfsCluster
+metadata:
+  labels:
+    app.kubernetes.io/name: hdfscluster
+    app.kubernetes.io/instance: hdfscluster-sample
+    app.kubernetes.io/part-of: hdfs-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: hdfs-operator
+  name: hdfscluster-sample
+  namespace: kubedatastack
+spec:
+  image:
+    repository: quay.io/zncdatadev/hadoop
+    tag: 3.3.4
+  clusterConfig:
+    zookeeperConfigMapName: sample-hdfs-znode
+    vectorAggregatorConfigMapName: vector-aggregator-discovery
+  nameNode:
+    roleGroups:
+      default:
+        replicas: 2
+        config:
+          logging:
+            enableVectorAgent: true
+  journalNode:
+    roleGroups:
+      default:
+        replicas: 1
+        config:
+          logging:
+            enableVectorAgent: true
+
+  dataNode:
+    roleGroups:
+      default:
+        replicas: 2
+        config:
+          logging:
+            enableVectorAgent: true
+

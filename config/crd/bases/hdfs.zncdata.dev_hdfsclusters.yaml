@@ -86,6 +86,8 @@ spec:
                           for a service
                         type: string
                     type: object
+                  vectorAggregatorConfigMapName:
+                    type: string
                   zookeeperConfigMapName:
                     type: string
                 type: object
@@ -1125,6 +1127,9 @@ spec:
                                   type: object
                                 type: object
                             type: object
+                          enableVectorAgent:
+                            default: false
+                            type: boolean
                           waitNamenode:
                             properties:
                               console:
@@ -2600,6 +2605,9 @@ spec:
                                         type: object
                                       type: object
                                   type: object
+                                enableVectorAgent:
+                                  default: false
+                                  type: boolean
                                 waitNamenode:
                                   properties:
                                     console:
@@ -3995,6 +4003,9 @@ spec:
                         type: string
                       logging:
                         properties:
+                          enableVectorAgent:
+                            default: false
+                            type: boolean
                           journalNode:
                             properties:
                               console:
@@ -5387,6 +5398,9 @@ spec:
                               type: string
                             logging:
                               properties:
+                                enableVectorAgent:
+                                  default: false
+                                  type: boolean
                                 journalNode:
                                   properties:
                                     console:
@@ -6766,6 +6780,9 @@ spec:
                         type: string
                       logging:
                         properties:
+                          enableVectorAgent:
+                            default: false
+                            type: boolean
                           formatNameNode:
                             properties:
                               console:
@@ -8407,6 +8424,9 @@ spec:
                               type: string
                             logging:
                               properties:
+                                enableVectorAgent:
+                                  default: false
+                                  type: boolean
                                 formatNameNode:
                                   properties:
                                     console:

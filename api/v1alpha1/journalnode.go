@@ -61,5 +61,8 @@ type JournalNodeConfigSpec struct {
 }
 type JournalNodeContainerLoggingSpec struct {
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=false
+	EnableVectorAgent bool `json:"enableVectorAgent,omitempty"`
+	// +kubebuilder:validation:Optional
 	JournalNode *LoggingConfigSpec `json:"journalNode,omitempty"`
 }
