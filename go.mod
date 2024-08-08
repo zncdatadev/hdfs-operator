@@ -9,7 +9,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.19.1
 	github.com/onsi/gomega v1.34.1
 	github.com/stretchr/testify v1.9.0
-	github.com/zncdatadev/operator-go v0.8.6-0.20240807064449-2f720432db30
+	github.com/zncdatadev/operator-go v0.8.6
 	k8s.io/api v0.30.3
 	k8s.io/apimachinery v0.30.3
 	k8s.io/client-go v0.30.3
