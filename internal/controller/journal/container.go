@@ -5,6 +5,7 @@ import (
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/operator-go/pkg/constants"
 	"github.com/zncdatadev/operator-go/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -48,15 +49,15 @@ func (d *ContainerBuilder) VolumeMount() []corev1.VolumeMount {
 	jnMounts := []corev1.VolumeMount{
 		{
 			Name:      hdfsv1alpha1.HdfsConfigVolumeMountName,
-			MountPath: hdfsv1alpha1.KubedoopConfigDirMount + "/" + d.ContainerName(),
+			MountPath: constants.KubedoopConfigDirMount + "/" + d.ContainerName(),
 		},
 		{
 			Name:      hdfsv1alpha1.HdfsLogVolumeMountName,
-			MountPath: hdfsv1alpha1.KubedoopLogDirMount + "/" + d.ContainerName(),
+			MountPath: constants.KubedoopLogDirMount + "/" + d.ContainerName(),
 		},
 		{
 			Name:      hdfsv1alpha1.DataVolumeMountName,
-			MountPath: hdfsv1alpha1.KubedoopRootDataDir, // note:do not use  hdfsv1alpha1.JournalNodeRootDataDir
+			MountPath: constants.KubedoopDataDir, // note:do not use  hdfsv1alpha1.JournalNodeRootDataDir
 		},
 	}
 	return append(mounts, jnMounts...)
