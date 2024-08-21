@@ -60,7 +60,7 @@ func (n *NameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
 		},
 		{
 			Name:      hdfsv1alpha1.DataVolumeMountName,
-			MountPath: constants.KubedoopConfigDir,
+			MountPath: constants.KubedoopDataDir,
 		},
 	}
 	return append(mounts, nnMounts...)
@@ -115,6 +115,9 @@ func (n *NameNodeContainerBuilder) CommandArgs() []string {
 	args = append(args, `mkdir -p /kubedoop/config/namenode
 cp /kubedoop/mount/config/namenode/*.xml /kubedoop/config/namenode
 cp /kubedoop/mount/config/namenode/namenode.log4j.properties /kubedoop/config/namenode/log4j.properties`)
+
+	// args = append(args, "while true; do sleep 1; done")
+
 	if common.IsKerberosEnabled(n.clusterConfig) {
 		args = append(args, `{{ if .kerberosEnabled}}
 {{- .kerberosEnv}}

@@ -10,9 +10,6 @@ metadata:
   name: hdfscluster-sample
   namespace: ($namespace)
 spec:
-  image:
-    repository: quay.io/zncdatadev/hadoop
-    tag: 3.3.4
   clusterConfig:
     zookeeperConfigMapName: sample-hdfs-znode
     vectorAggregatorConfigMapName: vector-aggregator-discovery

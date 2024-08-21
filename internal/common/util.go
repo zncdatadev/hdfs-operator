@@ -249,7 +249,7 @@ func GetCommonVolumes(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, instanceNam
 	limit := resource.MustParse("150Mi")
 	volumes := []corev1.Volume{
 		{
-			Name: LogVolumeName(),
+			Name: hdfsv1alpha1.KubedoopLogVolumeMountName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{
 					SizeLimit: &limit,
@@ -299,14 +299,10 @@ func GetCommonCommand() []string {
 	return []string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}
 }
 
-func LogVolumeName() string {
-	return "log"
-}
-
 func GetCommonVolumeMounts(clusterConfig *hdfsv1alpha1.ClusterConfigSpec) []corev1.VolumeMount {
 	mounts := []corev1.VolumeMount{
 		{
-			Name:      LogVolumeName(),
+			Name:      hdfsv1alpha1.KubedoopLogVolumeMountName,
 			MountPath: constants.KubedoopLogDir,
 		},
 	}

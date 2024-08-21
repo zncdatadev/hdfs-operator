@@ -60,7 +60,7 @@ func (f *FormatNameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
 		},
 		{
 			Name:      hdfsv1alpha1.DataVolumeMountName,
-			MountPath: constants.KubedoopConfigDir,
+			MountPath: constants.KubedoopDataDir,
 		},
 	}
 	return append(mounts, fnMounts...)
@@ -85,6 +85,7 @@ cp /kubedoop/mount/config/format-namenodes/format-namenodes.log4j.properties /ku
 {{- .kinitScript }}
 
 {{- end }}
+
 
 echo "Start formatting namenode $POD_NAME. Checking for active namenodes:"
 ` + fmt.Sprintf("for namenode_id in %s", namenodeIds) + "\n" +
