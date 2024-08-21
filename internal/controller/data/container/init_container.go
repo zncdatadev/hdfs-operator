@@ -1,10 +1,11 @@
 package container
 
 import (
-	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
-	"github.com/zncdatadev/hdfs-operator/internal/util"
 	"maps"
 	"strings"
+
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/constants"
 
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	corev1 "k8s.io/api/core/v1"
@@ -26,9 +27,9 @@ func NewWaitNameNodeContainerBuilder(
 ) *WaitNameNodeContainerBuilder {
 	imageSpec := instance.Spec.Image
 	clusterConfigSpec := instance.Spec.ClusterConfigSpec
-	image := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
+	image := hdfsv1alpha1.TransformImage(imageSpec)
 	return &WaitNameNodeContainerBuilder{
-		ContainerBuilder:       *common.NewContainerBuilder(image, imageSpec.PullPolicy, resource),
+		ContainerBuilder:       *common.NewContainerBuilder(image.String(), *image.GetPullPolicy(), resource),
 		zookeeperConfigMapName: clusterConfigSpec.ZookeeperConfigMapName,
 		instanceName:           instance.Name,
 		groupName:              groupName,
@@ -45,12 +46,12 @@ func (w *WaitNameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
 	mounts := common.GetCommonVolumeMounts(w.clusterConfig)
 	waitNameNodeMounts := []corev1.VolumeMount{
 		{
-			Name:      WaitNameNodeConfigVolumeName(),
-			MountPath: "/stackable/mount/config/wait-for-namenodes",
+			Name:      hdfsv1alpha1.WaitForNamenodesConfigVolumeMountName,
+			MountPath: constants.KubedoopConfigDirMount + "/" + w.ContainerName(),
 		},
 		{
-			Name:      WaitNameNodeLogVolumeName(),
-			MountPath: "/stackable/mount/log/wait-for-namenodes",
+			Name:      hdfsv1alpha1.WaitForNamenodesLogVolumeMountName,
+			MountPath: constants.KubedoopLogDirMount + "/" + w.ContainerName(),
 		},
 	}
 	return append(mounts, waitNameNodeMounts...)
@@ -64,9 +65,9 @@ func (w *WaitNameNodeContainerBuilder) Command() []string {
 	return common.GetCommonCommand()
 }
 func (w *WaitNameNodeContainerBuilder) CommandArgs() []string {
-	tmpl := `mkdir -p /stackable/config/wait-for-namenodes
-cp /stackable/mount/config/wait-for-namenodes/*.xml /stackable/config/wait-for-namenodes
-cp /stackable/mount/config/wait-for-namenodes/wait-for-namenodes.log4j.properties /stackable/config/wait-for-namenodes/log4j.properties
+	tmpl := `mkdir -p /kubedoop/config/wait-for-namenodes
+cp /kubedoop/mount/config/wait-for-namenodes/*.xml /kubedoop/config/wait-for-namenodes
+cp /kubedoop/mount/config/wait-for-namenodes/wait-for-namenodes.log4j.properties /kubedoop/config/wait-for-namenodes/log4j.properties
 
 {{ if .kerberosEnabled }}
 {{- .kerberosEnv }}
@@ -82,7 +83,7 @@ do
     for namenode_id in ` + w.nameNodeIds() + `; 
     do
         echo -n "Checking pod $namenode_id... "
-        SERVICE_STATE=$(/stackable/hadoop/bin/hdfs haadmin -getServiceState $namenode_id | tail -n1 || true)
+        SERVICE_STATE=$(/kubedoop/hadoop/bin/hdfs haadmin -getServiceState $namenode_id | tail -n1 || true)
         if [ "$SERVICE_STATE" = "active" ] || [ "$SERVICE_STATE" = "standby" ]; then
             echo "$SERVICE_STATE"
         else
@@ -102,7 +103,7 @@ done
 	data := common.CreateExportKrbRealmEnvData(w.clusterConfig)
 	principal := common.CreateKerberosPrincipal(w.instanceName, w.namespace, GetRole())
 	maps.Copy(data, common.CreateGetKerberosTicketData(principal))
-	return common.ParseKerberosScript(tmpl, data)
+	return common.ParseTemplate(tmpl, data)
 }
 
 func (w *WaitNameNodeContainerBuilder) nameNodeIds() string {

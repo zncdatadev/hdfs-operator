@@ -3034,20 +3034,24 @@ spec:
                     type: object
                 type: object
               image:
-                description: 'ImageSpec todo: the image should be made by ourself,
-                  image from stackable for test only, especial listener class testing,
-                  currently'
                 properties:
+                  custom:
+                    type: string
+                  platformVersion:
+                    default: 0.0.0-dev
+                    type: string
+                  productVersion:
+                    default: 3.3.6
+                    type: string
                   pullPolicy:
                     default: IfNotPresent
                     description: PullPolicy describes a policy for if/when to pull
                       a container image
                     type: string
-                  repository:
-                    default: docker.stackable.tech/stackable/hadoop
+                  pullSecretName:
                     type: string
-                  tag:
-                    default: 3.3.4-stackable24.3.0
+                  repository:
+                    default: quay.io/zncdatadev
                     type: string
                 type: object
               journalNode:

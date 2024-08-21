@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/zncdatadev/operator-go/pkg/constants"
 	opgoutil "github.com/zncdatadev/operator-go/pkg/util"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
@@ -98,7 +99,8 @@ func (c *NameNodeHdfsSiteXmlGenerator) Generate() string {
 	c.properties = append(c.properties, c.makeNameNodeHttp()...)
 	c.properties = append(c.properties, c.makeNameNodeRpc()...)
 	c.properties = append(c.properties, c.makeNameNodeNameDir()...)
-	c.properties = append(c.properties, c.makeJournalNodeDataDir())
+	c.properties = append(c.properties, c.makeNamenodeSharedEditDir())
+	c.properties = append(c.properties, c.makeRoleNodeDataDir()...)
 	return util.Append(hdfsSiteTemplate, c.properties)
 }
 
@@ -148,7 +150,7 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeHdfsReplication() util.XmlNameValuePa
 //		<name>dfs.namenode.shared.edits.dir</name>
 //		<value>qjournal://node1.example.com:8485;node2.example.com:8485;node3.example.com:8485/mycluster</value>
 //	</property>
-func (c *NameNodeHdfsSiteXmlGenerator) makeJournalNodeDataDir() util.XmlNameValuePair {
+func (c *NameNodeHdfsSiteXmlGenerator) makeNamenodeSharedEditDir() util.XmlNameValuePair {
 	journalStatefulSetName := CreateJournalNodeStatefulSetName(c.InstanceName, c.GroupName)
 	JournalSvcName := CreateJournalNodeServiceName(c.InstanceName, c.GroupName)
 	journalUrls := CreateNetworksByReplicates(c.getJournalNodeReplicates(), journalStatefulSetName, JournalSvcName, c.NameSpace, c.ClusterDomain, 8485)
@@ -156,6 +158,32 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeJournalNodeDataDir() util.XmlNameValu
 	return util.XmlNameValuePair{
 		Name:  "dfs.namenode.shared.edits.dir",
 		Value: journalConnection,
+	}
+}
+
+// make journal and name node data dir
+// <property>
+//
+//	<name>dfs.journalnode.edits.dir</name>
+//	<value>/kubedoop/data/journalnode</value>
+//
+// </property>
+// <property>
+//
+//	<name>dfs.namenode.name.dir</name>
+//	<value>/kubedoop/data/namenode</value>
+//
+// </property>
+func (c *NameNodeHdfsSiteXmlGenerator) makeRoleNodeDataDir() []util.XmlNameValuePair {
+	return []util.XmlNameValuePair{
+		{
+			Name:  "dfs.journalnode.edits.dir",
+			Value: hdfsv1alpha1.JournalNodeRootDataDir,
+		},
+		{
+			Name:  "dfs.namenode.name.dir",
+			Value: hdfsv1alpha1.NameNodeRootDataDir,
+		},
 	}
 }
 
@@ -253,7 +281,7 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeRpc() []util.XmlNameValuePair
 func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeNameDir() []util.XmlNameValuePair {
 	statefulSetName := CreateNameNodeStatefulSetName(c.InstanceName, c.GroupName)
 	keyTemplate := fmt.Sprintf("dfs.namenode.name.dir.%s.%s-%%d", c.InstanceName, statefulSetName)
-	valueTemplate := "/stackable/data/namenode"
+	valueTemplate := hdfsv1alpha1.NameNodeRootDataDir
 	return CreateXmlContentByReplicas(c.NameNodeReplicas, keyTemplate, valueTemplate)
 }
 
@@ -284,16 +312,8 @@ const hdfsSiteTemplate = `<?xml version="1.0"?>
     <value>${env.POD_NAME}</value>
   </property>
   <property>
-    <name>dfs.journalnode.edits.dir</name>
-    <value>/stackable/data/journalnode</value>
-  </property>
-  <property>
     <name>dfs.namenode.datanode.registration.unsafe.allow-address-override</name>
     <value>true</value>
-  </property>
-  <property>
-    <name>dfs.namenode.name.dir</name>
-    <value>/stackable/data/namenode</value>
   </property>
 </configuration>
 `
@@ -316,7 +336,7 @@ func MakeSslClientData(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) string {
 	if IsTlsEnabled(clusterSpec) {
 		jksPasswd := clusterSpec.Authentication.Tls.JksPassword
 		if xml, err := opgoutil.NewXMLConfigurationFromMap(map[string]string{
-			"ssl.client.truststore.location": fmt.Sprintf("%s/truststore.p12", hdfsv1alpha1.TlsMountPath),
+			"ssl.client.truststore.location": fmt.Sprintf("%s/truststore.p12", constants.KubedoopTlsDir),
 			"ssl.client.truststore.type":     "pkcs12",
 			"ssl.client.truststore.password": jksPasswd,
 		}).Marshal(); err == nil {
@@ -336,10 +356,10 @@ func MakeSslServerData(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) string {
 	if IsTlsEnabled(clusterSpec) {
 		jksPasswd := clusterSpec.Authentication.Tls.JksPassword
 		if xml, err := opgoutil.NewXMLConfigurationFromMap(map[string]string{
-			"ssl.server.truststore.location": fmt.Sprintf("%s/truststore.p12", hdfsv1alpha1.TlsMountPath),
+			"ssl.server.truststore.location": fmt.Sprintf("%s/truststore.p12", constants.KubedoopTlsDir),
 			"ssl.server.truststore.type":     "pkcs12",
 			"ssl.server.truststore.password": jksPasswd,
-			"ssl.server.keystore.location":   fmt.Sprintf("%s/keystore.p12", hdfsv1alpha1.TlsMountPath),
+			"ssl.server.keystore.location":   fmt.Sprintf("%s/keystore.p12", constants.KubedoopTlsDir),
 			"ssl.server.keystore.type":       "pkcs12",
 			"ssl.server.keystore.password":   jksPasswd,
 		}).Marshal(); err == nil {
@@ -369,10 +389,10 @@ log4j.appender.FILE.MaxBackupIndex=1
 log4j.appender.FILE.layout=org.apache.log4j.xml.XMLLayout
 log4j.appender.FILE.layout.ConversionPattern=%d{ISO8601} %-5p %c{2} (%F:%M(%L)) - %m%n
 `
-const fileLocationTemplate = `log4j.appender.FILE.File=/stackable/log/%s/%s.log4j.xml`
+const fileLocationTemplate = `log4j.appender.FILE.File=%s/%s/%s.log4j.xml`
 
 func MakeLog4jPropertiesData(containerComponent ContainerComponent) string {
-	fileLocation := fmt.Sprintf(fileLocationTemplate, containerComponent, containerComponent)
+	fileLocation := fmt.Sprintf(fileLocationTemplate, constants.KubedoopLogDir, containerComponent, containerComponent)
 	return log4jProperties + "\n" + fileLocation
 }
 

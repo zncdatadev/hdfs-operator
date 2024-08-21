@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: zookeeper-operator-controller-manager
-  namespace: kubedatastack-operators
 status:
   availableReplicas: 1
 ---
@@ -10,6 +9,5 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: listener-operator-controller-manager
-  namespace: kubedatastack-operators
 status:
   availableReplicas: 1

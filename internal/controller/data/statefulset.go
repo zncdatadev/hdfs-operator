@@ -147,31 +147,31 @@ func (s *StatefulSetReconciler) makeVolumes() []corev1.Volume {
 	volumes := common.GetCommonVolumes(s.Instance.Spec.ClusterConfigSpec, s.Instance.GetName(), container.GetRole())
 	datanodeVolumes := []corev1.Volume{
 		{
-			Name: container.DataNodeConfVolumeName(),
+			Name: hdfsv1alpha1.HdfsConfigVolumeMountName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: s.getConfigMapSource(),
 			},
 		},
 		{
-			Name: container.DataNodeLogVolumeName(),
+			Name: hdfsv1alpha1.HdfsLogVolumeMountName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: s.getConfigMapSource(),
 			},
 		},
 		{
-			Name: container.WaitNameNodeConfigVolumeName(),
+			Name: hdfsv1alpha1.WaitForNamenodesConfigVolumeMountName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: s.getConfigMapSource(),
 			},
 		},
 		{
-			Name: container.WaitNameNodeLogVolumeName(),
+			Name: hdfsv1alpha1.WaitForNamenodesLogVolumeMountName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: s.getConfigMapSource(),
 			},
 		},
 		{
-			Name: container.ListenerVolumeName(),
+			Name: hdfsv1alpha1.ListenerVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				Ephemeral: &corev1.EphemeralVolumeSource{
 					VolumeClaimTemplate: s.createListenPvcTemplate(),
@@ -193,7 +193,7 @@ func (s *StatefulSetReconciler) createDataPvcTemplate() corev1.PersistentVolumeC
 	storageSize := s.MergedCfg.Config.Resources.Storage.Capacity
 	return corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: container.DataVolumeName(),
+			Name: hdfsv1alpha1.DataVolumeMountName,
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},

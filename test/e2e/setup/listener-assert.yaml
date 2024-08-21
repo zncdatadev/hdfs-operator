@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: listenercsi-sample-csi
-  namespace: kubedatastack
 status:
   currentNumberScheduled: 1
   desiredNumberScheduled: 1

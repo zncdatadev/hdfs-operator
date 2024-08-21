@@ -2,14 +2,16 @@ package common
 
 import (
 	"fmt"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"strings"
+
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/util"
+	"github.com/zncdatadev/operator-go/pkg/constants"
 )
 
 func OverrideEnvVars(origin *[]corev1.EnvVar, override map[string]string) {
@@ -195,11 +197,11 @@ func GetCommonContainerEnv(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, contai
 	envs := []corev1.EnvVar{
 		{
 			Name:  "HADOOP_CONF_DIR",
-			Value: "/stackable/config/" + string(container),
+			Value: constants.KubedoopConfigDir + "/" + string(container),
 		},
 		{
 			Name:  "HADOOP_HOME",
-			Value: "/stackable/hadoop", // todo rename
+			Value: hdfsv1alpha1.HadoopHome,
 		},
 		{
 			Name: "POD_NAME",
@@ -230,7 +232,7 @@ func GetCommonContainerEnv(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, contai
 	if envName = getEnvNameByContainerComponent(container); envName != "" {
 		jvmArgs = append(jvmArgs, "-Xmx419430k")
 		securityDir := getSubDirByContainerComponent(container)
-		securityConfigEnValue := fmt.Sprintf("-Djava.security.properties=/stackable/config/%s/security.properties", securityDir)
+		securityConfigEnValue := fmt.Sprintf("-Djava.security.properties=%s/%s/security.properties", constants.KubedoopConfigDir, securityDir)
 		jvmArgs = append(jvmArgs, securityConfigEnValue)
 
 	}
@@ -305,7 +307,7 @@ func GetCommonVolumeMounts(clusterConfig *hdfsv1alpha1.ClusterConfigSpec) []core
 	mounts := []corev1.VolumeMount{
 		{
 			Name:      LogVolumeName(),
-			MountPath: "/stackable/log",
+			MountPath: constants.KubedoopLogDir,
 		},
 	}
 	if IsKerberosEnabled(clusterConfig) {

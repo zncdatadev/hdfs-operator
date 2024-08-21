@@ -2,11 +2,13 @@ package data
 
 import (
 	"context"
+	"fmt"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	"github.com/zncdatadev/hdfs-operator/internal/controller/data/container"
 	"github.com/zncdatadev/hdfs-operator/internal/util"
+	"github.com/zncdatadev/operator-go/pkg/constants"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -112,8 +114,9 @@ func (c *ConfigMapReconciler) getNameNodeReplicas() int32 {
 }
 
 func (c *ConfigMapReconciler) dataNodeConfig() map[string]string {
+	dataDir := fmt.Sprintf("[DISK]%s/%s/%s", constants.KubedoopDataDir, hdfsv1alpha1.DataVolumeMountName, string(container.DataNode))
 	return map[string]string{
-		"dfs.datanode.data.dir": "[DISK]/stackable/data/data/datanode",
+		"dfs.datanode.data.dir": dataDir,
 	}
 }
 func (c *ConfigMapReconciler) LoggingOverride(current *corev1.ConfigMap) {

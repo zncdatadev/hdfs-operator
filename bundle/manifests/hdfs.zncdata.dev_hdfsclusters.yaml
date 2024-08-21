@@ -86,6 +86,8 @@ spec:
                           for a service
                         type: string
                     type: object
+                  vectorAggregatorConfigMapName:
+                    type: string
                   zookeeperConfigMapName:
                     type: string
                 type: object
@@ -1125,6 +1127,9 @@ spec:
                                   type: object
                                 type: object
                             type: object
+                          enableVectorAgent:
+                            default: false
+                            type: boolean
                           waitNamenode:
                             properties:
                               console:
@@ -1254,7 +1259,6 @@ spec:
                                 anyOf:
                                 - type: integer
                                 - type: string
-                                default: 10Gi
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
                               storageClass:
@@ -2601,6 +2605,9 @@ spec:
                                         type: object
                                       type: object
                                   type: object
+                                enableVectorAgent:
+                                  default: false
+                                  type: boolean
                                 waitNamenode:
                                   properties:
                                     console:
@@ -2730,7 +2737,6 @@ spec:
                                       anyOf:
                                       - type: integer
                                       - type: string
-                                      default: 10Gi
                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                       x-kubernetes-int-or-string: true
                                     storageClass:
@@ -3028,20 +3034,24 @@ spec:
                     type: object
                 type: object
               image:
-                description: 'ImageSpec todo: the image should be made by ourself,
-                  image from stackable for test only, especial listener class testing,
-                  currently'
                 properties:
+                  custom:
+                    type: string
+                  productVersion:
+                    default: 3.1.3
+                    type: string
                   pullPolicy:
                     default: IfNotPresent
                     description: PullPolicy describes a policy for if/when to pull
                       a container image
                     type: string
-                  repository:
-                    default: docker.stackable.tech/stackable/hadoop
+                  pullSecretName:
                     type: string
-                  tag:
-                    default: 3.3.4-stackable24.3.0
+                  repository:
+                    default: quay.io/zncdatadev
+                    type: string
+                  stackVersion:
+                    default: 0.0.0-dev
                     type: string
                 type: object
               journalNode:
@@ -3997,6 +4007,9 @@ spec:
                         type: string
                       logging:
                         properties:
+                          enableVectorAgent:
+                            default: false
+                            type: boolean
                           journalNode:
                             properties:
                               console:
@@ -4126,7 +4139,6 @@ spec:
                                 anyOf:
                                 - type: integer
                                 - type: string
-                                default: 10Gi
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
                               storageClass:
@@ -5390,6 +5402,9 @@ spec:
                               type: string
                             logging:
                               properties:
+                                enableVectorAgent:
+                                  default: false
+                                  type: boolean
                                 journalNode:
                                   properties:
                                     console:
@@ -5519,7 +5534,6 @@ spec:
                                       anyOf:
                                       - type: integer
                                       - type: string
-                                      default: 10Gi
                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                       x-kubernetes-int-or-string: true
                                     storageClass:
@@ -6770,6 +6784,9 @@ spec:
                         type: string
                       logging:
                         properties:
+                          enableVectorAgent:
+                            default: false
+                            type: boolean
                           formatNameNode:
                             properties:
                               console:
@@ -7148,7 +7165,6 @@ spec:
                                 anyOf:
                                 - type: integer
                                 - type: string
-                                default: 10Gi
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
                               storageClass:
@@ -8412,6 +8428,9 @@ spec:
                               type: string
                             logging:
                               properties:
+                                enableVectorAgent:
+                                  default: false
+                                  type: boolean
                                 formatNameNode:
                                   properties:
                                     console:
@@ -8790,7 +8809,6 @@ spec:
                                       anyOf:
                                       - type: integer
                                       - type: string
-                                      default: 10Gi
                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                       x-kubernetes-int-or-string: true
                                     storageClass:

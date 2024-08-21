@@ -1,9 +1,12 @@
 package container
 
 import (
+	"strings"
+
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
-	"github.com/zncdatadev/hdfs-operator/internal/util"
+	"github.com/zncdatadev/operator-go/pkg/constants"
+	"github.com/zncdatadev/operator-go/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -18,12 +21,11 @@ func NewDataNodeContainerBuilder(
 	instance *hdfsv1alpha1.HdfsCluster,
 	resource corev1.ResourceRequirements,
 ) *DataNodeContainerBuilder {
-	imageSpec := instance.Spec.Image
-	image := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
-	imagePullPolicy := imageSpec.PullPolicy
+	image := hdfsv1alpha1.TransformImage(instance.Spec.Image)
+	imagePullPolicy := image.GetPullPolicy()
 	clusterConfig := instance.Spec.ClusterConfigSpec
 	return &DataNodeContainerBuilder{
-		ContainerBuilder:       *common.NewContainerBuilder(image, imagePullPolicy, resource),
+		ContainerBuilder:       *common.NewContainerBuilder(image.String(), *imagePullPolicy, resource),
 		zookeeperConfigMapName: clusterConfig.ZookeeperConfigMapName,
 		clusterConfig:          clusterConfig,
 	}
@@ -46,20 +48,20 @@ func (d *DataNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
 	mounts := common.GetCommonVolumeMounts(d.clusterConfig)
 	datanodeMounts := []corev1.VolumeMount{
 		{
-			Name:      DataNodeConfVolumeName(),
-			MountPath: "/stackable/mount/config/datanode",
+			Name:      hdfsv1alpha1.HdfsConfigVolumeMountName,
+			MountPath: constants.KubedoopConfigDirMount + "/" + d.ContainerName(),
 		},
 		{
-			Name:      DataNodeLogVolumeName(),
-			MountPath: "/stackable/mount/log/datanode",
+			Name:      hdfsv1alpha1.HdfsLogVolumeMountName,
+			MountPath: constants.KubedoopLogDirMount + "/" + d.ContainerName(),
 		},
 		{
-			Name:      ListenerVolumeName(),
-			MountPath: "/stackable/listener",
+			Name:      hdfsv1alpha1.ListenerVolumeName,
+			MountPath: constants.KubedoopListenerDir,
 		},
 		{
-			Name:      DataVolumeName(),
-			MountPath: "/stackable/data/data", // !!! the last "data" is pvc name
+			Name:      hdfsv1alpha1.DataVolumeMountName,
+			MountPath: hdfsv1alpha1.DataNodeRootDataDirPrefix + hdfsv1alpha1.DataVolumeMountName, // !!! the last "data" is pvc name
 		},
 	}
 	return append(mounts, datanodeMounts...)
@@ -113,58 +115,25 @@ func (d *DataNodeContainerBuilder) ContainerPorts() []corev1.ContainerPort {
 	}
 	return append(ports, common.HttpPort(d.clusterConfig, hdfsv1alpha1.DataNodeHttpsPort, hdfsv1alpha1.DataNodeHttpPort))
 }
-
 func (d *DataNodeContainerBuilder) CommandArgs() []string {
+	var args []string
+	args = append(args, `mkdir -p /kubedoop/config/datanode
+cp /kubedoop/mount/config/datanode/*.xml /kubedoop/config/datanode
+cp /kubedoop/mount/config/datanode/datanode.log4j.properties /kubedoop/config/datanode/log4j.properties`)
+	if common.IsKerberosEnabled(d.clusterConfig) {
+		args = append(args, `{{ if .kerberosEnabled}}
+{{- .kerberosEnv}}
+{{- end}}`)
+	}
+	args = append(args, util.CommonBashTrapFunctions)
+	args = append(args, util.RemoveVectorShutdownFileCommand())
+	args = append(args, util.InvokePrepareSignalHandlers)
+	args = append(args, util.ExportPodAddress())
+	args = append(args, "/kubedoop/hadoop/bin/hdfs datanode &")
+	args = append(args, util.InvokeWaitForTermination)
+	args = append(args, util.CreateVectorShutdownFileCommand())
 
-	tmpl := `mkdir -p /stackable/config/datanode
-cp /stackable/mount/config/datanode/*.xml /stackable/config/datanode
-cp /stackable/mount/config/datanode/datanode.log4j.properties /stackable/config/datanode/log4j.properties
-\
-
-{{ if .kerberosEnabled }}
-{{- .kerberosEnv }}
-{{- end }}
-
-prepare_signal_handlers()
-{
-    unset term_child_pid
-    unset term_kill_needed
-    trap 'handle_term_signal' TERM
-}
-
-handle_term_signal()
-{
-    if [ "${term_child_pid}" ]; then
-        kill -TERM "${term_child_pid}" 2>/dev/null
-    else
-        term_kill_needed="yes"
-    fi
-}
-
-wait_for_termination()
-{
-    set +e
-    term_child_pid=$1
-    if [[ -v term_kill_needed ]]; then
-        kill -TERM "${term_child_pid}" 2>/dev/null
-    fi
-    wait ${term_child_pid} 2>/dev/null
-    trap - TERM
-    wait ${term_child_pid} 2>/dev/null
-    set -e
-}
-
-rm -f /stackable/log/_vector/shutdown
-prepare_signal_handlers
-if [[ -d /stackable/listener ]]; then
-  export POD_ADDRESS=$(cat /stackable/listener/default-address/address)
-  for i in /stackable/listener/default-address/ports/*; do
-      export $(basename $i | tr a-z A-Z)_PORT="$(cat $i)"
-  done
-fi
-/stackable/hadoop/bin/hdfs datanode &
-wait_for_termination $!
-mkdir -p /stackable/log/_vector && touch /stackable/log/_vector/shutdown
-`
-	return common.ParseKerberosScript(tmpl, common.CreateExportKrbRealmEnvData(d.clusterConfig))
+	tmpl := strings.Join(args, "\n")
+	krbData := common.CreateExportKrbRealmEnvData(d.clusterConfig)
+	return common.ParseTemplate(tmpl, krbData)
 }

@@ -8,7 +8,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: zookeeper-operator
   name: zookeepercluster-sample
-  namespace: kubedatastack
 spec:
   image:
     repository: docker.io/bitnami/zookeeper
@@ -25,7 +24,7 @@ spec:
           limit: "1Gi"
     roleGroups:
       default:
-        replicas: 2
+        replicas: 1
         config:
           logging:
             zookeeperCluster:
@@ -47,9 +46,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: zookeeper-operator
   name: sample-hdfs-znode
-  namespace: kubedatastack
 spec:
   clusterRef:
     name: zookeepercluster-sample
-    namespace: kubedatastack
 

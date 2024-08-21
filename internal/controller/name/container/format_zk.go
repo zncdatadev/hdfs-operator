@@ -3,7 +3,7 @@ package container
 import (
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
-	"github.com/zncdatadev/hdfs-operator/internal/util"
+	"github.com/zncdatadev/operator-go/pkg/constants"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -21,10 +21,10 @@ func NewFormatZookeeperContainerBuilder(
 	zookeeperConfigMapName string,
 ) *FormatZookeeperContainerBuilder {
 	imageSpec := instance.Spec.Image
-	image := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
+	image := hdfsv1alpha1.TransformImage(imageSpec)
 
 	return &FormatZookeeperContainerBuilder{
-		ContainerBuilder:       *common.NewContainerBuilder(image, imageSpec.PullPolicy, resource),
+		ContainerBuilder:       *common.NewContainerBuilder(image.String(), *image.GetPullPolicy(), resource),
 		zookeeperConfigMapName: zookeeperConfigMapName,
 		namespace:              instance.Namespace,
 		clusterConfig:          instance.Spec.ClusterConfigSpec,
@@ -39,12 +39,12 @@ func (z *FormatZookeeperContainerBuilder) VolumeMount() []corev1.VolumeMount {
 	mounts := common.GetCommonVolumeMounts(z.clusterConfig)
 	fzMounts := []corev1.VolumeMount{
 		{
-			Name:      FormatZookeeperVolumeName(),
-			MountPath: "/stackable/mount/config/format-zookeeper",
+			Name:      hdfsv1alpha1.FormatZookeeperConfigVolumeMountName,
+			MountPath: constants.KubedoopConfigDirMount + "/" + z.ContainerName(),
 		},
 		{
-			Name:      FormatZookeeperLogVolumeName(),
-			MountPath: "/stackable/mount/log/format-zookeeper",
+			Name:      hdfsv1alpha1.FormatZookeeperLogVolumeMountName,
+			MountPath: constants.KubedoopLogDirMount + "/" + z.ContainerName(),
 		},
 	}
 	return append(mounts, fzMounts...)
@@ -58,9 +58,9 @@ func (z *FormatZookeeperContainerBuilder) Command() []string {
 	return common.GetCommonCommand()
 }
 func (z *FormatZookeeperContainerBuilder) CommandArgs() []string {
-	tmpl := `mkdir -p /stackable/config/format-zookeeper
-cp /stackable/mount/config/format-zookeeper/*.xml /stackable/config/format-zookeeper
-cp /stackable/mount/config/format-zookeeper/format-zookeeper.log4j.properties /stackable/config/format-zookeeper/log4j.properties
+	tmpl := `mkdir -p /kubedoop/config/format-zookeeper
+cp /kubedoop/mount/config/format-zookeeper/*.xml /kubedoop/config/format-zookeeper
+cp /kubedoop/mount/config/format-zookeeper/format-zookeeper.log4j.properties /kubedoop/config/format-zookeeper/log4j.properties
 
 {{ if .kerberosEnabled }}
 {{- .kerberosEnv }}
@@ -69,7 +69,7 @@ cp /stackable/mount/config/format-zookeeper/format-zookeeper.log4j.properties /s
 echo "Attempt to format ZooKeeper..."
 if [[ "0" -eq "$(echo $POD_NAME | sed -e 's/.*-//')" ]] ; then
     set +e
-    /stackable/hadoop/bin/hdfs zkfc -formatZK -nonInteractive
+    /kubedoop/hadoop/bin/hdfs zkfc -formatZK -nonInteractive
     EXITCODE=$?
     set -e
     if [[ $EXITCODE -eq 0 ]]; then
@@ -85,5 +85,5 @@ else
     echo "ZooKeeper already formatted!"
 fi
 `
-	return common.ParseKerberosScript(tmpl, common.CreateExportKrbRealmEnvData(z.clusterConfig))
+	return common.ParseTemplate(tmpl, common.CreateExportKrbRealmEnvData(z.clusterConfig))
 }

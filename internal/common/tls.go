@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/util"
 	"github.com/zncdatadev/operator-go/pkg/constants"
@@ -95,7 +96,7 @@ func TlsVolumeMounts() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      TlsVolumeName,
-			MountPath: hdfsv1alpha1.TlsMountPath,
+			MountPath: constants.KubedoopTlsDir,
 		},
 	}
 }

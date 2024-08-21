@@ -2,10 +2,11 @@ package container
 
 import (
 	"fmt"
-	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
-	"github.com/zncdatadev/hdfs-operator/internal/util"
 	"maps"
 	"strings"
+
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/constants"
 
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	corev1 "k8s.io/api/core/v1"
@@ -29,10 +30,10 @@ func NewFormatNameNodeContainerBuilder(
 	statefulSetName string,
 ) *FormatNameNodeContainerBuilder {
 	imageSpec := instance.Spec.Image
-	image := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
+	image := hdfsv1alpha1.TransformImage(imageSpec)
 	clusterConfig := instance.Spec.ClusterConfigSpec
 	return &FormatNameNodeContainerBuilder{
-		ContainerBuilder:       *common.NewContainerBuilder(image, imageSpec.PullPolicy, resource),
+		ContainerBuilder:       *common.NewContainerBuilder(image.String(), *image.GetPullPolicy(), resource),
 		zookeeperConfigMapName: clusterConfig.ZookeeperConfigMapName,
 		nameNodeReplicates:     nameNodeReplicates,
 		statefulSetName:        statefulSetName,
@@ -50,16 +51,16 @@ func (f *FormatNameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
 	mounts := common.GetCommonVolumeMounts(f.clusterConfig)
 	fnMounts := []corev1.VolumeMount{
 		{
-			Name:      FormatNameNodeVolumeName(),
-			MountPath: "/stackable/mount/config/format-namenodes",
+			Name:      hdfsv1alpha1.FormatNamenodesConfigVolumeMountName,
+			MountPath: constants.KubedoopConfigDirMount + "/" + f.ContainerName(),
 		},
 		{
-			Name:      FormatNameNodeLogVolumeName(),
-			MountPath: "/stackable/mount/log/format-namenodes",
+			Name:      hdfsv1alpha1.FormatNamenodesLogVolumeMountName,
+			MountPath: constants.KubedoopLogDirMount + "/" + f.ContainerName(),
 		},
 		{
-			Name:      DataVolumeName(),
-			MountPath: "/stackable/data",
+			Name:      hdfsv1alpha1.DataVolumeMountName,
+			MountPath: constants.KubedoopConfigDir,
 		},
 	}
 	return append(mounts, fnMounts...)
@@ -74,9 +75,9 @@ func (f *FormatNameNodeContainerBuilder) Command() []string {
 }
 func (f *FormatNameNodeContainerBuilder) CommandArgs() []string {
 	namenodeIds := strings.Join(f.PodNames(), " ")
-	tmpl := `mkdir -p /stackable/config/format-namenodes
-cp /stackable/mount/config/format-namenodes/*.xml /stackable/config/format-namenodes
-cp /stackable/mount/config/format-namenodes/format-namenodes.log4j.properties /stackable/config/format-namenodes/log4j.properties
+	tmpl := `mkdir -p /kubedoop/config/format-namenodes
+cp /kubedoop/mount/config/format-namenodes/*.xml /kubedoop/config/format-namenodes
+cp /kubedoop/mount/config/format-namenodes/format-namenodes.log4j.properties /kubedoop/config/format-namenodes/log4j.properties
 
 {{ if .kerberosEnabled }}
 {{- .kerberosEnv }}
@@ -89,7 +90,7 @@ echo "Start formatting namenode $POD_NAME. Checking for active namenodes:"
 ` + fmt.Sprintf("for namenode_id in %s", namenodeIds) + "\n" +
 		`do
     echo -n "Checking pod $namenode_id... "
-    SERVICE_STATE=$(/stackable/hadoop/bin/hdfs haadmin -getServiceState $namenode_id | tail -n1 || true)
+    SERVICE_STATE=$(/kubedoop/hadoop/bin/hdfs haadmin -getServiceState $namenode_id | tail -n1 || true)
     if [ "$SERVICE_STATE" == "active" ]
     then
         ACTIVE_NAMENODE=$namenode_id
@@ -99,25 +100,25 @@ echo "Start formatting namenode $POD_NAME. Checking for active namenodes:"
     echo ""
 done
 
-if [ ! -f "/stackable/data/namenode/current/VERSION" ]
+if [ ! -f "/kubedoop/data/namenode/current/VERSION" ]
 then
     if [ -z ${ACTIVE_NAMENODE+x} ]
     then
         echo "Create pod $POD_NAME as active namenode."
-        /stackable/hadoop/bin/hdfs namenode -format -noninteractive
+        /kubedoop/hadoop/bin/hdfs namenode -format -noninteractive
     else
         echo "Create pod $POD_NAME as standby namenode."
-        /stackable/hadoop/bin/hdfs namenode -bootstrapStandby -nonInteractive
+        /kubedoop/hadoop/bin/hdfs namenode -bootstrapStandby -nonInteractive
     fi
 else
-    cat "/stackable/data/namenode/current/VERSION"
+    cat "/kubedoop/data/namenode/current/VERSION"
     echo "Pod $POD_NAME already formatted. Skipping..."
 fi
 `
 	data := common.CreateExportKrbRealmEnvData(f.clusterConfig)
 	principal := common.CreateKerberosPrincipal(f.instanceName, f.namespace, GetRole())
 	maps.Copy(data, common.CreateGetKerberosTicketData(principal))
-	return common.ParseKerberosScript(tmpl, data)
+	return common.ParseTemplate(tmpl, data)
 }
 
 func (f *FormatNameNodeContainerBuilder) PodNames() []string {

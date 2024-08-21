@@ -8,7 +8,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: listener-operator
   name: listenercsi-sample
-  namespace: kubedatastack
 spec:
   csiDriver:
     repository: quay.io/zncdatadev/listener-csi-driver
