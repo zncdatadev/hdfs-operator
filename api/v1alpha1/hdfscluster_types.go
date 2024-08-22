@@ -17,16 +17,13 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/zncdatadev/operator-go/pkg/constants"
 	"github.com/zncdatadev/operator-go/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	KerberosMountPath = "/zncdata/kerberos"
-	TlsMountPath      = "/zncdata/tls"
-)
-
+// file name
 const (
 	CoreSiteFileName = "core-site.xml"
 	HdfsSiteFileName = "hdfs-site.xml"
@@ -40,13 +37,47 @@ const (
 	Log4jFileName        = "log4j.properties"
 )
 
+// volume name
 const (
-	MetricName            = "metric"
-	HttpName              = "http"
-	HttpsName             = "https"
-	RpcName               = "rpc"
-	IpcName               = "ipc"
-	DataName              = "data"
+	ListenerVolumeName                    = "listener"
+	TlsStoreVolumeName                    = "tls"
+	KerberosVolumeName                    = "kerberos"
+	KubedoopLogVolumeMountName            = "log"
+	DataVolumeMountName                   = "data"
+	HdfsConfigVolumeMountName             = "hdfs-config"
+	HdfsLogVolumeMountName                = "hdfs-log-config"
+	ZkfcConfigVolumeMountName             = "zkfc-config"
+	ZkfcLogVolumeMountName                = "zkfc-log-config"
+	FormatNamenodesConfigVolumeMountName  = "format-namenodes-config"
+	FormatNamenodesLogVolumeMountName     = "format-namenodes-log-config"
+	FormatZookeeperConfigVolumeMountName  = "format-zookeeper-config"
+	FormatZookeeperLogVolumeMountName     = "format-zookeeper-log-config"
+	WaitForNamenodesConfigVolumeMountName = "wait-for-namenodes-config"
+	WaitForNamenodesLogVolumeMountName    = "wait-for-namenodes-log-config"
+
+	JvmHeapFactor = 0.8
+)
+
+// directory
+const (
+	NameNodeRootDataDir    = constants.KubedoopDataDir + "/namenode"
+	JournalNodeRootDataDir = constants.KubedoopDataDir + "/journalnode"
+
+	DataNodeRootDataDirPrefix = constants.KubedoopDataDir + "/"
+	DataNodeRootDataDirSuffix = "/datanode"
+
+	HadoopHome = constants.KubedoopRoot + "/hadoop"
+)
+
+// port names
+const (
+	MetricName = "metric"
+	HttpName   = "http"
+	HttpsName  = "https"
+	RpcName    = "rpc"
+	IpcName    = "ipc"
+	DataName   = "data"
+
 	NameNodeHttpPort      = 9870
 	NameNodeHttpsPort     = 9871
 	NameNodeRpcPort       = 8020
@@ -160,19 +191,6 @@ type JournalNodeSpec struct {
 
 	// +kubebuilder:validation:Optional
 	EnvOverrides map[string]string `json:"envOverrides,omitempty"`
-}
-
-// ImageSpec todo: the image should be made by ourself, image from stackable for test only, especial listener class testing, currently
-type ImageSpec struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=docker.stackable.tech/stackable/hadoop
-	Repository string `json:"repository,omitempty"`
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default:="3.3.4-stackable24.3.0"
-	Tag string `json:"tag,omitempty"`
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default:=IfNotPresent
-	PullPolicy corev1.PullPolicy `json:"pullPolicy,omitempty"`
 }
 
 type ClusterConfigSpec struct {

@@ -35,3 +35,12 @@ catalog.Dockerfile
 catalog
 
 *-local.yaml
+
+# test
+ginkgo.report
+cover.out
+*__debug*
+**/coverage
+
+# ai code local
+.codiumai.toml

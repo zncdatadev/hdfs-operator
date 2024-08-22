@@ -102,7 +102,3 @@ func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object) (bo
 	}
 	return false, err
 }
-
-func ImageRepository(name, tag string) string {
-	return fmt.Sprintf("%s:%s", name, tag)
-}

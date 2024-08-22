@@ -173,49 +173,49 @@ func (s *StatefulSetReconciler) makeVolumes() []corev1.Volume {
 	volumes := common.GetCommonVolumes(s.Instance.Spec.ClusterConfigSpec, s.Instance.GetName(), container.GetRole())
 	nameNodeVolumes := []corev1.Volume{
 		{
-			Name: container.NameNodeConfVolumeName(),
+			Name: hdfsv1alpha1.HdfsConfigVolumeMountName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: s.getNameNodeConfigMapSource(),
 			},
 		},
 		{
-			Name: container.NameNodeLogVolumeName(),
+			Name: hdfsv1alpha1.HdfsLogVolumeMountName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: s.getNameNodeConfigMapSource(),
 			},
 		},
 		{
-			Name: container.ZkfcVolumeName(),
+			Name: hdfsv1alpha1.ZkfcConfigVolumeMountName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: s.getNameNodeConfigMapSource(),
 			},
 		},
 		{
-			Name: container.ZkfcLogVolumeName(),
+			Name: hdfsv1alpha1.ZkfcLogVolumeMountName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: s.getNameNodeConfigMapSource(),
 			},
 		},
 		{
-			Name: container.FormatNameNodeVolumeName(),
+			Name: hdfsv1alpha1.FormatNamenodesConfigVolumeMountName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: s.getNameNodeConfigMapSource(),
 			},
 		},
 		{
-			Name: container.FormatNameNodeLogVolumeName(),
+			Name: hdfsv1alpha1.FormatNamenodesLogVolumeMountName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: s.getNameNodeConfigMapSource(),
 			},
 		},
 		{
-			Name: container.FormatZookeeperVolumeName(),
+			Name: hdfsv1alpha1.FormatZookeeperConfigVolumeMountName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: s.getNameNodeConfigMapSource(),
 			},
 		},
 		{
-			Name: container.FormatZookeeperLogVolumeName(),
+			Name: hdfsv1alpha1.FormatZookeeperLogVolumeMountName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: s.getNameNodeConfigMapSource(),
 			},
@@ -236,7 +236,7 @@ func (s *StatefulSetReconciler) createDataPvcTemplate() corev1.PersistentVolumeC
 	storageSize := s.MergedCfg.Config.Resources.Storage.Capacity
 	return corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: container.DataVolumeName(),
+			Name: hdfsv1alpha1.DataVolumeMountName,
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -258,7 +258,7 @@ func (s *StatefulSetReconciler) createListenPvcTemplate() corev1.PersistentVolum
 	}
 	return corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        container.ListenerVolumeName(),
+			Name:        hdfsv1alpha1.ListenerVolumeName,
 			Annotations: common.GetListenerLabels(common.ListenerClass(listenerClass)), // important-1!!!!!
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{

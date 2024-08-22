@@ -17,18 +17,6 @@ func createServiceName(instanceName string, groupName string) string {
 	return util.NewResourceNameGenerator(instanceName, string(common.JournalNode), groupName).GenerateResourceName("")
 }
 
-func journalNodeConfigVolumeName() string {
-	return "journalnode-config"
-}
-
-func journalNodeLogVolumeName() string {
-	return "journalnode-log-config"
-}
-
-func dataVolumeName() string {
-	return "data"
-}
-
 func GetRole() common.Role {
 	return common.JournalNode
 }

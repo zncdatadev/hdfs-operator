@@ -1,9 +1,12 @@
 package journal
 
 import (
+	"strings"
+
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
-	"github.com/zncdatadev/hdfs-operator/internal/util"
+	"github.com/zncdatadev/operator-go/pkg/constants"
+	"github.com/zncdatadev/operator-go/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -19,11 +22,10 @@ func NewJournalNodeContainerBuilder(
 	resource corev1.ResourceRequirements,
 ) *ContainerBuilder {
 	imageSpec := instance.Spec.Image
-	image := util.ImageRepository(imageSpec.Repository, imageSpec.Tag)
-	imagePullPolicy := imageSpec.PullPolicy
+	image := hdfsv1alpha1.TransformImage(imageSpec)
 	clusterConfig := instance.Spec.ClusterConfigSpec
 	return &ContainerBuilder{
-		ContainerBuilder:       *common.NewContainerBuilder(image, imagePullPolicy, resource),
+		ContainerBuilder:       *common.NewContainerBuilder(image.String(), *image.GetPullPolicy(), resource),
 		zookeeperConfigMapName: clusterConfig.ZookeeperConfigMapName,
 		clusterConfig:          clusterConfig,
 	}
@@ -46,16 +48,16 @@ func (d *ContainerBuilder) VolumeMount() []corev1.VolumeMount {
 	mounts := common.GetCommonVolumeMounts(d.clusterConfig)
 	jnMounts := []corev1.VolumeMount{
 		{
-			Name:      journalNodeConfigVolumeName(),
-			MountPath: "/stackable/mount/config/journalnode",
+			Name:      hdfsv1alpha1.HdfsConfigVolumeMountName,
+			MountPath: constants.KubedoopConfigDirMount + "/" + d.ContainerName(),
 		},
 		{
-			Name:      journalNodeLogVolumeName(),
-			MountPath: "/stackable/mount/log/journalnode",
+			Name:      hdfsv1alpha1.HdfsLogVolumeMountName,
+			MountPath: constants.KubedoopLogDirMount + "/" + d.ContainerName(),
 		},
 		{
-			Name:      dataVolumeName(),
-			MountPath: "/stackable/data",
+			Name:      hdfsv1alpha1.DataVolumeMountName,
+			MountPath: constants.KubedoopDataDir, // note:do not use  hdfsv1alpha1.JournalNodeRootDataDir
 		},
 	}
 	return append(mounts, jnMounts...)
@@ -105,52 +107,24 @@ func (d *ContainerBuilder) ContainerPorts() []corev1.ContainerPort {
 }
 
 func (d *ContainerBuilder) CommandArgs() []string {
-	tmpl := `mkdir -p /stackable/config/journalnode
-cp /stackable/mount/config/journalnode/*.xml /stackable/config/journalnode
-cp /stackable/mount/config/journalnode/journalnode.log4j.properties /stackable/config/journalnode/log4j.properties
-
-{{ if .kerberosEnabled}}
+	var args []string
+	args = append(args, `mkdir -p /kubedoop/config/journalnode
+cp /kubedoop/mount/config/journalnode/*.xml /kubedoop/config/journalnode
+cp /kubedoop/mount/config/journalnode/journalnode.log4j.properties /kubedoop/config/journalnode/log4j.properties`)
+	if common.IsKerberosEnabled(d.clusterConfig) {
+		args = append(args, `{{ if .kerberosEnabled}}
 {{- .kerberosEnv}}
-{{- end}}
+{{- end}}`)
+	}
+	args = append(args, util.CommonBashTrapFunctions)
+	args = append(args, util.RemoveVectorShutdownFileCommand())
+	args = append(args, util.InvokePrepareSignalHandlers)
+	args = append(args, util.ExportPodAddress())
+	args = append(args, "/kubedoop/hadoop/bin/hdfs journalnode &")
+	args = append(args, util.InvokeWaitForTermination)
+	args = append(args, util.CreateVectorShutdownFileCommand())
 
-prepare_signal_handlers() {
-    unset term_child_pid
-    unset term_kill_needed
-    trap 'handle_term_signal' TERM
-}
-
-handle_term_signal() {
-    if [ "${term_child_pid}" ]; then
-        kill -TERM "${term_child_pid}" 2>/dev/null
-    else
-        term_kill_needed="yes"
-    fi
-}
-
-wait_for_termination() {
-    set +e
-    term_child_pid=$1
-    if [[ -v term_kill_needed ]]; then
-        kill -TERM "${term_child_pid}" 2>/dev/null
-    fi
-    wait ${term_child_pid} 2>/dev/null
-    trap - TERM
-    wait ${term_child_pid} 2>/dev/null
-    set -e
-}
-
-rm -f /stackable/log/_vector/shutdown
-prepare_signal_handlers
-if [[ -d /stackable/listener ]]; then
-  export POD_ADDRESS=$(cat /stackable/listener/default-address/address)
-  for i in /stackable/listener/default-address/ports/*; do
-      export $(basename $i | tr a-z A-Z)_PORT="$(cat $i)"
-  done
-fi
-
-/stackable/hadoop/bin/hdfs journalnode &
-wait_for_termination $!
-mkdir -p /stackable/log/_vector && touch /stackable/log/_vector/shutdown
-`
-	return common.ParseKerberosScript(tmpl, common.CreateExportKrbRealmEnvData(d.clusterConfig))
+	tmpl := strings.Join(args, "\n")
+	krbData := common.CreateExportKrbRealmEnvData(d.clusterConfig)
+	return common.ParseTemplate(tmpl, krbData)
 }

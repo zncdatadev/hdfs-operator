@@ -8,11 +8,8 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: hdfs-operator
   name: hdfscluster-sample
-  namespace: kubedatastack
+  namespace: ($namespace)
 spec:
-  image:
-    repository: quay.io/zncdatadev/hadoop
-    tag: 3.3.4
   clusterConfig:
     zookeeperConfigMapName: sample-hdfs-znode
     vectorAggregatorConfigMapName: vector-aggregator-discovery

@@ -131,13 +131,13 @@ func (s *StatefulSetReconciler) makeVolumes() []corev1.Volume {
 	volumes := common.GetCommonVolumes(s.Instance.Spec.ClusterConfigSpec, s.Instance.GetName(), GetRole())
 	journalNodeVolumes := []corev1.Volume{
 		{
-			Name: journalNodeConfigVolumeName(),
+			Name: hdfsv1alpha1.HdfsConfigVolumeMountName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: s.getConfigMapSource(),
 			},
 		},
 		{
-			Name: journalNodeLogVolumeName(),
+			Name: hdfsv1alpha1.HdfsLogVolumeMountName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: s.getConfigMapSource(),
 			},
@@ -156,7 +156,7 @@ func (s *StatefulSetReconciler) makePvcTemplates() []corev1.PersistentVolumeClai
 func (s *StatefulSetReconciler) createDataPvcTemplate() corev1.PersistentVolumeClaim {
 	return corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: dataVolumeName(),
+			Name: hdfsv1alpha1.DataVolumeMountName,
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},

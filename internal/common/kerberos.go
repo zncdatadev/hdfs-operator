@@ -129,15 +129,15 @@ func SecurityCoreSiteXml(instanceName string, ns string) []util.XmlNameValuePair
 		},
 		{
 			Name:  "dfs.journalnode.keytab.file",
-			Value: fmt.Sprintf("%s/keytab", hdfsv1alpha1.KerberosMountPath),
+			Value: fmt.Sprintf("%s/keytab", constants.KubedoopKerberosDir),
 		},
 		{
 			Name:  "dfs.namenode.keytab.file",
-			Value: fmt.Sprintf("%s/keytab", hdfsv1alpha1.KerberosMountPath),
+			Value: fmt.Sprintf("%s/keytab", constants.KubedoopKerberosDir),
 		},
 		{
 			Name:  "dfs.datanode.keytab.file",
-			Value: fmt.Sprintf("%s/keytab", hdfsv1alpha1.KerberosMountPath),
+			Value: fmt.Sprintf("%s/keytab", constants.KubedoopKerberosDir),
 		},
 		{
 			Name:  "dfs.journalnode.kerberos.principal.pattern",
@@ -158,18 +158,18 @@ func SecurityEnvs(container ContainerComponent, jvmArgs *[]string) []corev1.EnvV
 	envs := []corev1.EnvVar{
 		{
 			Name:  "HADOOP_OPTS",
-			Value: fmt.Sprintf("-Djava.security.krb5.conf=%s/krb5.conf", hdfsv1alpha1.KerberosMountPath),
+			Value: fmt.Sprintf("-Djava.security.krb5.conf=%s/krb5.conf", constants.KubedoopKerberosDir),
 		},
 		{
 			Name:  "KRB5_CONFIG",
-			Value: fmt.Sprintf("%s/krb5.conf", hdfsv1alpha1.KerberosMountPath),
+			Value: fmt.Sprintf("%s/krb5.conf", constants.KubedoopKerberosDir),
 		},
 		{
 			Name:  "KRB5_CLIENT_KTNAME",
-			Value: fmt.Sprintf("%s/keytab", hdfsv1alpha1.KerberosMountPath),
+			Value: fmt.Sprintf("%s/keytab", constants.KubedoopKerberosDir),
 		},
 	}
-	*jvmArgs = append(*jvmArgs, fmt.Sprintf("-Djava.security.krb5.conf=%s/krb5.conf", hdfsv1alpha1.KerberosMountPath))
+	*jvmArgs = append(*jvmArgs, fmt.Sprintf("-Djava.security.krb5.conf=%s/krb5.conf", constants.KubedoopKerberosDir))
 	return envs
 }
 
@@ -177,7 +177,7 @@ func SecurityVolumeMounts() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      KrbVolumeName,
-			MountPath: hdfsv1alpha1.KerberosMountPath,
+			MountPath: constants.KubedoopKerberosDir,
 		},
 	}
 }
@@ -219,7 +219,7 @@ func CreateKerberosSecretPvc(secretClass string, instanceName string, role Role)
 func CreateExportKrbRealmEnvData(clusterConfig *hdfsv1alpha1.ClusterConfigSpec) map[string]interface{} {
 	return map[string]interface{}{
 		"kerberosEnabled": IsKerberosEnabled(clusterConfig),
-		"kerberosEnv":     ExportKrbRealmFromConfig(hdfsv1alpha1.KerberosMountPath + "/krb5.conf"),
+		"kerberosEnv":     ExportKrbRealmFromConfig(constants.KubedoopKerberosDir + "/krb5.conf"),
 	}
 }
 
@@ -229,8 +229,8 @@ func CreateGetKerberosTicketData(principal string) map[string]interface{} {
 	}
 }
 
-// ParseKerberosScript Parse script for kerberos
-func ParseKerberosScript(tmpl string, data map[string]interface{}) []string {
+// ParseTemplate Parse script for kerberos
+func ParseTemplate(tmpl string, data map[string]interface{}) []string {
 	parser := config.TemplateParser{
 		Value:    data,
 		Template: tmpl,
@@ -265,8 +265,9 @@ func GetKerberosServiceName(role Role) string {
 }
 
 func GetKerberosTicket(principal string) string {
+	keytabLocation := constants.KubedoopKerberosDir + "/keytab"
 	return fmt.Sprintf(`
-echo "Getting ticket for %s" from /stackable/kerberos/keytab
+echo "Getting ticket for %s" from %s
 kinit "%s" -kt %s
-`, principal, principal, hdfsv1alpha1.KerberosMountPath+"/keytab")
+`, principal, keytabLocation, principal, keytabLocation)
 }
