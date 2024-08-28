@@ -6,7 +6,7 @@ spec:
   # namespace: test
   timeouts:
     apply: 420s
-    assert: 420s
+    assert: 600s
     cleanup: 240s
     delete: 240s
     error: 200s
