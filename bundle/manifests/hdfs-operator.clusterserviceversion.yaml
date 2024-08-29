@@ -129,7 +129,7 @@ metadata:
       ]
     capabilities: Basic Install
     categories: Big Data
-    createdAt: "2024-08-28T02:27:34Z"
+    createdAt: "2024-08-28T15:20:01Z"
     operators.operatorframework.io/builder: operator-sdk-v1.35.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: hdfs-operator.v0.0.0-dev
@@ -314,7 +314,7 @@ spec:
                 - --leader-elect
                 command:
                 - /manager
-                image: quay.io/zncdatadev/hdfs-operator:v0.0.0-dev
+                image: quay.io/zncdatadev/hdfs-operator:0.0.0-dev
                 livenessProbe:
                   httpGet:
                     path: /healthz

@@ -291,8 +291,8 @@ OPM = $(shell which opm)
 endif
 endif
 
-.PHONY: catalog-build
-catalog-build: opm ## Build a catalog manifests.
+.PHONY: catalog
+catalog: opm ## Build a catalog manifests.
 	mkdir -p catalog
 	@if ! test -f ./catalog.Dockerfile; then \
 		$(OPM) generate dockerfile catalog; \
@@ -303,8 +303,8 @@ catalog-build: opm ## Build a catalog manifests.
 catalog-validate: opm ## Validate a catalog manifests.
 	$(OPM) validate catalog
 
-.PHONY: catalog-docker-build
-catalog-docker-build: ## Build a catalog image.
+.PHONY: catalog-build
+catalog-build: ## Build a catalog image.
 	$(CONTAINER_TOOL) build -t ${CATALOG_IMG} -f catalog.Dockerfile .
 
 # Push the catalog image.
@@ -312,8 +312,8 @@ catalog-docker-build: ## Build a catalog image.
 catalog-docker-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
-.PHONY: catalog-docker-buildx
-catalog-docker-buildx: ## Build and push a catalog image for cross-platform support
+.PHONY: catalog-buildx
+catalog-buildx: ## Build and push a catalog image for cross-platform support
 	- $(CONTAINER_TOOL) buildx create --name project-v3-builder
 	$(CONTAINER_TOOL) buildx use project-v3-builder
 	$(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) -f catalog.Dockerfile --tag ${CATALOG_IMG} .

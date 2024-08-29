@@ -105,7 +105,7 @@ schema: olm.channel
 package: hdfs-operator
 name: stable
 entries:
-  - name: hdfs-operator.v0.0.1
+  - name: hdfs-operator.v0.0.0-dev
 ---
 schema: olm.bundle
-image: quay.io/zncdatadev/hdfs-operator-bundle:v0.0.1
+image: quay.io/zncdatadev/hdfs-operator-bundle:0.0.0-dev
