@@ -27,7 +27,6 @@ spec:
         config:
           logging:
             enableVectorAgent: true
-
   dataNode:
     roleGroups:
       default:

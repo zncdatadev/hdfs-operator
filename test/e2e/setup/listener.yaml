@@ -11,7 +11,7 @@ metadata:
 spec:
   csiDriver:
     repository: quay.io/zncdatadev/listener-csi-driver
-    tag: v0.0.1
+    tag: "0.0.0-dev"
     pullPolicy: IfNotPresent
     logging:
       level: "10"

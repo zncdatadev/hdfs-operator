@@ -47,5 +47,6 @@ func TransformImage(imageSpec *ImageSpec) *util.Image {
 		ProductVersion:  imageSpec.ProductVersion,
 		PullPolicy:      imageSpec.PullPolicy,
 		PullSecretName:  imageSpec.PullSecretName,
+		ProductName:     DefaultProductName,
 	}
 }

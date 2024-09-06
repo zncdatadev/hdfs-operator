@@ -11,6 +11,7 @@ import (
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/util"
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/constants"
 )
 
@@ -43,19 +44,19 @@ func CreateRoleGroupLoggingConfigMapName(instanceName string, role string, group
 	return util.NewResourceNameGenerator(instanceName, role, groupName).GenerateResourceName("log")
 }
 
-func ConvertToResourceRequirements(resources *hdfsv1alpha1.ResourcesSpec) *corev1.ResourceRequirements {
+func ConvertToResourceRequirements(resources *commonsv1alpha1.ResourcesSpec) *corev1.ResourceRequirements {
 	if resources != nil {
 		request := corev1.ResourceList{}
 		limit := corev1.ResourceList{}
-		if resources.CPU != nil && resources.CPU.Min != nil {
-			request[corev1.ResourceCPU] = *resources.CPU.Min
+		if resources.CPU != nil && resources.CPU.Min.IsZero() {
+			request[corev1.ResourceCPU] = resources.CPU.Min
 		}
-		if resources.CPU != nil && resources.CPU.Max != nil {
-			limit[corev1.ResourceCPU] = *resources.CPU.Max
+		if resources.CPU != nil && resources.CPU.Max.IsZero() {
+			limit[corev1.ResourceCPU] = resources.CPU.Max
 		}
-		if resources.Memory != nil && resources.Memory.Limit != nil {
-			request[corev1.ResourceMemory] = *resources.Memory.Limit
-			limit[corev1.ResourceMemory] = *resources.Memory.Limit
+		if resources.Memory != nil && resources.Memory.Limit.IsZero() {
+			request[corev1.ResourceMemory] = resources.Memory.Limit
+			limit[corev1.ResourceMemory] = resources.Memory.Limit
 		}
 		r := &corev1.ResourceRequirements{}
 		if len(request) > 0 {
@@ -65,18 +66,8 @@ func ConvertToResourceRequirements(resources *hdfsv1alpha1.ResourcesSpec) *corev
 			r.Limits = limit
 		}
 		return r
-	} else {
-		return &corev1.ResourceRequirements{
-			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse(hdfsv1alpha1.CpuMax),
-				corev1.ResourceMemory: resource.MustParse(hdfsv1alpha1.MemoryLimit),
-			},
-			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse(hdfsv1alpha1.CpuMin),
-				corev1.ResourceMemory: resource.MustParse(hdfsv1alpha1.MemoryLimit),
-			},
-		}
 	}
+	return nil
 }
 
 // Name node

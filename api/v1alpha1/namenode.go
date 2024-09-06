@@ -1,6 +1,9 @@
 package v1alpha1
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
+)
 
 type NameNodeRoleGroupSpec struct {
 	// +kubebuilder:validation:Optional
@@ -22,7 +25,7 @@ type NameNodeRoleGroupSpec struct {
 
 type NameNodeConfigSpec struct {
 	// +kubebuilder:validation:Optional
-	Resources *ResourcesSpec `json:"resources,omitempty"`
+	Resources *commonsv1alpha1.ResourcesSpec `json:"resources,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="external-stable"
