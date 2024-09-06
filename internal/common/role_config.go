@@ -91,6 +91,7 @@ func DefaultJournalNodeConfig(clusterName string) *RoleNodeConfig {
 
 // todo: refactor this, do this using detail type
 func (n *RoleNodeConfig) MergeDefaultConfig(mergedCfg any) {
+
 	// Make sure mergedCfg is a pointer type
 	configValue := reflect.ValueOf(mergedCfg)
 	if configValue.Kind() != reflect.Ptr {
@@ -109,8 +110,34 @@ func (n *RoleNodeConfig) MergeDefaultConfig(mergedCfg any) {
 
 	// Get the Resources field
 	resourcesField := config.FieldByName("Resources")
-	if resourcesField.IsValid() && resourcesField.IsZero() && resourcesField.CanSet() {
-		resourcesField.Set(reflect.ValueOf(n.resources))
+	var resourceRes *commonsv1alpha1.ResourcesSpec
+	if resourcesField.IsValid() && resourcesField.CanSet() {
+		if resourcesField.IsZero() {
+			resourceRes = n.resources
+		} else {
+			// adjust resourcesField is commonsv1alpha1.ResourcesSpec
+			if resourcesField.Type().Kind() == reflect.Ptr && resourcesField.Type().Elem() == reflect.TypeOf(commonsv1alpha1.ResourcesSpec{}) {
+				//transform resourcesField to *commonsv1alpha1.ResourcesSpec
+				if resourcesField.Kind() == reflect.Ptr && resourcesField.Type().Elem() == reflect.TypeOf(commonsv1alpha1.ResourcesSpec{}) {
+					mergedResource := resourcesField.Interface().(*commonsv1alpha1.ResourcesSpec)
+					if mergedResource == nil {
+						resourceRes = n.resources
+					} else {
+						resourceRes = mergedResource
+						if mergedResource.CPU == nil {
+							resourceRes.CPU = n.resources.CPU
+						}
+						if mergedResource.Memory == nil {
+							resourceRes.Memory = n.resources.Memory
+						}
+						if mergedResource.Storage == nil {
+							resourceRes.Storage = n.resources.Storage
+						}
+					}
+				}
+			}
+		}
+		resourcesField.Set(reflect.ValueOf(resourceRes))
 	}
 
 	// Get the ListenerClass field

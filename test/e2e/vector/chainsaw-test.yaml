@@ -39,6 +39,7 @@ spec:
     - apply:
         file: hdfs.yaml
     - assert:
+        timeout: 360s
         file: hdfs-assert.yaml
     cleanup:
     - sleep:

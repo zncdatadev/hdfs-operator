@@ -3,10 +3,10 @@ kind: Configuration
 metadata:
   name: custom-config
 spec:
-  # namespace: test
+  #namespace: test
   timeouts:
-    apply: 420s
-    assert: 600s
+    apply: 120s
+    assert: 120s
     cleanup: 240s
     delete: 240s
     error: 200s
