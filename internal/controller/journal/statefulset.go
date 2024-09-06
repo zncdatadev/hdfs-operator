@@ -163,7 +163,7 @@ func (s *StatefulSetReconciler) createDataPvcTemplate() corev1.PersistentVolumeC
 			VolumeMode:  func() *corev1.PersistentVolumeMode { v := corev1.PersistentVolumeFilesystem; return &v }(),
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: *s.MergedCfg.Config.Resources.Storage.Capacity,
+					corev1.ResourceStorage: s.MergedCfg.Config.Resources.Storage.Capacity,
 				},
 			},
 		},

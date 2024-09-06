@@ -1,10 +1,11 @@
 package common
 
 import (
-	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"reflect"
 	"time"
+
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
@@ -12,7 +13,7 @@ const (
 )
 
 type RoleNodeConfig struct {
-	resources *hdfsv1alpha1.ResourcesSpec
+	resources *commonsv1alpha1.ResourcesSpec
 	// logging config todo
 	listenerClass string
 	common        *GeneralNodeConfig
@@ -24,8 +25,8 @@ type GeneralNodeConfig struct {
 	gracefulShutdownTimeoutSeconds time.Duration
 }
 
-func newDefaultResourceSpec(role Role) *hdfsv1alpha1.ResourcesSpec {
-	var cpuMin, cpuMax, memoryLimit, storage *resource.Quantity
+func newDefaultResourceSpec(role Role) *commonsv1alpha1.ResourcesSpec {
+	var cpuMin, cpuMax, memoryLimit, storage resource.Quantity
 	switch role {
 	case NameNode:
 		cpuMin = parseQuantity("250m")
@@ -45,15 +46,15 @@ func newDefaultResourceSpec(role Role) *hdfsv1alpha1.ResourcesSpec {
 	default:
 		panic("invalid role")
 	}
-	return &hdfsv1alpha1.ResourcesSpec{
-		CPU: &hdfsv1alpha1.CPUResource{
+	return &commonsv1alpha1.ResourcesSpec{
+		CPU: &commonsv1alpha1.CPUResource{
 			Min: cpuMin,
 			Max: cpuMax,
 		},
-		Memory: &hdfsv1alpha1.MemoryResource{
+		Memory: &commonsv1alpha1.MemoryResource{
 			Limit: memoryLimit,
 		},
-		Storage: &hdfsv1alpha1.StorageResource{
+		Storage: &commonsv1alpha1.StorageResource{
 			Capacity: storage,
 		},
 	}
@@ -88,6 +89,7 @@ func DefaultJournalNodeConfig(clusterName string) *RoleNodeConfig {
 	return DefaultNodeConfig(clusterName, JournalNode, "", 15*time.Minute)
 }
 
+// todo: refactor this, do this using detail type
 func (n *RoleNodeConfig) MergeDefaultConfig(mergedCfg any) {
 	// Make sure mergedCfg is a pointer type
 	configValue := reflect.ValueOf(mergedCfg)
@@ -128,7 +130,7 @@ func (n *RoleNodeConfig) MergeDefaultConfig(mergedCfg any) {
 	// config.FieldByName("GracefulShutdownTimeoutSeconds").Set(reflect.ValueOf(n.common.gracefulShutdownTimeoutSeconds))
 }
 
-func parseQuantity(q string) *resource.Quantity {
+func parseQuantity(q string) resource.Quantity {
 	r := resource.MustParse(q)
-	return &r
+	return r
 }

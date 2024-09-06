@@ -18,8 +18,9 @@ package controller
 
 import (
 	"context"
-	"emperror.dev/errors"
 	"time"
+
+	"emperror.dev/errors"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
