@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.15.0
+    controller-gen.kubebuilder.io/version: v0.16.2
   name: hdfsclusters.hdfs.zncdata.dev
 spec:
   group: hdfs.zncdata.dev
@@ -43,10 +43,29 @@ spec:
                 properties:
                   authentication:
                     properties:
+                      authenticationClass:
+                        type: string
                       kerberos:
                         properties:
                           secretClass:
                             type: string
+                        type: object
+                      oidc:
+                        description: OidcSpec defines the OIDC spec.
+                        properties:
+                          clientCredentialsSecret:
+                            description: |-
+                              OIDC client credentials secret. It must contain the following keys:
+                                - `CLIENT_ID`: The client ID of the OIDC client.
+                                - `CLIENT_SECRET`: The client secret of the OIDC client.
+                              credentials will omit to pod environment variables.
+                            type: string
+                          extraScopes:
+                            items:
+                              type: string
+                            type: array
+                        required:
+                        - clientCredentialsSecret
                         type: object
                       tls:
                         properties:
@@ -387,7 +406,7 @@ spec:
                                             pod labels will be ignored. The default value is empty.
                                             The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                             Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                            This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                            This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                           items:
                                             type: string
                                           type: array
@@ -402,7 +421,7 @@ spec:
                                             pod labels will be ignored. The default value is empty.
                                             The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                             Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                            This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                            This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                           items:
                                             type: string
                                           type: array
@@ -570,7 +589,7 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                         Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                        This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                       items:
                                         type: string
                                       type: array
@@ -585,7 +604,7 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                         Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                        This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                       items:
                                         type: string
                                       type: array
@@ -751,7 +770,7 @@ spec:
                                             pod labels will be ignored. The default value is empty.
                                             The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                             Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                            This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                            This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                           items:
                                             type: string
                                           type: array
@@ -766,7 +785,7 @@ spec:
                                             pod labels will be ignored. The default value is empty.
                                             The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                             Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                            This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                            This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                           items:
                                             type: string
                                           type: array
@@ -934,7 +953,7 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                         Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                        This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                       items:
                                         type: string
                                       type: array
@@ -949,7 +968,7 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                         Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                        This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                       items:
                                         type: string
                                       type: array
@@ -1301,11 +1320,9 @@ spec:
                               Some volume types allow the Kubelet to change the ownership of that volume
                               to be owned by the pod:
 
-
                               1. The owning GID will be the FSGroup
                               2. The setgid bit is set (new files created in the volume will be owned by FSGroup)
                               3. The permission bits are OR'd with rw-rw----
-
 
                               If unset, the Kubelet will not modify the ownership and permissions of any volume.
                               Note that this field cannot be set when spec.os.name is windows.
@@ -1393,7 +1410,6 @@ spec:
                                   type indicates which kind of seccomp profile will be applied.
                                   Valid options are:
 
-
                                   Localhost - a profile defined in a file on the node should be used.
                                   RuntimeDefault - the container runtime default profile should be used.
                                   Unconfined - no profile should be applied.
@@ -1403,18 +1419,28 @@ spec:
                             type: object
                           supplementalGroups:
                             description: |-
-                              A list of groups applied to the first process run in each container, in addition
-                              to the container's primary GID, the fsGroup (if specified), and group memberships
-                              defined in the container image for the uid of the container process. If unspecified,
-                              no additional groups are added to any container. Note that group memberships
-                              defined in the container image for the uid of the container process are still effective,
-                              even if they are not included in this list.
+                              A list of groups applied to the first process run in each container, in
+                              addition to the container's primary GID and fsGroup (if specified).  If
+                              the SupplementalGroupsPolicy feature is enabled, the
+                              supplementalGroupsPolicy field determines whether these are in addition
+                              to or instead of any group memberships defined in the container image.
+                              If unspecified, no additional groups are added, though group memberships
+                              defined in the container image may still be used, depending on the
+                              supplementalGroupsPolicy field.
                               Note that this field cannot be set when spec.os.name is windows.
                             items:
                               format: int64
                               type: integer
                             type: array
                             x-kubernetes-list-type: atomic
+                          supplementalGroupsPolicy:
+                            description: |-
+                              Defines how supplemental groups of the first container processes are calculated.
+                              Valid values are "Merge" and "Strict". If not specified, "Merge" is used.
+                              (Alpha) Using the field requires the SupplementalGroupsPolicy feature gate to be enabled
+                              and the container runtime must implement support for this feature.
+                              Note that this field cannot be set when spec.os.name is windows.
+                            type: string
                           sysctls:
                             description: |-
                               Sysctls hold a list of namespaced sysctls used for the pod. Pods with unsupported
@@ -1858,7 +1884,7 @@ spec:
                                                   pod labels will be ignored. The default value is empty.
                                                   The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                                   Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                                  This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                                  This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                                 items:
                                                   type: string
                                                 type: array
@@ -1873,7 +1899,7 @@ spec:
                                                   pod labels will be ignored. The default value is empty.
                                                   The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                                   Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                                  This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                                  This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                                 items:
                                                   type: string
                                                 type: array
@@ -2043,7 +2069,7 @@ spec:
                                               pod labels will be ignored. The default value is empty.
                                               The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                               Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                              This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                              This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                             items:
                                               type: string
                                             type: array
@@ -2058,7 +2084,7 @@ spec:
                                               pod labels will be ignored. The default value is empty.
                                               The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                               Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                              This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                              This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                             items:
                                               type: string
                                             type: array
@@ -2227,7 +2253,7 @@ spec:
                                                   pod labels will be ignored. The default value is empty.
                                                   The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                                   Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                                  This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                                  This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                                 items:
                                                   type: string
                                                 type: array
@@ -2242,7 +2268,7 @@ spec:
                                                   pod labels will be ignored. The default value is empty.
                                                   The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                                   Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                                  This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                                  This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                                 items:
                                                   type: string
                                                 type: array
@@ -2412,7 +2438,7 @@ spec:
                                               pod labels will be ignored. The default value is empty.
                                               The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                               Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                              This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                              This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                             items:
                                               type: string
                                             type: array
@@ -2427,7 +2453,7 @@ spec:
                                               pod labels will be ignored. The default value is empty.
                                               The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                               Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                              This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                              This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                             items:
                                               type: string
                                             type: array
@@ -2780,11 +2806,9 @@ spec:
                                     Some volume types allow the Kubelet to change the ownership of that volume
                                     to be owned by the pod:
 
-
                                     1. The owning GID will be the FSGroup
                                     2. The setgid bit is set (new files created in the volume will be owned by FSGroup)
                                     3. The permission bits are OR'd with rw-rw----
-
 
                                     If unset, the Kubelet will not modify the ownership and permissions of any volume.
                                     Note that this field cannot be set when spec.os.name is windows.
@@ -2872,7 +2896,6 @@ spec:
                                         type indicates which kind of seccomp profile will be applied.
                                         Valid options are:
 
-
                                         Localhost - a profile defined in a file on the node should be used.
                                         RuntimeDefault - the container runtime default profile should be used.
                                         Unconfined - no profile should be applied.
@@ -2882,18 +2905,28 @@ spec:
                                   type: object
                                 supplementalGroups:
                                   description: |-
-                                    A list of groups applied to the first process run in each container, in addition
-                                    to the container's primary GID, the fsGroup (if specified), and group memberships
-                                    defined in the container image for the uid of the container process. If unspecified,
-                                    no additional groups are added to any container. Note that group memberships
-                                    defined in the container image for the uid of the container process are still effective,
-                                    even if they are not included in this list.
+                                    A list of groups applied to the first process run in each container, in
+                                    addition to the container's primary GID and fsGroup (if specified).  If
+                                    the SupplementalGroupsPolicy feature is enabled, the
+                                    supplementalGroupsPolicy field determines whether these are in addition
+                                    to or instead of any group memberships defined in the container image.
+                                    If unspecified, no additional groups are added, though group memberships
+                                    defined in the container image may still be used, depending on the
+                                    supplementalGroupsPolicy field.
                                     Note that this field cannot be set when spec.os.name is windows.
                                   items:
                                     format: int64
                                     type: integer
                                   type: array
                                   x-kubernetes-list-type: atomic
+                                supplementalGroupsPolicy:
+                                  description: |-
+                                    Defines how supplemental groups of the first container processes are calculated.
+                                    Valid values are "Merge" and "Strict". If not specified, "Merge" is used.
+                                    (Alpha) Using the field requires the SupplementalGroupsPolicy feature gate to be enabled
+                                    and the container runtime must implement support for this feature.
+                                    Note that this field cannot be set when spec.os.name is windows.
+                                  type: string
                                 sysctls:
                                   description: |-
                                     Sysctls hold a list of namespaced sysctls used for the pod. Pods with unsupported
@@ -3032,6 +3065,8 @@ spec:
                           default: 1
                           format: int32
                           type: integer
+                      required:
+                      - config
                       type: object
                     type: object
                 type: object
@@ -3039,7 +3074,7 @@ spec:
                 properties:
                   custom:
                     type: string
-                  platformVersion:
+                  kubedoopVersion:
                     default: 0.0.0-dev
                     type: string
                   productVersion:
@@ -3352,7 +3387,7 @@ spec:
                                             pod labels will be ignored. The default value is empty.
                                             The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                             Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                            This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                            This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                           items:
                                             type: string
                                           type: array
@@ -3367,7 +3402,7 @@ spec:
                                             pod labels will be ignored. The default value is empty.
                                             The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                             Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                            This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                            This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                           items:
                                             type: string
                                           type: array
@@ -3535,7 +3570,7 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                         Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                        This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                       items:
                                         type: string
                                       type: array
@@ -3550,7 +3585,7 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                         Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                        This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                       items:
                                         type: string
                                       type: array
@@ -3716,7 +3751,7 @@ spec:
                                             pod labels will be ignored. The default value is empty.
                                             The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                             Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                            This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                            This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                           items:
                                             type: string
                                           type: array
@@ -3731,7 +3766,7 @@ spec:
                                             pod labels will be ignored. The default value is empty.
                                             The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                             Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                            This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                            This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                           items:
                                             type: string
                                           type: array
@@ -3899,7 +3934,7 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                         Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                        This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                       items:
                                         type: string
                                       type: array
@@ -3914,7 +3949,7 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                         Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                        This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                       items:
                                         type: string
                                       type: array
@@ -4183,11 +4218,9 @@ spec:
                               Some volume types allow the Kubelet to change the ownership of that volume
                               to be owned by the pod:
 
-
                               1. The owning GID will be the FSGroup
                               2. The setgid bit is set (new files created in the volume will be owned by FSGroup)
                               3. The permission bits are OR'd with rw-rw----
-
 
                               If unset, the Kubelet will not modify the ownership and permissions of any volume.
                               Note that this field cannot be set when spec.os.name is windows.
@@ -4275,7 +4308,6 @@ spec:
                                   type indicates which kind of seccomp profile will be applied.
                                   Valid options are:
 
-
                                   Localhost - a profile defined in a file on the node should be used.
                                   RuntimeDefault - the container runtime default profile should be used.
                                   Unconfined - no profile should be applied.
@@ -4285,18 +4317,28 @@ spec:
                             type: object
                           supplementalGroups:
                             description: |-
-                              A list of groups applied to the first process run in each container, in addition
-                              to the container's primary GID, the fsGroup (if specified), and group memberships
-                              defined in the container image for the uid of the container process. If unspecified,
-                              no additional groups are added to any container. Note that group memberships
-                              defined in the container image for the uid of the container process are still effective,
-                              even if they are not included in this list.
+                              A list of groups applied to the first process run in each container, in
+                              addition to the container's primary GID and fsGroup (if specified).  If
+                              the SupplementalGroupsPolicy feature is enabled, the
+                              supplementalGroupsPolicy field determines whether these are in addition
+                              to or instead of any group memberships defined in the container image.
+                              If unspecified, no additional groups are added, though group memberships
+                              defined in the container image may still be used, depending on the
+                              supplementalGroupsPolicy field.
                               Note that this field cannot be set when spec.os.name is windows.
                             items:
                               format: int64
                               type: integer
                             type: array
                             x-kubernetes-list-type: atomic
+                          supplementalGroupsPolicy:
+                            description: |-
+                              Defines how supplemental groups of the first container processes are calculated.
+                              Valid values are "Merge" and "Strict". If not specified, "Merge" is used.
+                              (Alpha) Using the field requires the SupplementalGroupsPolicy feature gate to be enabled
+                              and the container runtime must implement support for this feature.
+                              Note that this field cannot be set when spec.os.name is windows.
+                            type: string
                           sysctls:
                             description: |-
                               Sysctls hold a list of namespaced sysctls used for the pod. Pods with unsupported
@@ -4740,7 +4782,7 @@ spec:
                                                   pod labels will be ignored. The default value is empty.
                                                   The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                                   Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                                  This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                                  This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                                 items:
                                                   type: string
                                                 type: array
@@ -4755,7 +4797,7 @@ spec:
                                                   pod labels will be ignored. The default value is empty.
                                                   The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                                   Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                                  This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                                  This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                                 items:
                                                   type: string
                                                 type: array
@@ -4925,7 +4967,7 @@ spec:
                                               pod labels will be ignored. The default value is empty.
                                               The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                               Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                              This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                              This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                             items:
                                               type: string
                                             type: array
@@ -4940,7 +4982,7 @@ spec:
                                               pod labels will be ignored. The default value is empty.
                                               The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                               Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                              This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                              This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                             items:
                                               type: string
                                             type: array
@@ -5109,7 +5151,7 @@ spec:
                                                   pod labels will be ignored. The default value is empty.
                                                   The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                                   Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                                  This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                                  This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                                 items:
                                                   type: string
                                                 type: array
@@ -5124,7 +5166,7 @@ spec:
                                                   pod labels will be ignored. The default value is empty.
                                                   The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                                   Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                                  This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                                  This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                                 items:
                                                   type: string
                                                 type: array
@@ -5294,7 +5336,7 @@ spec:
                                               pod labels will be ignored. The default value is empty.
                                               The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                               Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                              This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                              This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                             items:
                                               type: string
                                             type: array
@@ -5309,7 +5351,7 @@ spec:
                                               pod labels will be ignored. The default value is empty.
                                               The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                               Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                              This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                              This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                             items:
                                               type: string
                                             type: array
@@ -5579,11 +5621,9 @@ spec:
                                     Some volume types allow the Kubelet to change the ownership of that volume
                                     to be owned by the pod:
 
-
                                     1. The owning GID will be the FSGroup
                                     2. The setgid bit is set (new files created in the volume will be owned by FSGroup)
                                     3. The permission bits are OR'd with rw-rw----
-
 
                                     If unset, the Kubelet will not modify the ownership and permissions of any volume.
                                     Note that this field cannot be set when spec.os.name is windows.
@@ -5671,7 +5711,6 @@ spec:
                                         type indicates which kind of seccomp profile will be applied.
                                         Valid options are:
 
-
                                         Localhost - a profile defined in a file on the node should be used.
                                         RuntimeDefault - the container runtime default profile should be used.
                                         Unconfined - no profile should be applied.
@@ -5681,18 +5720,28 @@ spec:
                                   type: object
                                 supplementalGroups:
                                   description: |-
-                                    A list of groups applied to the first process run in each container, in addition
-                                    to the container's primary GID, the fsGroup (if specified), and group memberships
-                                    defined in the container image for the uid of the container process. If unspecified,
-                                    no additional groups are added to any container. Note that group memberships
-                                    defined in the container image for the uid of the container process are still effective,
-                                    even if they are not included in this list.
+                                    A list of groups applied to the first process run in each container, in
+                                    addition to the container's primary GID and fsGroup (if specified).  If
+                                    the SupplementalGroupsPolicy feature is enabled, the
+                                    supplementalGroupsPolicy field determines whether these are in addition
+                                    to or instead of any group memberships defined in the container image.
+                                    If unspecified, no additional groups are added, though group memberships
+                                    defined in the container image may still be used, depending on the
+                                    supplementalGroupsPolicy field.
                                     Note that this field cannot be set when spec.os.name is windows.
                                   items:
                                     format: int64
                                     type: integer
                                   type: array
                                   x-kubernetes-list-type: atomic
+                                supplementalGroupsPolicy:
+                                  description: |-
+                                    Defines how supplemental groups of the first container processes are calculated.
+                                    Valid values are "Merge" and "Strict". If not specified, "Merge" is used.
+                                    (Alpha) Using the field requires the SupplementalGroupsPolicy feature gate to be enabled
+                                    and the container runtime must implement support for this feature.
+                                    Note that this field cannot be set when spec.os.name is windows.
+                                  type: string
                                 sysctls:
                                   description: |-
                                     Sysctls hold a list of namespaced sysctls used for the pod. Pods with unsupported
@@ -5831,6 +5880,8 @@ spec:
                           default: 1
                           format: int32
                           type: integer
+                      required:
+                      - config
                       type: object
                     type: object
                 type: object
@@ -6131,7 +6182,7 @@ spec:
                                             pod labels will be ignored. The default value is empty.
                                             The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                             Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                            This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                            This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                           items:
                                             type: string
                                           type: array
@@ -6146,7 +6197,7 @@ spec:
                                             pod labels will be ignored. The default value is empty.
                                             The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                             Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                            This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                            This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                           items:
                                             type: string
                                           type: array
@@ -6314,7 +6365,7 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                         Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                        This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                       items:
                                         type: string
                                       type: array
@@ -6329,7 +6380,7 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                         Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                        This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                       items:
                                         type: string
                                       type: array
@@ -6495,7 +6546,7 @@ spec:
                                             pod labels will be ignored. The default value is empty.
                                             The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                             Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                            This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                            This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                           items:
                                             type: string
                                           type: array
@@ -6510,7 +6561,7 @@ spec:
                                             pod labels will be ignored. The default value is empty.
                                             The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                             Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                            This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                            This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                           items:
                                             type: string
                                           type: array
@@ -6678,7 +6729,7 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                         Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                        This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                       items:
                                         type: string
                                       type: array
@@ -6693,7 +6744,7 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                         Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                        This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                       items:
                                         type: string
                                       type: array
@@ -7211,11 +7262,9 @@ spec:
                               Some volume types allow the Kubelet to change the ownership of that volume
                               to be owned by the pod:
 
-
                               1. The owning GID will be the FSGroup
                               2. The setgid bit is set (new files created in the volume will be owned by FSGroup)
                               3. The permission bits are OR'd with rw-rw----
-
 
                               If unset, the Kubelet will not modify the ownership and permissions of any volume.
                               Note that this field cannot be set when spec.os.name is windows.
@@ -7303,7 +7352,6 @@ spec:
                                   type indicates which kind of seccomp profile will be applied.
                                   Valid options are:
 
-
                                   Localhost - a profile defined in a file on the node should be used.
                                   RuntimeDefault - the container runtime default profile should be used.
                                   Unconfined - no profile should be applied.
@@ -7313,18 +7361,28 @@ spec:
                             type: object
                           supplementalGroups:
                             description: |-
-                              A list of groups applied to the first process run in each container, in addition
-                              to the container's primary GID, the fsGroup (if specified), and group memberships
-                              defined in the container image for the uid of the container process. If unspecified,
-                              no additional groups are added to any container. Note that group memberships
-                              defined in the container image for the uid of the container process are still effective,
-                              even if they are not included in this list.
+                              A list of groups applied to the first process run in each container, in
+                              addition to the container's primary GID and fsGroup (if specified).  If
+                              the SupplementalGroupsPolicy feature is enabled, the
+                              supplementalGroupsPolicy field determines whether these are in addition
+                              to or instead of any group memberships defined in the container image.
+                              If unspecified, no additional groups are added, though group memberships
+                              defined in the container image may still be used, depending on the
+                              supplementalGroupsPolicy field.
                               Note that this field cannot be set when spec.os.name is windows.
                             items:
                               format: int64
                               type: integer
                             type: array
                             x-kubernetes-list-type: atomic
+                          supplementalGroupsPolicy:
+                            description: |-
+                              Defines how supplemental groups of the first container processes are calculated.
+                              Valid values are "Merge" and "Strict". If not specified, "Merge" is used.
+                              (Alpha) Using the field requires the SupplementalGroupsPolicy feature gate to be enabled
+                              and the container runtime must implement support for this feature.
+                              Note that this field cannot be set when spec.os.name is windows.
+                            type: string
                           sysctls:
                             description: |-
                               Sysctls hold a list of namespaced sysctls used for the pod. Pods with unsupported
@@ -7768,7 +7826,7 @@ spec:
                                                   pod labels will be ignored. The default value is empty.
                                                   The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                                   Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                                  This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                                  This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                                 items:
                                                   type: string
                                                 type: array
@@ -7783,7 +7841,7 @@ spec:
                                                   pod labels will be ignored. The default value is empty.
                                                   The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                                   Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                                  This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                                  This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                                 items:
                                                   type: string
                                                 type: array
@@ -7953,7 +8011,7 @@ spec:
                                               pod labels will be ignored. The default value is empty.
                                               The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                               Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                              This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                              This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                             items:
                                               type: string
                                             type: array
@@ -7968,7 +8026,7 @@ spec:
                                               pod labels will be ignored. The default value is empty.
                                               The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                               Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                              This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                              This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                             items:
                                               type: string
                                             type: array
@@ -8137,7 +8195,7 @@ spec:
                                                   pod labels will be ignored. The default value is empty.
                                                   The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                                   Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                                  This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                                  This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                                 items:
                                                   type: string
                                                 type: array
@@ -8152,7 +8210,7 @@ spec:
                                                   pod labels will be ignored. The default value is empty.
                                                   The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                                   Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                                  This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                                  This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                                 items:
                                                   type: string
                                                 type: array
@@ -8322,7 +8380,7 @@ spec:
                                               pod labels will be ignored. The default value is empty.
                                               The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                               Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                              This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                              This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                             items:
                                               type: string
                                             type: array
@@ -8337,7 +8395,7 @@ spec:
                                               pod labels will be ignored. The default value is empty.
                                               The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                               Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                              This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
+                                              This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                             items:
                                               type: string
                                             type: array
@@ -8856,11 +8914,9 @@ spec:
                                     Some volume types allow the Kubelet to change the ownership of that volume
                                     to be owned by the pod:
 
-
                                     1. The owning GID will be the FSGroup
                                     2. The setgid bit is set (new files created in the volume will be owned by FSGroup)
                                     3. The permission bits are OR'd with rw-rw----
-
 
                                     If unset, the Kubelet will not modify the ownership and permissions of any volume.
                                     Note that this field cannot be set when spec.os.name is windows.
@@ -8948,7 +9004,6 @@ spec:
                                         type indicates which kind of seccomp profile will be applied.
                                         Valid options are:
 
-
                                         Localhost - a profile defined in a file on the node should be used.
                                         RuntimeDefault - the container runtime default profile should be used.
                                         Unconfined - no profile should be applied.
@@ -8958,18 +9013,28 @@ spec:
                                   type: object
                                 supplementalGroups:
                                   description: |-
-                                    A list of groups applied to the first process run in each container, in addition
-                                    to the container's primary GID, the fsGroup (if specified), and group memberships
-                                    defined in the container image for the uid of the container process. If unspecified,
-                                    no additional groups are added to any container. Note that group memberships
-                                    defined in the container image for the uid of the container process are still effective,
-                                    even if they are not included in this list.
+                                    A list of groups applied to the first process run in each container, in
+                                    addition to the container's primary GID and fsGroup (if specified).  If
+                                    the SupplementalGroupsPolicy feature is enabled, the
+                                    supplementalGroupsPolicy field determines whether these are in addition
+                                    to or instead of any group memberships defined in the container image.
+                                    If unspecified, no additional groups are added, though group memberships
+                                    defined in the container image may still be used, depending on the
+                                    supplementalGroupsPolicy field.
                                     Note that this field cannot be set when spec.os.name is windows.
                                   items:
                                     format: int64
                                     type: integer
                                   type: array
                                   x-kubernetes-list-type: atomic
+                                supplementalGroupsPolicy:
+                                  description: |-
+                                    Defines how supplemental groups of the first container processes are calculated.
+                                    Valid values are "Merge" and "Strict". If not specified, "Merge" is used.
+                                    (Alpha) Using the field requires the SupplementalGroupsPolicy feature gate to be enabled
+                                    and the container runtime must implement support for this feature.
+                                    Note that this field cannot be set when spec.os.name is windows.
+                                  type: string
                                 sysctls:
                                   description: |-
                                     Sysctls hold a list of namespaced sysctls used for the pod. Pods with unsupported
@@ -9108,25 +9173,24 @@ spec:
                           default: 1
                           format: int32
                           type: integer
+                      required:
+                      - config
                       type: object
                     type: object
                 type: object
+            required:
+            - clusterConfig
+            - dataNode
+            - journalNode
+            - nameNode
             type: object
           status:
             description: Status defines the common status
             properties:
               conditions:
                 items:
-                  description: "Condition contains details for one aspect of the current
-                    state of this API Resource.\n---\nThis struct is intended for
-                    direct use as an array at the field path .status.conditions.  For
-                    example,\n\n\n\ttype FooStatus struct{\n\t    // Represents the
-                    observations of a foo's current state.\n\t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\"\n\t    //
-                    +patchMergeKey=type\n\t    // +patchStrategy=merge\n\t    // +listType=map\n\t
-                    \   // +listMapKey=type\n\t    Conditions []metav1.Condition `json:\"conditions,omitempty\"
-                    patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"`\n\n\n\t
-                    \   // other fields\n\t}"
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
                   properties:
                     lastTransitionTime:
                       description: |-
@@ -9167,12 +9231,7 @@ spec:
                       - Unknown
                       type: string
                     type:
-                      description: |-
-                        type of condition in CamelCase or in foo.example.com/CamelCase.
-                        ---
-                        Many .condition.type values are consistent across resources like Available, but because arbitrary conditions can be
-                        useful (see .node.status.conditions), the ability to deconflict is important.
-                        The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
                       maxLength: 316
                       pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                       type: string

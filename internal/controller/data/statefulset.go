@@ -6,6 +6,7 @@ import (
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	"github.com/zncdatadev/hdfs-operator/internal/controller/data/container"
+	"github.com/zncdatadev/operator-go/pkg/constants"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -76,7 +77,8 @@ func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) 
 	if err != nil {
 		return nil, err
 	} else if isVectorEnabled {
-		common.ExtendStatefulSetByVector(nil, sts, createConfigName(s.Instance.GetName(), s.GroupName))
+		img := hdfsv1alpha1.TransformImage(s.Instance.Spec.Image)
+		common.ExtendStatefulSetByVector(nil, sts, img, createConfigName(s.Instance.GetName(), s.GroupName))
 	}
 
 	return sts, nil
@@ -209,16 +211,16 @@ func (s *StatefulSetReconciler) createDataPvcTemplate() corev1.PersistentVolumeC
 
 // create listen pvc template
 func (s *StatefulSetReconciler) createListenPvcTemplate() *corev1.PersistentVolumeClaimTemplate {
-	listenerClass := s.MergedCfg.Config.ListenerClass
+	listenerClass := constants.ListenerClass(s.MergedCfg.Config.ListenerClass)
 	if listenerClass == "" {
-		listenerClass = string(common.NodePort)
+		listenerClass = constants.ClusterInternal
 	}
 	return &corev1.PersistentVolumeClaimTemplate{
 		ObjectMeta: metav1.ObjectMeta{
-			Annotations: common.GetListenerLabels(common.ListenerClass(listenerClass)), // important-1!!!!
+			Annotations: common.GetListenerLabels(listenerClass),
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
-			StorageClassName: func() *string { c := common.ListenerStorageClass; return &c }(), // important-2!!!!
+			StorageClassName: constants.ListenerStorageClassPtr(),
 			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{

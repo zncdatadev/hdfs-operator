@@ -6,6 +6,7 @@ import (
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	"github.com/zncdatadev/hdfs-operator/internal/controller/name/container"
+	"github.com/zncdatadev/operator-go/pkg/constants"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -83,7 +84,8 @@ func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) 
 	if err != nil {
 		return nil, err
 	} else if isVectorEnabled {
-		common.ExtendStatefulSetByVector(nil, sts, createConfigName(s.Instance.GetName(), s.GroupName))
+		img := hdfsv1alpha1.TransformImage(s.Instance.Spec.Image)
+		common.ExtendStatefulSetByVector(nil, sts, img, createConfigName(s.Instance.GetName(), s.GroupName))
 	}
 
 	return sts, nil
@@ -185,18 +187,6 @@ func (s *StatefulSetReconciler) makeVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: hdfsv1alpha1.ZkfcConfigVolumeMountName,
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: s.getNameNodeConfigMapSource(),
-			},
-		},
-		{
-			Name: hdfsv1alpha1.ZkfcLogVolumeMountName,
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: s.getNameNodeConfigMapSource(),
-			},
-		},
-		{
 			Name: hdfsv1alpha1.FormatNamenodesConfigVolumeMountName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: s.getNameNodeConfigMapSource(),
@@ -252,14 +242,14 @@ func (s *StatefulSetReconciler) createDataPvcTemplate() corev1.PersistentVolumeC
 
 // create listen pvc template
 func (s *StatefulSetReconciler) createListenPvcTemplate() corev1.PersistentVolumeClaim {
-	listenerClass := s.MergedCfg.Config.ListenerClass
+	listenerClass := constants.ListenerClass(s.MergedCfg.Config.ListenerClass)
 	if listenerClass == "" {
-		listenerClass = string(common.LoadBalancerClass)
+		listenerClass = constants.ClusterInternal
 	}
 	return corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        hdfsv1alpha1.ListenerVolumeName,
-			Annotations: common.GetListenerLabels(common.ListenerClass(listenerClass)), // important-1!!!!!
+			Annotations: common.GetListenerLabels(listenerClass), // important-1!!!!!
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -269,7 +259,7 @@ func (s *StatefulSetReconciler) createListenPvcTemplate() corev1.PersistentVolum
 					corev1.ResourceStorage: resource.MustParse(common.ListenerPvcStorage),
 				},
 			},
-			StorageClassName: func() *string { v := common.ListenerStorageClass; return &v }(), // important-2!!!!!
+			StorageClassName: constants.ListenerStorageClassPtr(), // important-2!!!!!
 		},
 	}
 }

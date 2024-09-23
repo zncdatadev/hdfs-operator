@@ -25,7 +25,7 @@ func NewJournalNodeContainerBuilder(
 	image := hdfsv1alpha1.TransformImage(imageSpec)
 	clusterConfig := instance.Spec.ClusterConfigSpec
 	return &ContainerBuilder{
-		ContainerBuilder:       *common.NewContainerBuilder(image.String(), *image.GetPullPolicy(), resource),
+		ContainerBuilder:       *common.NewContainerBuilder(image.String(), image.GetPullPolicy(), resource),
 		zookeeperConfigMapName: clusterConfig.ZookeeperConfigMapName,
 		clusterConfig:          clusterConfig,
 	}

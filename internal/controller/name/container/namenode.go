@@ -24,7 +24,7 @@ func NewNameNodeContainerBuilder(
 	image := hdfsv1alpha1.TransformImage(imageSpec)
 	zookeeperConfigMapName := instance.Spec.ClusterConfigSpec.ZookeeperConfigMapName
 	return &NameNodeContainerBuilder{
-		ContainerBuilder:       *common.NewContainerBuilder(image.String(), *image.GetPullPolicy(), resource),
+		ContainerBuilder:       *common.NewContainerBuilder(image.String(), image.GetPullPolicy(), resource),
 		zookeeperConfigMapName: zookeeperConfigMapName,
 		clusterConfig:          instance.Spec.ClusterConfigSpec,
 	}

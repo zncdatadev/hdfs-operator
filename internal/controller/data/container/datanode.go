@@ -25,7 +25,7 @@ func NewDataNodeContainerBuilder(
 	imagePullPolicy := image.GetPullPolicy()
 	clusterConfig := instance.Spec.ClusterConfigSpec
 	return &DataNodeContainerBuilder{
-		ContainerBuilder:       *common.NewContainerBuilder(image.String(), *imagePullPolicy, resource),
+		ContainerBuilder:       *common.NewContainerBuilder(image.String(), imagePullPolicy, resource),
 		zookeeperConfigMapName: clusterConfig.ZookeeperConfigMapName,
 		clusterConfig:          clusterConfig,
 	}

@@ -2,10 +2,15 @@ package common
 
 import (
 	"context"
-	"emperror.dev/errors"
 	"fmt"
+
+	"emperror.dev/errors"
 	"github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/builder"
+	"github.com/zncdatadev/operator-go/pkg/productlogging"
+	"github.com/zncdatadev/operator-go/pkg/util"
+
 	appsv1 "k8s.io/api/apps/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -46,7 +51,7 @@ func generateVectorYAML(ctx context.Context, params VectorConfigParams) (string,
 	if aggregatorConfigMapName == "" {
 		return "", errors.New("vectorAggregatorConfigMapName is not set")
 	}
-	return builder.MakeVectorYaml(ctx, params.Client, params.Namespace, params.InstanceName, params.Role,
+	return productlogging.MakeVectorYaml(ctx, params.Client, params.Namespace, params.InstanceName, params.Role,
 		params.GroupName, aggregatorConfigMapName)
 }
 
@@ -62,11 +67,13 @@ func ExtendConfigMapByVector(ctx context.Context, params VectorConfigParams, dat
 func ExtendStatefulSetByVector(
 	logProvider []string,
 	dep *appsv1.StatefulSet,
+	image *util.Image,
 	vectorConfigMapName string) {
 	decorator := builder.VectorDecorator{
 		WorkloadObject:           dep,
-		LogVolumeName:            builder.VectorLogVolumeName,
-		VectorConfigVolumeName:   builder.VectorConfigVolumeName,
+		Image:                    image,
+		LogVolumeName:            hdfsv1alpha1.KubedoopLogVolumeMountName,
+		VectorConfigVolumeName:   hdfsv1alpha1.HdfsConfigVolumeMountName,
 		VectorConfigMapName:      vectorConfigMapName,
 		LogProviderContainerName: logProvider,
 	}

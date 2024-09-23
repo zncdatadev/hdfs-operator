@@ -71,7 +71,8 @@ func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) 
 	if err != nil {
 		return nil, err
 	} else if isVectorEnabled {
-		common.ExtendStatefulSetByVector(nil, sts, createConfigName(s.Instance.GetName(), s.GroupName))
+		img := hdfsv1alpha1.TransformImage(s.Instance.Spec.Image)
+		common.ExtendStatefulSetByVector(nil, sts, img, createConfigName(s.Instance.GetName(), s.GroupName))
 	}
 
 	return sts, nil
