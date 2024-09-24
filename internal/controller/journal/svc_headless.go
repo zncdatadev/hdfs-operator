@@ -60,6 +60,12 @@ func (s *ServiceReconciler) makePorts() []corev1.ServicePort {
 			Protocol:   corev1.ProtocolTCP,
 			TargetPort: intstr.FromString(hdfsv1alpha1.RpcName),
 		},
+		{
+			Name:       "oidc",
+			Port:       4180,
+			Protocol:   corev1.ProtocolTCP,
+			TargetPort: intstr.FromString("oidc"),
+		},
 	}
 	return append(ports, common.ServiceHttpPort(s.Instance.Spec.ClusterConfigSpec, ServiceHttpsPort, ServiceHttpPort))
 }

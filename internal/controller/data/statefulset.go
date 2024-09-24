@@ -41,7 +41,7 @@ func NewStatefulSet(
 	}
 }
 
-func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) {
+func (s *StatefulSetReconciler) Build(ctx context.Context) (client.Object, error) {
 	sts := &appv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      createStatefulSetName(s.Instance.GetName(), s.GroupName),
@@ -80,8 +80,20 @@ func (s *StatefulSetReconciler) Build(_ context.Context) (client.Object, error) 
 		img := hdfsv1alpha1.TransformImage(s.Instance.Spec.Image)
 		common.ExtendStatefulSetByVector(nil, sts, img, createConfigName(s.Instance.GetName(), s.GroupName))
 	}
-
+	if s.Instance.Spec.ClusterConfigSpec.Authentication != nil && s.Instance.Spec.ClusterConfigSpec.Authentication.AuthenticationClass != "" {
+		oidcContainer, err := common.MakeOidcContainer(ctx, s.Client, s.Instance, s.getHttpPort())
+		if err != nil {
+			return nil, err
+		}
+		if oidcContainer != nil {
+			sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, *oidcContainer)
+		}
+	}
 	return sts, nil
+}
+
+func (s *StatefulSetReconciler) getHttpPort() int32 {
+	return common.HttpPort(s.Instance.Spec.ClusterConfigSpec, hdfsv1alpha1.DataNodeHttpsPort, hdfsv1alpha1.DataNodeHttpPort).ContainerPort
 }
 
 func (s *StatefulSetReconciler) SetAffinity(resource client.Object) {
