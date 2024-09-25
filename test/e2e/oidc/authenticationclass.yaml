@@ -1,0 +1,16 @@
+apiVersion: authentication.zncdata.dev/v1alpha1
+kind: AuthenticationClass
+metadata:
+  name: oidc
+spec:
+  provider:
+    oidc:
+      hostname: (join('', ['keycloak.', ($namespace), '.svc.cluster.local']))
+      port: 80
+      rootPath: (join('', ['/realms/', ($KEYCLOAK_REALM)]))
+      provisioner: keycloak
+      scopes:
+      - openid
+      - email
+      - profile
+      principalClaim: preferred_username

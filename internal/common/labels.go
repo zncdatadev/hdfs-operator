@@ -2,6 +2,8 @@ package common
 
 import (
 	"strings"
+
+	"github.com/zncdatadev/operator-go/pkg/constants"
 )
 
 const (
@@ -27,8 +29,8 @@ func (r *RoleLabels) GetLabels() map[string]string {
 	return res
 }
 
-func GetListenerLabels(listenerClass ListenerClass) map[string]string {
+func GetListenerLabels(listenerClass constants.ListenerClass) map[string]string {
 	return map[string]string{
-		ListenerAnnotationKey: string(listenerClass),
+		constants.AnnotationListenersClass: string(listenerClass),
 	}
 }

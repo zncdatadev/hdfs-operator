@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"path"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/util"
@@ -219,7 +220,7 @@ func CreateKerberosSecretPvc(secretClass string, instanceName string, role Role)
 func CreateExportKrbRealmEnvData(clusterConfig *hdfsv1alpha1.ClusterConfigSpec) map[string]interface{} {
 	return map[string]interface{}{
 		"kerberosEnabled": IsKerberosEnabled(clusterConfig),
-		"kerberosEnv":     ExportKrbRealmFromConfig(constants.KubedoopKerberosDir + "/krb5.conf"),
+		"kerberosEnv":     ExportKrbRealmFromConfig(path.Join(constants.KubedoopKerberosDir, "/krb5.conf")),
 	}
 }
 

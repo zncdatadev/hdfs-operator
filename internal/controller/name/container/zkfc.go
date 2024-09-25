@@ -23,7 +23,7 @@ func NewZkfcContainerBuilder(
 	clusterConfig := instance.Spec.ClusterConfigSpec
 	zookeeperConfigMapName := clusterConfig.ZookeeperConfigMapName
 	return &ZkfcContainerBuilder{
-		ContainerBuilder:       *common.NewContainerBuilder(image.String(), *image.GetPullPolicy(), resource),
+		ContainerBuilder:       *common.NewContainerBuilder(image.String(), image.GetPullPolicy(), resource),
 		zookeeperConfigMapName: zookeeperConfigMapName,
 		clusterConfig:          clusterConfig,
 	}
@@ -55,11 +55,11 @@ func (z *ZkfcContainerBuilder) VolumeMount() []corev1.VolumeMount {
 	mounts := common.GetCommonVolumeMounts(z.clusterConfig)
 	zkfcMounts := []corev1.VolumeMount{
 		{
-			Name:      hdfsv1alpha1.ZkfcConfigVolumeMountName,
+			Name:      hdfsv1alpha1.HdfsConfigVolumeMountName,
 			MountPath: constants.KubedoopConfigDirMount + "/" + z.ContainerName(),
 		},
 		{
-			Name:      hdfsv1alpha1.ZkfcLogVolumeMountName,
+			Name:      hdfsv1alpha1.HdfsConfigVolumeMountName,
 			MountPath: constants.KubedoopLogDirMount + "/" + z.ContainerName(),
 		},
 	}

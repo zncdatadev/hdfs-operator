@@ -5,21 +5,12 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - apps
-  resources:
-  - statefulsets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
   - ""
   resources:
   - configmaps
+  - secrets
+  - serviceaccounts
+  - services
   verbs:
   - create
   - delete
@@ -37,9 +28,9 @@ rules:
   - list
   - watch
 - apiGroups:
-  - ""
+  - apps
   resources:
-  - serviceaccounts
+  - statefulsets
   verbs:
   - create
   - delete
@@ -49,16 +40,12 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ""
+  - authentication.zncdata.dev
   resources:
-  - services
+  - authenticationclasses
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - hdfs.zncdata.dev

@@ -37,7 +37,7 @@ var _ = Describe("CommandArgs", func() {
 			Expect(args[0]).To(ContainSubstring("export KERBEROS_REALM=$(grep -oP 'default_realm = \\K.*' /kubedoop/kerberos/krb5.conf)"))
 			Expect(args[0]).To(ContainSubstring("/kubedoop/hadoop/bin/hdfs journalnode &"))
 			Expect(args[0]).To(ContainSubstring("export POD_ADDRESS=$(cat /kubedoop/listener/default-address/address)"))
-			Expect(args[0]).To(ContainSubstring("mkdir -p /kubedoop/log/_vector && touch /kubedoop/log/_vector/shutdown"))
+			Expect(args[0]).To(ContainSubstring("mkdir -p /kubedoop/log/_vector/ && touch /kubedoop/log/_vector/shutdown"))
 		})
 
 		It("should correctly generate command args for journalnode setup with kerberos enabled", func() {
@@ -64,7 +64,7 @@ var _ = Describe("CommandArgs", func() {
 			Expect(args[0]).To(ContainSubstring("cp /kubedoop/mount/config/journalnode/*.xml /kubedoop/config/journalnode"))
 			Expect(args[0]).To(ContainSubstring("/kubedoop/hadoop/bin/hdfs journalnode &"))
 			Expect(args[0]).To(ContainSubstring("export POD_ADDRESS=$(cat /kubedoop/listener/default-address/address)"))
-			Expect(args[0]).To(ContainSubstring("mkdir -p /kubedoop/log/_vector && touch /kubedoop/log/_vector/shutdown"))
+			Expect(args[0]).To(ContainSubstring("mkdir -p /kubedoop/log/_vector/ && touch /kubedoop/log/_vector/shutdown"))
 		})
 
 	})

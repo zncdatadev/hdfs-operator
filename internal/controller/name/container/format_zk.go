@@ -24,7 +24,7 @@ func NewFormatZookeeperContainerBuilder(
 	image := hdfsv1alpha1.TransformImage(imageSpec)
 
 	return &FormatZookeeperContainerBuilder{
-		ContainerBuilder:       *common.NewContainerBuilder(image.String(), *image.GetPullPolicy(), resource),
+		ContainerBuilder:       *common.NewContainerBuilder(image.String(), image.GetPullPolicy(), resource),
 		zookeeperConfigMapName: zookeeperConfigMapName,
 		namespace:              instance.Namespace,
 		clusterConfig:          instance.Spec.ClusterConfigSpec,

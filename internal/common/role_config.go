@@ -5,6 +5,7 @@ import (
 	"time"
 
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/constants"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -15,7 +16,7 @@ const (
 type RoleNodeConfig struct {
 	resources *commonsv1alpha1.ResourcesSpec
 	// logging config todo
-	listenerClass string
+	listenerClass constants.ListenerClass
 	common        *GeneralNodeConfig
 }
 
@@ -61,7 +62,7 @@ func newDefaultResourceSpec(role Role) *commonsv1alpha1.ResourcesSpec {
 }
 
 // DefaultNodeConfig default node config
-func DefaultNodeConfig(clusterName string, role Role, listenerClass string, gracefulShutdownTimeoutSeconds time.Duration) *RoleNodeConfig {
+func DefaultNodeConfig(clusterName string, role Role, listenerClass constants.ListenerClass, gracefulShutdownTimeoutSeconds time.Duration) *RoleNodeConfig {
 	return &RoleNodeConfig{
 		resources:     newDefaultResourceSpec(role),
 		listenerClass: listenerClass,
@@ -78,11 +79,11 @@ func DefaultNodeConfig(clusterName string, role Role, listenerClass string, grac
 }
 
 func DefaultNameNodeConfig(clusterName string) *RoleNodeConfig {
-	return DefaultNodeConfig(clusterName, NameNode, string(LoadBalancerClass), 15*time.Minute)
+	return DefaultNodeConfig(clusterName, NameNode, constants.ClusterInternal, 15*time.Minute)
 }
 
 func DefaultDataNodeConfig(clusterName string) *RoleNodeConfig {
-	return DefaultNodeConfig(clusterName, DataNode, string(NodePort), 30*time.Minute)
+	return DefaultNodeConfig(clusterName, DataNode, constants.ClusterInternal, 30*time.Minute)
 }
 
 func DefaultJournalNodeConfig(clusterName string) *RoleNodeConfig {

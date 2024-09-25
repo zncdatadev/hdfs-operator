@@ -29,7 +29,7 @@ func NewWaitNameNodeContainerBuilder(
 	clusterConfigSpec := instance.Spec.ClusterConfigSpec
 	image := hdfsv1alpha1.TransformImage(imageSpec)
 	return &WaitNameNodeContainerBuilder{
-		ContainerBuilder:       *common.NewContainerBuilder(image.String(), *image.GetPullPolicy(), resource),
+		ContainerBuilder:       *common.NewContainerBuilder(image.String(), image.GetPullPolicy(), resource),
 		zookeeperConfigMapName: clusterConfigSpec.ZookeeperConfigMapName,
 		instanceName:           instance.Name,
 		groupName:              groupName,

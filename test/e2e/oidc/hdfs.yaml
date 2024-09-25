@@ -10,18 +10,16 @@ metadata:
   name: hdfscluster-sample
 spec:
   clusterConfig:
-    zookeeperConfigMapName: sample-hdfs
+    zookeeperConfigMapName: sample-hdfs-znode
+    authentication:
+      authenticationClass: oidc
+      oidc:
+        clientCredentialsSecret: oidc-credentials
   nameNode:
     roleGroups:
       default:
         replicas: 2
         config:
-          resources:
-            cpu:
-              min: 1
-              max: 2
-            memory:
-              limit: "3Gi"
           logging:
             namenode:
               loggers:
@@ -38,14 +36,8 @@ spec:
   journalNode:
     roleGroups:
       default:
-        replicas: 3
+        replicas: 1
         config:
-          resources:
-            cpu:
-              min: 1
-              max: 2
-            memory:
-              limit: "3Gi"
           logging:
             journalNode:
               loggers:
@@ -58,14 +50,8 @@ spec:
   dataNode:
     roleGroups:
       default:
-        replicas: 3
+        replicas: 2
         config:
-          resources:
-            cpu:
-              min: 1
-              max: 2
-            memory:
-              limit: "3Gi"
           logging:
             datanode:
               loggers:

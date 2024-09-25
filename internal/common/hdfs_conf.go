@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	xml "github.com/zncdatadev/operator-go/pkg/config/xml"
 	"github.com/zncdatadev/operator-go/pkg/constants"
-	opgoutil "github.com/zncdatadev/operator-go/pkg/util"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/util"
@@ -335,7 +335,7 @@ networkaddress.cache.ttl=30`
 func MakeSslClientData(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) string {
 	if IsTlsEnabled(clusterSpec) {
 		jksPasswd := clusterSpec.Authentication.Tls.JksPassword
-		if xml, err := opgoutil.NewXMLConfigurationFromMap(map[string]string{
+		if xml, err := xml.NewXMLConfigurationFromMap(map[string]string{
 			"ssl.client.truststore.location": fmt.Sprintf("%s/truststore.p12", constants.KubedoopTlsDir),
 			"ssl.client.truststore.type":     "pkcs12",
 			"ssl.client.truststore.password": jksPasswd,
@@ -355,7 +355,7 @@ func MakeSslClientData(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) string {
 func MakeSslServerData(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) string {
 	if IsTlsEnabled(clusterSpec) {
 		jksPasswd := clusterSpec.Authentication.Tls.JksPassword
-		if xml, err := opgoutil.NewXMLConfigurationFromMap(map[string]string{
+		if xml, err := xml.NewXMLConfigurationFromMap(map[string]string{
 			"ssl.server.truststore.location": fmt.Sprintf("%s/truststore.p12", constants.KubedoopTlsDir),
 			"ssl.server.truststore.type":     "pkcs12",
 			"ssl.server.truststore.password": jksPasswd,

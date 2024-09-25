@@ -1,0 +1,54 @@
+# use https://www.keycloak.org/server/importExport to import initial realm
+# Docker container usage: https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      containers:
+      - name: keycloak
+        image: quay.io/keycloak/keycloak:25.0
+        args:
+        - start-dev
+        - --import-realm
+        env:
+        - name: KEYCLOAK_ADMIN
+          value: admin
+        - name: KEYCLOAK_ADMIN_PASSWORD
+          value: admin
+        ports:
+        - containerPort: 8080
+          name: http
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: (join('', ['/realms/', ($KEYCLOAK_REALM)]))
+            port: 8080
+        volumeMounts:
+        - name: keycloak-config
+          mountPath: /opt/keycloak/data/import
+      volumes:
+      - name: keycloak-config
+        configMap:
+          name: keycloak-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+spec:
+  selector:
+    app: keycloak
+  ports:
+  - port: 80
+    targetPort: http
