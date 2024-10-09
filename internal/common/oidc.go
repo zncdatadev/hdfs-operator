@@ -11,7 +11,6 @@ import (
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	authv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/authentication/v1alpha1"
-	"github.com/zncdatadev/operator-go/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -205,25 +204,9 @@ func (o *OidcContainerBuilder) ContainerEnv() []corev1.EnvVar {
 }
 
 func (o *OidcContainerBuilder) Command() []string {
-	script := `
-	set -ex
-	ARCH=$(uname -m)
-	ARCH="${ARCH/x86_64/amd64}"
-	ARCH="${ARCH/aarch64/arm64}"
-	
-	mkdir /kubedoop/oauth2-proxy
-	cd /kubedoop/oauth2-proxy
-	
-	curl -sSfL \
-		https://github.com/oauth2-proxy/oauth2-proxy/releases/download/v7.6.0/oauth2-proxy-v7.6.0.linux-${ARCH}.tar.gz \
-		| tar xzf - --strip-components=1
-	
-	/kubedoop/oauth2-proxy/oauth2-proxy \
-		--upstream=${UPSTREAM}
-	`
 	return []string{
-		"bash",
+		"sh",
 		"-c",
-		util.IndentTab4Spaces(script),
+		"/kubedoop/oauth2-proxy/oauth2-proxy --upstream=${UPSTREAM}",
 	}
 }
