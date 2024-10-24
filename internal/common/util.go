@@ -48,13 +48,13 @@ func ConvertToResourceRequirements(resources *commonsv1alpha1.ResourcesSpec) *co
 	if resources != nil {
 		request := corev1.ResourceList{}
 		limit := corev1.ResourceList{}
-		if resources.CPU != nil && resources.CPU.Min.IsZero() {
+		if resources.CPU != nil && !resources.CPU.Min.IsZero() {
 			request[corev1.ResourceCPU] = resources.CPU.Min
 		}
-		if resources.CPU != nil && resources.CPU.Max.IsZero() {
+		if resources.CPU != nil && !resources.CPU.Max.IsZero() {
 			limit[corev1.ResourceCPU] = resources.CPU.Max
 		}
-		if resources.Memory != nil && resources.Memory.Limit.IsZero() {
+		if resources.Memory != nil && !resources.Memory.Limit.IsZero() {
 			request[corev1.ResourceMemory] = resources.Memory.Limit
 			limit[corev1.ResourceMemory] = resources.Memory.Limit
 		}

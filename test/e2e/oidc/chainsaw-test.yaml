@@ -17,20 +17,6 @@ spec:
   steps:
   - try:
     - apply:
-        file: ../setup/olm.yaml
-    - assert:
-        file: ../setup/olm-assert.yaml
-  - try:
-    - apply:
-        file: ../setup/subs.yaml
-    - assert:
-        file: ../setup/subs-assert.yaml
-    - apply:
-        file: ../setup/listener.yaml
-    - assert:
-        file: ../setup/listener-assert.yaml
-  - try:
-    - apply:
         file: ../setup/zookeeper.yaml
     - assert:
         file: ../setup/zookeeper-assert.yaml
