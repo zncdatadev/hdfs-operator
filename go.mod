@@ -10,9 +10,9 @@ require (
 	github.com/onsi/gomega v1.34.2
 	github.com/stretchr/testify v1.9.0
 	github.com/zncdatadev/operator-go v0.10.0
-	k8s.io/api v0.31.1
-	k8s.io/apimachinery v0.31.1
-	k8s.io/client-go v0.31.1
+	k8s.io/api v0.31.2
+	k8s.io/apimachinery v0.31.2
+	k8s.io/client-go v0.31.2
 	sigs.k8s.io/controller-runtime v0.19.1
 )
 
