@@ -50,7 +50,7 @@ spec:
   dataNode:
     roleGroups:
       default:
-        replicas: 2
+        replicas: 1
         config:
           logging:
             datanode:

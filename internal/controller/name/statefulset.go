@@ -149,7 +149,7 @@ func (s *StatefulSetReconciler) LogOverride(_ client.Object) {
 // make name node container
 func (s *StatefulSetReconciler) makeNameNodeContainer() corev1.Container {
 	nameNode := container.NewNameNodeContainerBuilder(s.Instance,
-		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
+		*common.ConvertToResourceRequirements(common.GetContainerResource(container.GetRole(), string(container.NameNode))),
 	)
 	return nameNode.Build(nameNode)
 }
@@ -158,7 +158,7 @@ func (s *StatefulSetReconciler) makeNameNodeContainer() corev1.Container {
 func (s *StatefulSetReconciler) makeZkfcContainer() corev1.Container {
 	zkfc := container.NewZkfcContainerBuilder(
 		s.Instance,
-		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
+		*common.ConvertToResourceRequirements(common.GetContainerResource(container.GetRole(), string(container.Zkfc))),
 	)
 	return zkfc.Build(zkfc)
 }
@@ -167,7 +167,7 @@ func (s *StatefulSetReconciler) makeZkfcContainer() corev1.Container {
 func (s *StatefulSetReconciler) makeFormatNameNodeContainer() corev1.Container {
 	formatNameNode := container.NewFormatNameNodeContainerBuilder(
 		s.Instance,
-		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
+		*common.ConvertToResourceRequirements(common.GetContainerResource(container.GetRole(), string(container.FormatNameNode))),
 		*s.getReplicates(),
 		common.CreateNameNodeStatefulSetName(s.Instance.GetName(), s.GroupName),
 	)
@@ -178,7 +178,7 @@ func (s *StatefulSetReconciler) makeFormatNameNodeContainer() corev1.Container {
 func (s *StatefulSetReconciler) makeFormatZookeeperContainer() corev1.Container {
 	formatZookeeper := container.NewFormatZookeeperContainerBuilder(
 		s.Instance,
-		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
+		*common.ConvertToResourceRequirements(common.GetContainerResource(container.GetRole(), string(container.FormatZookeeper))),
 		s.getZookeeperConfigMapName(),
 	)
 	return formatZookeeper.Build(formatZookeeper)

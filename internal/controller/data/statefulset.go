@@ -141,7 +141,7 @@ func (s *StatefulSetReconciler) LogOverride(_ client.Object) {
 func (s *StatefulSetReconciler) makeDataNodeContainer() corev1.Container {
 	dateNode := container.NewDataNodeContainerBuilder(
 		s.Instance,
-		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
+		*common.ConvertToResourceRequirements(common.GetContainerResource(container.GetRole(), string(container.DataNode))),
 	)
 	return dateNode.Build(dateNode)
 }
@@ -150,7 +150,7 @@ func (s *StatefulSetReconciler) makeDataNodeContainer() corev1.Container {
 func (s *StatefulSetReconciler) makeWaitNameNodeContainer() corev1.Container {
 	initContainer := container.NewWaitNameNodeContainerBuilder(
 		s.Instance,
-		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
+		*common.ConvertToResourceRequirements(common.GetContainerResource(container.GetRole(), string(container.WaitNameNode))),
 		s.GroupName,
 	)
 	return initContainer.Build(initContainer)

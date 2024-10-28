@@ -20,7 +20,7 @@ spec:
         image: quay.io/keycloak/keycloak:25.0
         resources:
           limits:
-            cpu: 300m
+            cpu: 200m
             memory: 512Mi
           requests:
             cpu: 100m
