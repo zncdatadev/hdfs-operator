@@ -134,7 +134,7 @@ func (s *StatefulSetReconciler) LogOverride(_ client.Object) {
 func (s *StatefulSetReconciler) makeJournalNodeContainer() corev1.Container {
 	journalNode := NewJournalNodeContainerBuilder(
 		s.Instance,
-		*common.ConvertToResourceRequirements(s.MergedCfg.Config.Resources),
+		*common.ConvertToResourceRequirements(common.GetContainerResource(GetRole(), string(ContainerJournalNode))),
 	)
 	return journalNode.Build(journalNode)
 }

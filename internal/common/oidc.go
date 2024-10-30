@@ -73,7 +73,7 @@ func NewOidcContainerBuilder(
 	return &OidcContainerBuilder{
 		ContainerBuilder: *NewContainerBuilder(image.String(), image.GetPullPolicy(), corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("500m"),
+				corev1.ResourceCPU:    resource.MustParse("200m"),
 				corev1.ResourceMemory: resource.MustParse("512Mi"),
 			},
 		}),

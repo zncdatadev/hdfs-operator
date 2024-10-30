@@ -23,46 +23,15 @@ type RoleNodeConfig struct {
 type GeneralNodeConfig struct {
 	Affinity *AffinityBuilder
 
-	gracefulShutdownTimeoutSeconds time.Duration
+	gracefulShutdownTimeout time.Duration
 }
 
 func newDefaultResourceSpec(role Role) *commonsv1alpha1.ResourcesSpec {
-	var cpuMin, cpuMax, memoryLimit, storage resource.Quantity
-	switch role {
-	case NameNode:
-		cpuMin = parseQuantity("250m")
-		cpuMax = parseQuantity("1000m")
-		memoryLimit = parseQuantity("1024Mi")
-		storage = parseQuantity("2Gi")
-	case DataNode:
-		cpuMin = parseQuantity("100m")
-		cpuMax = parseQuantity("400m")
-		memoryLimit = parseQuantity("512Mi")
-		storage = parseQuantity("10Gi")
-	case JournalNode:
-		cpuMin = parseQuantity("100m")
-		cpuMax = parseQuantity("400m")
-		memoryLimit = parseQuantity("512Mi")
-		storage = parseQuantity("1Gi")
-	default:
-		panic("invalid role")
-	}
-	return &commonsv1alpha1.ResourcesSpec{
-		CPU: &commonsv1alpha1.CPUResource{
-			Min: cpuMin,
-			Max: cpuMax,
-		},
-		Memory: &commonsv1alpha1.MemoryResource{
-			Limit: memoryLimit,
-		},
-		Storage: &commonsv1alpha1.StorageResource{
-			Capacity: storage,
-		},
-	}
+	return GetContainerResource(role, string(role))
 }
 
 // DefaultNodeConfig default node config
-func DefaultNodeConfig(clusterName string, role Role, listenerClass constants.ListenerClass, gracefulShutdownTimeoutSeconds time.Duration) *RoleNodeConfig {
+func DefaultNodeConfig(clusterName string, role Role, listenerClass constants.ListenerClass, gracefulShutdownTimeout time.Duration) *RoleNodeConfig {
 	return &RoleNodeConfig{
 		resources:     newDefaultResourceSpec(role),
 		listenerClass: listenerClass,
@@ -73,7 +42,7 @@ func DefaultNodeConfig(clusterName string, role Role, listenerClass constants.Li
 					*NewPodAffinity(map[string]string{LabelCrName: clusterName, LabelComponent: string(role)}, false, true).Weight(70),
 				},
 			},
-			gracefulShutdownTimeoutSeconds: gracefulShutdownTimeoutSeconds,
+			gracefulShutdownTimeout: gracefulShutdownTimeout,
 		},
 	}
 }
@@ -153,7 +122,7 @@ func (n *RoleNodeConfig) MergeDefaultConfig(mergedCfg any) {
 		affinityField.Set(reflect.ValueOf(n.common.Affinity.Build()))
 	}
 
-	// You can continue to add logic to handle other fields
+	// You can continue to add logic to handle other fieldgracefulShutdownTimeoutSecondss
 	// config.FieldByName("Logging").Set(reflect.ValueOf(n.common.Logging))
 	// config.FieldByName("GracefulShutdownTimeoutSeconds").Set(reflect.ValueOf(n.common.gracefulShutdownTimeoutSeconds))
 }
@@ -161,4 +130,65 @@ func (n *RoleNodeConfig) MergeDefaultConfig(mergedCfg any) {
 func parseQuantity(q string) resource.Quantity {
 	r := resource.MustParse(q)
 	return r
+}
+
+func GetContainerResource(role Role, containerName string) *commonsv1alpha1.ResourcesSpec {
+	var cpuMin, cpuMax, memoryLimit, storage resource.Quantity
+	switch role {
+	case NameNode:
+		switch containerName {
+		case "format-namenodes":
+			cpuMin = parseQuantity("100m")
+			cpuMax = parseQuantity("200m")
+			memoryLimit = parseQuantity("512Mi")
+		case "format-zookeeper":
+			cpuMin = parseQuantity("100m")
+			cpuMax = parseQuantity("200m")
+			memoryLimit = parseQuantity("512Mi")
+		case "zkfc":
+			cpuMin = parseQuantity("100m")
+			cpuMax = parseQuantity("200m")
+			memoryLimit = parseQuantity("512Mi")
+		case "namenode":
+			cpuMin = parseQuantity("300m")
+			cpuMax = parseQuantity("600m")
+			memoryLimit = parseQuantity("1024Mi")
+			storage = parseQuantity("1Gi")
+		default:
+			panic("invalid container name in NameNode role:" + containerName)
+		}
+	case DataNode:
+		switch containerName {
+		case "datanode":
+			cpuMin = parseQuantity("100m")
+			cpuMax = parseQuantity("300m")
+			memoryLimit = parseQuantity("512Mi")
+			storage = parseQuantity("2Gi")
+		case "wait-for-namenodes":
+			cpuMin = parseQuantity("100m")
+			cpuMax = parseQuantity("200m")
+			memoryLimit = parseQuantity("512Mi")
+		default:
+			panic("invalid container name in DataNode role" + containerName)
+		}
+	case JournalNode:
+		cpuMin = parseQuantity("100m")
+		cpuMax = parseQuantity("300m")
+		memoryLimit = parseQuantity("512Mi")
+		storage = parseQuantity("1Gi")
+	default:
+		panic("unsupported role: " + role)
+	}
+	return &commonsv1alpha1.ResourcesSpec{
+		CPU: &commonsv1alpha1.CPUResource{
+			Min: cpuMin,
+			Max: cpuMax,
+		},
+		Memory: &commonsv1alpha1.MemoryResource{
+			Limit: memoryLimit,
+		},
+		Storage: &commonsv1alpha1.StorageResource{
+			Capacity: storage,
+		},
+	}
 }
