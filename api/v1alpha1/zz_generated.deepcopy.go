@@ -246,8 +246,8 @@ func (in *DataNodeRoleGroupSpec) DeepCopyInto(out *DataNodeRoleGroupSpec) {
 		*out = new(DataNodeConfigSpec)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.CommandArgsOverrides != nil {
-		in, out := &in.CommandArgsOverrides, &out.CommandArgsOverrides
+	if in.CliOverrides != nil {
+		in, out := &in.CliOverrides, &out.CliOverrides
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
@@ -304,8 +304,8 @@ func (in *DataNodeSpec) DeepCopyInto(out *DataNodeSpec) {
 		*out = new(PodDisruptionBudgetSpec)
 		**out = **in
 	}
-	if in.CommandArgsOverrides != nil {
-		in, out := &in.CommandArgsOverrides, &out.CommandArgsOverrides
+	if in.CliOverrides != nil {
+		in, out := &in.CliOverrides, &out.CliOverrides
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
@@ -543,8 +543,8 @@ func (in *JournalNodeRoleGroupSpec) DeepCopyInto(out *JournalNodeRoleGroupSpec) 
 		*out = new(JournalNodeConfigSpec)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.CommandArgsOverrides != nil {
-		in, out := &in.CommandArgsOverrides, &out.CommandArgsOverrides
+	if in.CliOverrides != nil {
+		in, out := &in.CliOverrides, &out.CliOverrides
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
@@ -601,8 +601,8 @@ func (in *JournalNodeSpec) DeepCopyInto(out *JournalNodeSpec) {
 		*out = new(PodDisruptionBudgetSpec)
 		**out = **in
 	}
-	if in.CommandArgsOverrides != nil {
-		in, out := &in.CommandArgsOverrides, &out.CommandArgsOverrides
+	if in.CliOverrides != nil {
+		in, out := &in.CliOverrides, &out.CliOverrides
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
@@ -812,8 +812,8 @@ func (in *NameNodeRoleGroupSpec) DeepCopyInto(out *NameNodeRoleGroupSpec) {
 		*out = new(NameNodeConfigSpec)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.CommandArgsOverrides != nil {
-		in, out := &in.CommandArgsOverrides, &out.CommandArgsOverrides
+	if in.CliOverrides != nil {
+		in, out := &in.CliOverrides, &out.CliOverrides
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
@@ -870,8 +870,8 @@ func (in *NameNodeSpec) DeepCopyInto(out *NameNodeSpec) {
 		*out = new(PodDisruptionBudgetSpec)
 		**out = **in
 	}
-	if in.CommandArgsOverrides != nil {
-		in, out := &in.CommandArgsOverrides, &out.CommandArgsOverrides
+	if in.CliOverrides != nil {
+		in, out := &in.CliOverrides, &out.CliOverrides
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
