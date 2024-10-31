@@ -1,90 +1,72 @@
-# hdfs-operator
+# Kubedoop Operator for Apache Hadoop
 
-// TODO(user): Add simple overview of use/purpose
+[![Build](https://github.com/zncdatadev/hdfs-operator/actions/workflows/main.yml/badge.svg)](https://github.com/zncdatadev/hdfs-operator/actions/workflows/main.yml)
+[![LICENSE](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Go Report Card](https://goreportcard.com/badge/github.com/zncdatadev/hdfs-operator)](https://goreportcard.com/report/github.com/zncdatadev/hdfs-operator)
+[![Artifact HUB](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/hdfs-operator)](https://artifacthub.io/packages/helm/kubedoop/hdfs-operator)
 
-## Description
+This is a kubernetes operator to manage apache hdfs on kubernetes cluster. It's part of the kubedoop ecosystem.
 
-// TODO(user): An in-depth paragraph about your project and overview of use
+Kubedoop is a cloud-native big data platform built on Kubernetes, designed to simplify the deployment and management of big data applications on Kubernetes.
+It provides a set of pre-configured Operators to easily deploy and manage various big data components such as HDFS, Hive, Spark, Kafka, and more.
 
-## Getting Started
+## Quick Start
 
-You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
-**Note:** Your controller will automatically use the current context in your kubeconfig file (i.e. whatever cluster `kubectl cluster-info` shows).
+### Add helm repository
 
-### Running on the cluster
+> Please make sure helm version is v3.0.0+
 
-1. Install Instances of Custom Resources:
-
-    ```sh
-    kubectl apply -f config/samples/
-    ```
-
-2. Build and push your image to the location specified by `IMG`:
-
-    ```sh
-    make docker-build docker-push IMG=<some-registry>/hdfs-operator:tag
-    ```
-
-3. Deploy the controller to the cluster with the image specified by `IMG`:
-
-    ```sh
-    make deploy IMG=<some-registry>/hdfs-operator:tag
-    ```
-
-### Uninstall CRDs
-
-To delete the CRDs from the cluster:
-
-```sh
-make uninstall
+```bash
+helm repo add kubedoop https://zncdatadev.github.io/kubedoop-helm-charts/
 ```
 
-### Undeploy controller
+### Add required dependencies
 
-UnDeploy the controller from the cluster:
-
-```sh
-make undeploy
+```bash
+helm install commons-operator kubedoop/commons-operator
+helm install listener-operator kubedoop/listener-operator
+helm install secret-operator kubedoop/secret-operator
+helm install zookeeper-operator kubedoop/zookeeper-operator
 ```
+
+### Add hdfs-operator
+
+```bash
+helm install hdfs-operator kubedoop/hdfs-operator
+```
+
+### Deploy hdfs cluster
+
+```bash
+kubectl apply -f config/samples
+```
+
+## Kubedoop Ecosystem
+
+### Operators
+
+Kubedoop operators:
+
+- [Kubedoop Operator for Apache DolphinScheduler](https://github.com/zncdatadev/dolphinscheduler-operator)
+- [Kubedoop Operator for Apache Hadoop Hdfs](https://github.com/zncdatadev/hdfs-operator)
+- [Kubedoop Operator for Apache HBase](https://github.com/zncdatadev/hbase-operator)
+- [Kubedoop Operator for Apache Hive](https://github.com/zncdatadev/hive-operator)
+- [Kubedoop Operator for Apache Kafka](https://github.com/zncdatadev/kafka-operator)
+- [Kubedoop Operator for Apache Spark](https://github.com/zncdatadev/spark-k8s-operator)
+- [Kubedoop Operator for Apache Superset](https://github.com/zncdatadev/superset-operator)
+- [Kubedoop Operator for Trino](https://github.com/zncdatadev/trino-operator)
+- [Kubedoop Operator for Apache Zookeeper](https://github.com/zncdatadev/zookeeper-operator)
+
+Kubedoop built-in operators:
+
+- [Commons Operator](https://github.com/zncdatadev/commons-operator)
+- [Listener Operator](https://github.com/zncdatadev/listener-operator)
+- [Secret Operator](https://github.com/zncdatadev/secret-operator)
 
 ## Contributing
 
-// TODO(user): Add detailed information on how you would like others to contribute to this project
-
-### How it works
-
-This project aims to follow the Kubernetes [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/).
-
-It uses [Controllers](https://kubernetes.io/docs/concepts/architecture/controller/),
-which provide a reconcile function responsible for synchronizing resources until the desired state is reached on the cluster.
-
-### Test It Out
-
-1. Install the CRDs into the cluster:
-
-    ```sh
-    make install
-    ```
-
-2. Run your controller (this will run in the foreground, so switch to a new terminal if you want to leave it running):
-
-    ```sh
-    make run
-    ```
-
-**NOTE:** You can also run this in one step by running: `make install run`
-
-### Modifying the API definitions
-
-If you are editing the API definitions, generate the manifests such as CRs or CRDs using:
-
-```sh
-make manifests
-```
-
-**NOTE:** Run `make --help` for more information on all potential `make` targets
-
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
+If you'd like to contribute to Kubedoop, please refer to our [Contributing Guide](https://zncdata.dev/docs/developer-manual/collaboration) for more information.
+We welcome contributions of all kinds, including but not limited to code, documentation, and use cases.
 
 ## License
 
@@ -101,4 +83,3 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
