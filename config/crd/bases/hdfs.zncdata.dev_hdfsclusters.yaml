@@ -112,7 +112,7 @@ spec:
                 type: object
               dataNode:
                 properties:
-                  commandArgsOverrides:
+                  cliOverrides:
                     items:
                       type: string
                     type: array
@@ -1587,7 +1587,7 @@ spec:
                   roleGroups:
                     additionalProperties:
                       properties:
-                        commandArgsOverrides:
+                        cliOverrides:
                           items:
                             type: string
                           type: array
@@ -3093,7 +3093,7 @@ spec:
                 type: object
               journalNode:
                 properties:
-                  commandArgsOverrides:
+                  cliOverrides:
                     items:
                       type: string
                     type: array
@@ -4485,7 +4485,7 @@ spec:
                   roleGroups:
                     additionalProperties:
                       properties:
-                        commandArgsOverrides:
+                        cliOverrides:
                           items:
                             type: string
                           type: array
@@ -5888,7 +5888,7 @@ spec:
               nameNode:
                 description: 'roles defined: nameNode, dataNode, journalNode'
                 properties:
-                  commandArgsOverrides:
+                  cliOverrides:
                     items:
                       type: string
                     type: array
@@ -7529,7 +7529,7 @@ spec:
                   roleGroups:
                     additionalProperties:
                       properties:
-                        commandArgsOverrides:
+                        cliOverrides:
                           items:
                             type: string
                           type: array

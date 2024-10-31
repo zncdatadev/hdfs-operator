@@ -102,7 +102,7 @@ func (s *StatefulSetReconciler) SetAffinity(resource client.Object) {
 func (s *StatefulSetReconciler) CommandOverride(resource client.Object) {
 	dep := resource.(*appv1.StatefulSet)
 	containers := dep.Spec.Template.Spec.Containers
-	if cmdOverride := s.MergedCfg.CommandArgsOverrides; cmdOverride != nil {
+	if cmdOverride := s.MergedCfg.CliOverrides; cmdOverride != nil {
 		for i := range containers {
 			if containers[i].Name == string(ContainerJournalNode) {
 				containers[i].Command = cmdOverride
