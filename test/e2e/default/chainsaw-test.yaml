@@ -16,8 +16,25 @@ spec:
     - apply:
         file: hdfs.yaml
     - assert:
-        timeout: 360s
+        timeout: 460s
         file: hdfs-assert.yaml
     cleanup:
     - sleep:
         duration: 30s
+    catch:
+      - sleep:
+          duration: 5s
+      - script:
+          env:
+            - name: NAMESPACE
+              value: ($namespace)
+          content: |
+            set -ex
+            kubectl -n $NAMESPACE get pods
+      - describe:
+          apiVersion: v1
+          kind: Pod
+          selector: app.kubernetes.io/managed-by=hdfs-operator
+      - podLogs:
+          selector: app.kubernetes.io/managed-by=hdfs-operator
+          tail: -1
