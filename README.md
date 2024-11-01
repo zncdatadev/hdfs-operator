@@ -5,7 +5,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/zncdatadev/hdfs-operator)](https://goreportcard.com/report/github.com/zncdatadev/hdfs-operator)
 [![Artifact HUB](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/hdfs-operator)](https://artifacthub.io/packages/helm/kubedoop/hdfs-operator)
 
-This is a kubernetes operator to manage apache hdfs on kubernetes cluster. It's part of the kubedoop ecosystem.
+This is a kubernetes operator to manage apache HDFS on kubernetes cluster. It's part of the kubedoop ecosystem.
 
 Kubedoop is a cloud-native big data platform built on Kubernetes, designed to simplify the deployment and management of big data applications on Kubernetes.
 It provides a set of pre-configured Operators to easily deploy and manage various big data components such as HDFS, Hive, Spark, Kafka, and more.
@@ -35,7 +35,7 @@ helm install zookeeper-operator kubedoop/zookeeper-operator
 helm install hdfs-operator kubedoop/hdfs-operator
 ```
 
-### Deploy hdfs cluster
+### Deploy HDFS cluster
 
 ```bash
 kubectl apply -f config/samples
@@ -48,7 +48,7 @@ kubectl apply -f config/samples
 Kubedoop operators:
 
 - [Kubedoop Operator for Apache DolphinScheduler](https://github.com/zncdatadev/dolphinscheduler-operator)
-- [Kubedoop Operator for Apache Hadoop Hdfs](https://github.com/zncdatadev/hdfs-operator)
+- [Kubedoop Operator for Apache Hadoop HDFS](https://github.com/zncdatadev/hdfs-operator)
 - [Kubedoop Operator for Apache HBase](https://github.com/zncdatadev/hbase-operator)
 - [Kubedoop Operator for Apache Hive](https://github.com/zncdatadev/hive-operator)
 - [Kubedoop Operator for Apache Kafka](https://github.com/zncdatadev/kafka-operator)
