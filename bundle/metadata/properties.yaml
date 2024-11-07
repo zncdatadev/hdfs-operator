@@ -1,9 +1,0 @@
-properties:
-  - type: olm.package.required
-    value:
-      packageName: zookeeper-operator
-      versionRange: ">=0.0.0-dev"
-  - type: olm.package.required
-    value:
-      packageName: listener-operator
-      versionRange: ">=0.0.0-dev"
