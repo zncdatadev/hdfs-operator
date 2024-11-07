@@ -26,6 +26,7 @@ Dockerfile.cross
 *~
 
 bundle.Dockerfile
+bundle
 
 **/__debug_*
 
