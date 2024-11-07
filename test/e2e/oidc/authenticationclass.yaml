@@ -8,7 +8,7 @@ spec:
       hostname: (join('', ['keycloak.', ($namespace), '.svc.cluster.local']))
       port: 80
       rootPath: (join('', ['/realms/', ($KEYCLOAK_REALM)]))
-      provisioner: keycloak
+      providerHint: keycloak
       scopes:
       - openid
       - email
