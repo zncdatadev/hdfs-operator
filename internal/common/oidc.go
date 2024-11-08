@@ -14,7 +14,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -54,7 +53,7 @@ func MakeOidcContainer(
 
 type OidcContainerBuilder struct {
 	ContainerBuilder
-	client       client.Client
+	client       ctrlclient.Client
 	instanceUid  string
 	port         int32
 	oidcProvider *authv1alpha1.OIDCProvider
@@ -62,7 +61,7 @@ type OidcContainerBuilder struct {
 }
 
 func NewOidcContainerBuilder(
-	client client.Client,
+	client ctrlclient.Client,
 	instance *hdfsv1alpha1.HdfsCluster,
 	oidcProvider *authv1alpha1.OIDCProvider,
 	oidc *hdfsv1alpha1.OidcSpec,
@@ -118,10 +117,10 @@ func (o *OidcContainerBuilder) ContainerEnv() []corev1.EnvVar {
 		issuer.Host += ":" + strconv.Itoa(oidcProvider.Port)
 	}
 
-	provisioner := oidcProvider.Provisioner
+	providerHint := oidcProvider.ProviderHint
 	// TODO: fix support keycloak-oidc
-	if provisioner == "keycloak" {
-		provisioner = "keycloak-oidc"
+	if providerHint == "keycloak" {
+		providerHint = "keycloak-oidc"
 	}
 
 	clientCredentialsSecretName := o.oidc.ClientCredentialsSecret
@@ -177,7 +176,7 @@ func (o *OidcContainerBuilder) ContainerEnv() []corev1.EnvVar {
 		},
 		{
 			Name:  "OAUTH2_PROXY_PROVIDER",
-			Value: provisioner,
+			Value: providerHint,
 		},
 		{
 			Name:  "UPSTREAM",

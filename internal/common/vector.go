@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"emperror.dev/errors"
-	"github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/builder"
 	"github.com/zncdatadev/operator-go/pkg/productlogging"
@@ -26,11 +25,11 @@ func IsVectorEnable(roleLoggingConfig interface{}) (bool, error) {
 	}
 
 	switch t := roleLoggingConfig.(type) {
-	case *v1alpha1.NameNodeContainerLoggingSpec:
+	case *hdfsv1alpha1.NameNodeContainerLoggingSpec:
 		return t.EnableVectorAgent, nil
-	case *v1alpha1.DataNodeContainerLoggingSpec:
+	case *hdfsv1alpha1.DataNodeContainerLoggingSpec:
 		return t.EnableVectorAgent, nil
-	case *v1alpha1.JournalNodeContainerLoggingSpec:
+	case *hdfsv1alpha1.JournalNodeContainerLoggingSpec:
 		return t.EnableVectorAgent, nil
 	default:
 		return false, fmt.Errorf("unknown role logging type %T to check vector", t)
@@ -39,7 +38,7 @@ func IsVectorEnable(roleLoggingConfig interface{}) (bool, error) {
 
 type VectorConfigParams struct {
 	Client        client.Client
-	ClusterConfig *v1alpha1.ClusterConfigSpec
+	ClusterConfig *hdfsv1alpha1.ClusterConfigSpec
 	Namespace     string
 	InstanceName  string
 	Role          string
