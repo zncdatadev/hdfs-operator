@@ -59,15 +59,15 @@ func (c *XmlConfiguration) DistinctProperties(properties []XmlNameValuePair) []X
 	}
 	return distinctProperties
 
-	//var distinctMap = make(map[string]XmlNameValuePair)
-	//for _, v := range collect {
-	//	distinctMap[v.Name] = v
-	//}
-	//return maps.Values(distinctMap)
+	// var distinctMap = make(map[string]XmlNameValuePair)
+	// for _, v := range collect {
+	//     distinctMap[v.Name] = v
+	// }
+	// return maps.Values(distinctMap)
 }
 
 func (c *XmlConfiguration) StringWithProperties(properties map[string]string) string {
-	var pairs []XmlNameValuePair
+	pairs := make([]XmlNameValuePair, 0, len(properties))
 	for k, v := range properties {
 		pairs = append(pairs, XmlNameValuePair{
 			Name:  k,
@@ -80,7 +80,7 @@ func (c *XmlConfiguration) StringWithProperties(properties map[string]string) st
 // Append  to exist xml dom
 func Append(originXml string, properties []XmlNameValuePair) string {
 	var xmlDom XmlConfiguration
-	//string -> dom
+	// string -> dom
 	if err := xml.Unmarshal([]byte(originXml), &xmlDom); err != nil {
 		panic(err)
 	}

@@ -87,7 +87,7 @@ func (n *RoleNodeConfig) MergeDefaultConfig(mergedCfg any) {
 		} else {
 			// adjust resourcesField is commonsv1alpha1.ResourcesSpec
 			if resourcesField.Type().Kind() == reflect.Ptr && resourcesField.Type().Elem() == reflect.TypeOf(commonsv1alpha1.ResourcesSpec{}) {
-				//transform resourcesField to *commonsv1alpha1.ResourcesSpec
+				// transform resourcesField to *commonsv1alpha1.ResourcesSpec
 				if resourcesField.Kind() == reflect.Ptr && resourcesField.Type().Elem() == reflect.TypeOf(commonsv1alpha1.ResourcesSpec{}) {
 					mergedResource := resourcesField.Interface().(*commonsv1alpha1.ResourcesSpec)
 					if mergedResource == nil {

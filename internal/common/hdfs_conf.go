@@ -21,6 +21,10 @@ const coreSiteTemplate = `<?xml version="1.0"?>
   </property>
 </configuration>`
 
+const emptyXmlConfig = `<?xml version="1.0"?>
+<configuration>
+</configuration>`
+
 type CoreSiteXmlGenerator struct {
 	InstanceName string
 
@@ -124,10 +128,10 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeServiceId() []util.XmlNameValuePair {
 			Name:  "dfs.nameservices",
 			Value: c.InstanceName,
 		},
-		//<property>
-		//<name>dfs.client.failover.proxy.provider.simple-hdfs</name>
-		//<value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider</value>
-		//</property>
+		// <property>
+		// <name>dfs.client.failover.proxy.provider.simple-hdfs</name>
+		// <value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider</value>
+		// </property>
 		{
 			Name:  "dfs.client.failover.proxy.provider." + c.InstanceName,
 			Value: "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider",
@@ -320,9 +324,7 @@ const hdfsSiteTemplate = `<?xml version="1.0"?>
 
 // MakeHadoopPolicyData make hadoop-policy.xml data
 func MakeHadoopPolicyData() string {
-	return `<?xml version="1.0"?>
-<configuration>
-</configuration>`
+	return emptyXmlConfig
 }
 
 // MakeSecurityPropertiesData make security.properties data
@@ -345,9 +347,7 @@ func MakeSslClientData(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) string {
 			panic(err)
 		}
 	} else {
-		return `<?xml version="1.0"?>
-<configuration>
-</configuration>`
+		return emptyXmlConfig
 	}
 }
 
@@ -368,9 +368,7 @@ func MakeSslServerData(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) string {
 			panic(err)
 		}
 	} else {
-		return `<?xml version="1.0"?>
-<configuration>
-</configuration>`
+		return emptyXmlConfig
 	}
 }
 

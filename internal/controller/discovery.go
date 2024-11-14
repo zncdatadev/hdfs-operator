@@ -167,7 +167,7 @@ func (d *Discovery) createPortNameAddress(
 	podNames []string,
 	portName string,
 	cache *map[string]*listenerv1alpha1.IngressAddressSpec) ([]util.XmlNameValuePair, error) {
-	var connections []util.XmlNameValuePair
+	connections := make([]util.XmlNameValuePair, 0, len(podNames))
 	for _, podName := range podNames {
 		var address *listenerv1alpha1.IngressAddressSpec
 		var err error

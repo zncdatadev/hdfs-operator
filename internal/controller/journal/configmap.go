@@ -61,7 +61,7 @@ func (c *ConfigMapReconciler) Build(ctx context.Context) (client.Object, error) 
 		hdfsv1alpha1.SecurityFileName:     common.MakeSecurityPropertiesData(),
 		hdfsv1alpha1.SslClientFileName:    common.MakeSslClientData(c.Instance.Spec.ClusterConfigSpec),
 		hdfsv1alpha1.SslServerFileName:    common.MakeSslServerData(c.Instance.Spec.ClusterConfigSpec),
-		//log4j
+		// log4j
 		common.CreateComponentLog4jPropertiesName(ContainerJournalNode): common.MakeLog4jPropertiesData(ContainerJournalNode),
 	}
 

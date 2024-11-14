@@ -162,7 +162,7 @@ func CreateKvContentByReplicas(replicas int32, keyTemplate string, valueTemplate
 }
 
 func CreateXmlContentByReplicas(replicas int32, keyTemplate string, valueTemplate string) []util.XmlNameValuePair {
-	var res []util.XmlNameValuePair
+	res := make([]util.XmlNameValuePair, 0, replicas)
 	for _, kv := range CreateKvContentByReplicas(replicas, keyTemplate, valueTemplate) {
 		res = append(res, util.XmlNameValuePair{Name: kv[0], Value: kv[1]})
 	}

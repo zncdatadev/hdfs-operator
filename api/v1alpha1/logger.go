@@ -1,9 +1,9 @@
 package v1alpha1
 
-//type LoggingSpec struct {
-//	// +kubebuilder:validation:Optional
-//	Containers *ContainerLoggingSpec `json:"containers,omitempty"`
-//}
+// type LoggingSpec struct {
+//     // +kubebuilder:validation:Optional
+//     Containers *ContainerLoggingSpec `json:"containers,omitempty"`
+// }
 
 type LoggingConfigSpec struct {
 	// +kubebuilder:validation:Optional

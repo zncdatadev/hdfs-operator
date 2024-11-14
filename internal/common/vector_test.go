@@ -1,10 +1,11 @@
 package common_test
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
-	"testing"
 )
 
 // Returns true when EnableVectorAgent is true for NameNodeContainerLoggingSpec

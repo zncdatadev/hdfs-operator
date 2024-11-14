@@ -1,5 +1,5 @@
 /*
-Copyright 2024.
+Copyright 2024 zncdatadev.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -93,8 +93,8 @@ const (
 	JournalNodeHttpsPort  = 8481
 )
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // HdfsCluster is the Schema for the hdfsclusters API
 type HdfsCluster struct {
@@ -105,7 +105,7 @@ type HdfsCluster struct {
 	Status status.Status   `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // HdfsClusterList contains a list of HdfsCluster
 type HdfsClusterList struct {
