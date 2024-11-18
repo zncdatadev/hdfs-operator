@@ -142,8 +142,8 @@ func (s *StatefulSetReconciler) EnvOverride(resource client.Object) {
 }
 
 func (s *StatefulSetReconciler) LogOverride(_ client.Object) {
-	//because of existing log configuration, it will not use to override
-	//see common.OverrideExistLoggingRecociler
+	// because of existing log configuration, it will not use to override
+	// see common.OverrideExistLoggingRecociler
 }
 
 // make name node container

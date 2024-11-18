@@ -60,7 +60,7 @@ func OverrideConfigFileContent(current string, override string) string {
 // OverridePropertiesFileContent use bufio resolve properties
 func OverridePropertiesFileContent(current string, override map[string]string) (string, error) {
 	var properties []NameValuePair
-	//scan current
+	// scan current
 	if err := ScanProperties(current, &properties); err != nil {
 		logger.Error(err, "failed to scan current properties")
 		return "", err
@@ -81,7 +81,7 @@ func ScanProperties(current string, properties *[]NameValuePair) error {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix("#", line) || len(line) == 0 {
+		if strings.HasPrefix(line, "#") || len(line) == 0 {
 			continue
 		}
 
@@ -102,7 +102,7 @@ func ScanProperties(current string, properties *[]NameValuePair) error {
 // append the override properties to the current xml dom
 func AppendXmlContent(current string, overrideProperties map[string]string) string {
 	var xmlDom XmlConfiguration
-	//string -> dom
+	// string -> dom
 	if err := xml.Unmarshal([]byte(current), &xmlDom); err != nil {
 		panic(err)
 	}

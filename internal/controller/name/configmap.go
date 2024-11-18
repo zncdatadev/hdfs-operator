@@ -2,6 +2,7 @@ package name
 
 import (
 	"context"
+
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	"github.com/zncdatadev/hdfs-operator/internal/controller/name/container"
@@ -39,7 +40,7 @@ func NewConfigMap(
 func (c *ConfigMapReconciler) ConfigurationOverride(resource client.Object) {
 	cm := resource.(*corev1.ConfigMap)
 	overrides := c.MergedCfg.ConfigOverrides
-	//override cfgs
+	// override cfgs
 	if overrides != nil {
 		common.OverrideConfigurations(cm, overrides)
 		// only name node log4j,other component log4j not override, I think it is not necessary
@@ -62,7 +63,7 @@ func (c *ConfigMapReconciler) Build(ctx context.Context) (client.Object, error) 
 		hdfsv1alpha1.SecurityFileName:     common.MakeSecurityPropertiesData(),
 		hdfsv1alpha1.SslClientFileName:    common.MakeSslClientData(c.Instance.Spec.ClusterConfigSpec),
 		hdfsv1alpha1.SslServerFileName:    common.MakeSslServerData(c.Instance.Spec.ClusterConfigSpec),
-		//log4j
+		// log4j
 		common.CreateComponentLog4jPropertiesName(container.NameNode):        common.MakeLog4jPropertiesData(container.NameNode),
 		common.CreateComponentLog4jPropertiesName(container.Zkfc):            common.MakeLog4jPropertiesData(container.Zkfc),
 		common.CreateComponentLog4jPropertiesName(container.FormatNameNode):  common.MakeLog4jPropertiesData(container.FormatNameNode),

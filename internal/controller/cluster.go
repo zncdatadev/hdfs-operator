@@ -71,7 +71,7 @@ func (c *ClusterReconciler) ReconcileCluster(ctx context.Context) (ctrl.Result, 
 		}
 	}
 
-	//reconcile role
+	// reconcile role
 	c.Log.Info("Reconciling role resource")
 	for _, r := range c.roleReconcilers {
 		res, err := r.ReconcileRole(ctx)

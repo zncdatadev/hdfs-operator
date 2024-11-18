@@ -116,7 +116,7 @@ func (m *RoleGroup) RegisterResource() {
 
 	pdbSpec := mergedCfg.Config.PodDisruptionBudget
 	pdb := common.NewReconcilePDB(m.Client, m.Scheme, m.Instance, lables, m.GroupName, pdbSpec)
-	//logging := NewDataNodeLogging(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, common.DataNode)
+	// logging := NewDataNodeLogging(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, common.DataNode)
 	cm := NewConfigMap(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg)
 	statefulSet := NewStatefulSet(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, mergedCfg.Replicas)
 	svc := NewServiceHeadless(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg)

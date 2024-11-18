@@ -111,8 +111,8 @@ func (b *BaseResourceReconciler[T, G]) ReconcileResource(
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	//resInstance reconcile
-	//return b.DoReconcile(ctx, resource)
+	// resInstance reconcile
+	// return b.DoReconcile(ctx, resource)
 	if handler, ok := resInstance.(ResourceHandler); ok {
 		return handler.DoReconcile(ctx, obj, handler)
 	} else {
@@ -352,7 +352,7 @@ func (s *WorkloadStyleReconciler[T, G]) updateStatus(
 			LastTransitionTime: metav1.Now(),
 			ObservedGeneration: s.Instance.GetGeneration(),
 		})
-		//return s.Client.Status().Update(context.Background(), s.Instance) todo: for tests, some bugs to fix
+		// return s.Client.Status().Update(context.Background(), s.Instance) todo: for tests, some bugs to fix
 		return nil
 	} else {
 		panic("instance is not ConditionsGetter")
@@ -401,8 +401,8 @@ func (s *MultiConfigurationStyleReconciler[T, G]) ReconcileResource(
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		//resInstance reconcile
-		//return b.DoReconcile(ctx, resource)
+		// resInstance reconcile
+		// return b.DoReconcile(ctx, resource)
 		if handler, ok := reconciler.(ResourceHandler); ok {
 			_, err := handler.DoReconcile(ctx, resource, handler)
 			if err != nil {
