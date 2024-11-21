@@ -12,7 +12,7 @@ metadata:
   name: hdfscluster-viewer-role
 rules:
 - apiGroups:
-  - hdfs.zncdata.dev
+  - hdfs.kubedoop.dev
   resources:
   - hdfsclusters
   verbs:
@@ -20,7 +20,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - hdfs.zncdata.dev
+  - hdfs.kubedoop.dev
   resources:
   - hdfsclusters/status
   verbs:

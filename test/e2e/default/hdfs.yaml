@@ -1,4 +1,4 @@
-apiVersion: hdfs.zncdata.dev/v1alpha1
+apiVersion: hdfs.kubedoop.dev/v1alpha1
 kind: HdfsCluster
 metadata:
   labels:
@@ -34,7 +34,7 @@ spec:
       default:
         replicas: 1
         config:
-          resources: 
+          resources:
             cpu:
               min: 200m
               max: 800m
