@@ -400,8 +400,13 @@ func (in *HdfsClusterSpec) DeepCopyInto(out *HdfsClusterSpec) {
 		*out = new(ImageSpec)
 		**out = **in
 	}
-	if in.ClusterConfigSpec != nil {
-		in, out := &in.ClusterConfigSpec, &out.ClusterConfigSpec
+	if in.ClusterOperationSpec != nil {
+		in, out := &in.ClusterOperationSpec, &out.ClusterOperationSpec
+		*out = new(commonsv1alpha1.ClusterOperationSpec)
+		**out = **in
+	}
+	if in.ClusterConfig != nil {
+		in, out := &in.ClusterConfig, &out.ClusterConfig
 		*out = new(ClusterConfigSpec)
 		(*in).DeepCopyInto(*out)
 	}

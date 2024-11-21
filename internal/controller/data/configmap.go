@@ -61,8 +61,8 @@ func (c *ConfigMapReconciler) Build(ctx context.Context) (client.Object, error) 
 		hdfsv1alpha1.HdfsSiteFileName:     c.makeHdfsSiteData(),
 		hdfsv1alpha1.HadoopPolicyFileName: common.MakeHadoopPolicyData(),
 		hdfsv1alpha1.SecurityFileName:     common.MakeSecurityPropertiesData(),
-		hdfsv1alpha1.SslClientFileName:    common.MakeSslClientData(c.Instance.Spec.ClusterConfigSpec),
-		hdfsv1alpha1.SslServerFileName:    common.MakeSslServerData(c.Instance.Spec.ClusterConfigSpec),
+		hdfsv1alpha1.SslClientFileName:    common.MakeSslClientData(c.Instance.Spec.ClusterConfig),
+		hdfsv1alpha1.SslServerFileName:    common.MakeSslServerData(c.Instance.Spec.ClusterConfig),
 		// log4j
 		common.CreateComponentLog4jPropertiesName(container.DataNode):     common.MakeLog4jPropertiesData(container.DataNode),
 		common.CreateComponentLog4jPropertiesName(container.WaitNameNode): common.MakeLog4jPropertiesData(container.WaitNameNode),
@@ -75,7 +75,7 @@ func (c *ConfigMapReconciler) Build(ctx context.Context) (client.Object, error) 
 			ctx,
 			common.VectorConfigParams{
 				Client:        c.Client,
-				ClusterConfig: c.Instance.Spec.ClusterConfigSpec,
+				ClusterConfig: c.Instance.Spec.ClusterConfig,
 				Namespace:     c.Instance.GetNamespace(),
 				InstanceName:  c.Instance.GetName(),
 				Role:          string(common.DataNode),
@@ -97,12 +97,12 @@ func (c *ConfigMapReconciler) Build(ctx context.Context) (client.Object, error) 
 // make core-site.xml data
 func (c *ConfigMapReconciler) makeCoreSiteData() string {
 	generator := &common.CoreSiteXmlGenerator{InstanceName: c.Instance.GetName()}
-	return generator.EnableKerberos(c.Instance.Spec.ClusterConfigSpec, c.Instance.Namespace).HaZookeeperQuorum().Generate()
+	return generator.EnableKerberos(c.Instance.Spec.ClusterConfig, c.Instance.Namespace).HaZookeeperQuorum().Generate()
 }
 
 // make hdfs-site.xml data
 func (c *ConfigMapReconciler) makeHdfsSiteData() string {
-	clusterSpec := c.Instance.Spec.ClusterConfigSpec
+	clusterSpec := c.Instance.Spec.ClusterConfig
 	generator := common.NewDataNodeHdfsSiteXmlGenerator(c.Instance, c.GroupName, c.getNameNodeReplicas(), c.dataNodeConfig())
 	return generator.EnablerKerberos(clusterSpec).EnableHttps().Generate()
 }

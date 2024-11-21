@@ -449,7 +449,7 @@ func NewDataNodeHdfsSiteXmlGenerator(
 	nameNodeReplicas int32,
 	dataNodeConfig map[string]string) *DataNodeHdfsSiteXmlGenerator {
 
-	clusterSpec := instance.Spec.ClusterConfigSpec
+	clusterSpec := instance.Spec.ClusterConfig
 	return &DataNodeHdfsSiteXmlGenerator{
 		NameNodeHdfsSiteXmlGenerator: *NewNameNodeHdfsSiteXmlGenerator(
 			instance.Name,

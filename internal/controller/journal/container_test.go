@@ -22,7 +22,7 @@ var _ = Describe("CommandArgs", func() {
 			}
 			builder := journal.NewJournalNodeContainerBuilder(&hdfsv1alpha1.HdfsCluster{
 				Spec: hdfsv1alpha1.HdfsClusterSpec{
-					ClusterConfigSpec: clusterConfig,
+					ClusterConfig: clusterConfig,
 				},
 			}, corev1.ResourceRequirements{})
 
@@ -49,7 +49,7 @@ var _ = Describe("CommandArgs", func() {
 			}
 			builder := journal.NewJournalNodeContainerBuilder(&hdfsv1alpha1.HdfsCluster{
 				Spec: hdfsv1alpha1.HdfsClusterSpec{
-					ClusterConfigSpec: clusterConfig,
+					ClusterConfig: clusterConfig,
 				},
 			}, corev1.ResourceRequirements{})
 

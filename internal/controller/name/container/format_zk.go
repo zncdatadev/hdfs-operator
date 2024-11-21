@@ -27,7 +27,7 @@ func NewFormatZookeeperContainerBuilder(
 		ContainerBuilder:       *common.NewContainerBuilder(image.String(), image.GetPullPolicy(), resource),
 		zookeeperConfigMapName: zookeeperConfigMapName,
 		namespace:              instance.Namespace,
-		clusterConfig:          instance.Spec.ClusterConfigSpec,
+		clusterConfig:          instance.Spec.ClusterConfig,
 	}
 }
 

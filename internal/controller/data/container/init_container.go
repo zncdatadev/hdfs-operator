@@ -26,7 +26,7 @@ func NewWaitNameNodeContainerBuilder(
 	groupName string,
 ) *WaitNameNodeContainerBuilder {
 	imageSpec := instance.Spec.Image
-	clusterConfigSpec := instance.Spec.ClusterConfigSpec
+	clusterConfigSpec := instance.Spec.ClusterConfig
 	image := hdfsv1alpha1.TransformImage(imageSpec)
 	return &WaitNameNodeContainerBuilder{
 		ContainerBuilder:       *common.NewContainerBuilder(image.String(), image.GetPullPolicy(), resource),
@@ -77,10 +77,10 @@ cp /kubedoop/mount/config/wait-for-namenodes/wait-for-namenodes.log4j.properties
 
 echo "Waiting for namenodes to get ready:"
 n=0
-while [ ${n} -lt 12 ]; 
+while [ ${n} -lt 12 ];
 do
     ALL_NODES_READY=true
-    for namenode_id in ` + w.nameNodeIds() + `; 
+    for namenode_id in ` + w.nameNodeIds() + `;
     do
         echo -n "Checking pod $namenode_id... "
         SERVICE_STATE=$(/kubedoop/hadoop/bin/hdfs haadmin -getServiceState $namenode_id | tail -n1 || true)

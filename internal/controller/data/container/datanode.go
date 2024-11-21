@@ -23,7 +23,7 @@ func NewDataNodeContainerBuilder(
 ) *DataNodeContainerBuilder {
 	image := hdfsv1alpha1.TransformImage(instance.Spec.Image)
 	imagePullPolicy := image.GetPullPolicy()
-	clusterConfig := instance.Spec.ClusterConfigSpec
+	clusterConfig := instance.Spec.ClusterConfig
 	return &DataNodeContainerBuilder{
 		ContainerBuilder:       *common.NewContainerBuilder(image.String(), imagePullPolicy, resource),
 		zookeeperConfigMapName: clusterConfig.ZookeeperConfigMapName,
