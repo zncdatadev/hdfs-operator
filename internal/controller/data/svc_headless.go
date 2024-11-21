@@ -73,5 +73,5 @@ func (s *ServiceReconciler) makePorts() []corev1.ServicePort {
 			TargetPort: intstr.FromString("oidc"),
 		},
 	}
-	return append(ports, common.ServiceHttpPort(s.Instance.Spec.ClusterConfigSpec, ServiceHttpsPort, ServiceHttpPort))
+	return append(ports, common.ServiceHttpPort(s.Instance.Spec.ClusterConfig, ServiceHttpsPort, ServiceHttpPort))
 }

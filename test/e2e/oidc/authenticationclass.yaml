@@ -1,4 +1,4 @@
-apiVersion: authentication.zncdata.dev/v1alpha1
+apiVersion: authentication.kubedoop.dev/v1alpha1
 kind: AuthenticationClass
 metadata:
   name: oidc

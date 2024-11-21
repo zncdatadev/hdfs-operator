@@ -74,7 +74,7 @@ func (s *StatefulSetReconciler) Build(ctx context.Context) (client.Object, error
 		img := hdfsv1alpha1.TransformImage(s.Instance.Spec.Image)
 		common.ExtendStatefulSetByVector(nil, sts, img, createConfigName(s.Instance.GetName(), s.GroupName))
 	}
-	if s.Instance.Spec.ClusterConfigSpec.Authentication != nil && s.Instance.Spec.ClusterConfigSpec.Authentication.AuthenticationClass != "" {
+	if s.Instance.Spec.ClusterConfig.Authentication != nil && s.Instance.Spec.ClusterConfig.Authentication.AuthenticationClass != "" {
 		oidcContainer, err := common.MakeOidcContainer(ctx, s.Client, s.Instance, s.getHttpPort())
 		if err != nil {
 			return nil, err
@@ -87,7 +87,7 @@ func (s *StatefulSetReconciler) Build(ctx context.Context) (client.Object, error
 }
 
 func (s *StatefulSetReconciler) getHttpPort() int32 {
-	return common.HttpPort(s.Instance.Spec.ClusterConfigSpec, hdfsv1alpha1.JournalNodeHttpsPort, hdfsv1alpha1.JournalNodeHttpPort).ContainerPort
+	return common.HttpPort(s.Instance.Spec.ClusterConfig, hdfsv1alpha1.JournalNodeHttpsPort, hdfsv1alpha1.JournalNodeHttpPort).ContainerPort
 }
 
 func (s *StatefulSetReconciler) SetAffinity(resource client.Object) {
@@ -141,7 +141,7 @@ func (s *StatefulSetReconciler) makeJournalNodeContainer() corev1.Container {
 
 // make volumes
 func (s *StatefulSetReconciler) makeVolumes() []corev1.Volume {
-	volumes := common.GetCommonVolumes(s.Instance.Spec.ClusterConfigSpec, s.Instance.GetName(), GetRole())
+	volumes := common.GetCommonVolumes(s.Instance.Spec.ClusterConfig, s.Instance.GetName(), GetRole())
 	journalNodeVolumes := []corev1.Volume{
 		{
 			Name: hdfsv1alpha1.HdfsConfigVolumeMountName,

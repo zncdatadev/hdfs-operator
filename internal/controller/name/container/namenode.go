@@ -22,11 +22,11 @@ func NewNameNodeContainerBuilder(
 	resource corev1.ResourceRequirements) *NameNodeContainerBuilder {
 	imageSpec := instance.Spec.Image
 	image := hdfsv1alpha1.TransformImage(imageSpec)
-	zookeeperConfigMapName := instance.Spec.ClusterConfigSpec.ZookeeperConfigMapName
+	zookeeperConfigMapName := instance.Spec.ClusterConfig.ZookeeperConfigMapName
 	return &NameNodeContainerBuilder{
 		ContainerBuilder:       *common.NewContainerBuilder(image.String(), image.GetPullPolicy(), resource),
 		zookeeperConfigMapName: zookeeperConfigMapName,
-		clusterConfig:          instance.Spec.ClusterConfigSpec,
+		clusterConfig:          instance.Spec.ClusterConfig,
 	}
 }
 

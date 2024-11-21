@@ -1,4 +1,4 @@
-apiVersion: hdfs.zncdata.dev/v1alpha1
+apiVersion: hdfs.kubedoop.dev/v1alpha1
 kind: HdfsCluster
 metadata:
   labels:

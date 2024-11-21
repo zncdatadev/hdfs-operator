@@ -21,6 +21,8 @@ import (
 	"github.com/zncdatadev/operator-go/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 )
 
 // file name
@@ -119,8 +121,11 @@ type HdfsClusterSpec struct {
 	// +kubebuilder:validation:Optional
 	Image *ImageSpec `json:"image,omitempty"`
 
+	// +kubebuilder:validation:Optional
+	ClusterOperationSpec *commonsv1alpha1.ClusterOperationSpec `json:"clusterOperation,omitempty"`
+
 	// +kubebuilder:validation:Required
-	ClusterConfigSpec *ClusterConfigSpec `json:"clusterConfig,omitempty"`
+	ClusterConfig *ClusterConfigSpec `json:"clusterConfig,omitempty"`
 
 	// roles defined: nameNode, dataNode, journalNode
 	// +kubebuilder:validation:Required

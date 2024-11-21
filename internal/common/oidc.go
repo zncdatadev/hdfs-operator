@@ -28,15 +28,15 @@ func MakeOidcContainer(
 	port int32,
 ) (*corev1.Container, error) {
 	authClass := &authv1alpha1.AuthenticationClass{}
-	if err := client.Get(ctx, ctrlclient.ObjectKey{Namespace: instance.Namespace, Name: instance.Spec.ClusterConfigSpec.Authentication.AuthenticationClass}, authClass); err != nil {
+	if err := client.Get(ctx, ctrlclient.ObjectKey{Namespace: instance.Namespace, Name: instance.Spec.ClusterConfig.Authentication.AuthenticationClass}, authClass); err != nil {
 		if ctrlclient.IgnoreNotFound(err) != nil {
 			return nil, err
 		}
 		return nil, nil
 	}
 
-	if authClass.Spec.AuthenticationProvider.OIDC == nil || instance.Spec.ClusterConfigSpec.Authentication.Oidc == nil {
-		oidcLogger.Info("OIDC provider is not configured", "OidcProvider", authClass.Spec.AuthenticationProvider.OIDC, "OidcCredential", instance.Spec.ClusterConfigSpec.Authentication.Oidc)
+	if authClass.Spec.AuthenticationProvider.OIDC == nil || instance.Spec.ClusterConfig.Authentication.Oidc == nil {
+		oidcLogger.Info("OIDC provider is not configured", "OidcProvider", authClass.Spec.AuthenticationProvider.OIDC, "OidcCredential", instance.Spec.ClusterConfig.Authentication.Oidc)
 		return nil, nil
 	}
 
@@ -44,7 +44,7 @@ func MakeOidcContainer(
 		client,
 		instance,
 		authClass.Spec.AuthenticationProvider.OIDC,
-		instance.Spec.ClusterConfigSpec.Authentication.Oidc,
+		instance.Spec.ClusterConfig.Authentication.Oidc,
 		port,
 	)
 	obj := oidc.Build(oidc)

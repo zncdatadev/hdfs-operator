@@ -272,15 +272,15 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeRpc() []util.XmlNameValuePair
 //
 //	<property>
 //		<name>dfs.namenode.name.dir.simple-hdfs.simple-hdfs-namenode-default-0</name>
-//		<value>/zncdata/data/namenode</value>
+//		<value>/kubedoop/data/namenode</value>
 //	</property>
 //	<property>
 //		<name>dfs.namenode.name.dir.simple-hdfs.simple-hdfs-namenode-default-1</name>
-//		<value>/zncdata/data/namenode</value>
+//		<value>/kubedoop/data/namenode</value>
 //	</property>
 //	<property>
 //		<name>dfs.namenode.name.dir.simple-hdfs.simple-hdfs-namenode-default-2</name>
-//		<value>/zncdata/data/namenode</value>
+//		<value>/kubedoop/data/namenode</value>
 //	</property>
 func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeNameDir() []util.XmlNameValuePair {
 	statefulSetName := CreateNameNodeStatefulSetName(c.InstanceName, c.GroupName)
@@ -449,7 +449,7 @@ func NewDataNodeHdfsSiteXmlGenerator(
 	nameNodeReplicas int32,
 	dataNodeConfig map[string]string) *DataNodeHdfsSiteXmlGenerator {
 
-	clusterSpec := instance.Spec.ClusterConfigSpec
+	clusterSpec := instance.Spec.ClusterConfig
 	return &DataNodeHdfsSiteXmlGenerator{
 		NameNodeHdfsSiteXmlGenerator: *NewNameNodeHdfsSiteXmlGenerator(
 			instance.Name,

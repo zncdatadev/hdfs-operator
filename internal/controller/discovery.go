@@ -69,7 +69,7 @@ func (d *Discovery) Build(ctx context.Context) (client.Object, error) {
 
 func (d *Discovery) makeCoreSiteXmlData() string {
 	generator := common.CoreSiteXmlGenerator{InstanceName: d.Instance.Name, IsDiscovery: true}
-	return generator.EnableKerberos(d.Instance.Spec.ClusterConfigSpec, d.Instance.Namespace).Generate()
+	return generator.EnableKerberos(d.Instance.Spec.ClusterConfig, d.Instance.Namespace).Generate()
 }
 
 func (d *Discovery) makeHdfsSiteXmlData(ctx context.Context) (string, error) {
@@ -78,7 +78,7 @@ func (d *Discovery) makeHdfsSiteXmlData(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if common.IsKerberosEnabled(d.Instance.Spec.ClusterConfigSpec) {
+	if common.IsKerberosEnabled(d.Instance.Spec.ClusterConfig) {
 		properties = append(properties, common.SecurityDiscoveryHdfsSiteXml()...)
 	}
 	return xml.String(properties), nil
@@ -196,7 +196,7 @@ func (d *Discovery) createConnections(ctx context.Context, podNames []string) ([
 	var connections []util.XmlNameValuePair
 	// create http address
 	schema := "http"
-	if common.IsTlsEnabled(d.Instance.Spec.ClusterConfigSpec) {
+	if common.IsTlsEnabled(d.Instance.Spec.ClusterConfig) {
 		schema = "https"
 	}
 	httpConnections, err = d.createPortNameAddress(ctx, podNames, schema, &cache)

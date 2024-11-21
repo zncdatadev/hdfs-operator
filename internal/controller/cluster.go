@@ -120,7 +120,7 @@ func (h *HdfsClusterInstance) GetRoleConfigSpec(role common.Role) (any, error) {
 }
 
 func (h *HdfsClusterInstance) GetClusterConfig() any {
-	return h.Instance.Spec.ClusterConfigSpec
+	return h.Instance.Spec.ClusterConfig
 }
 
 func (h *HdfsClusterInstance) GetNamespace() string {
