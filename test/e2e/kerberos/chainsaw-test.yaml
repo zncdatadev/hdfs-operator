@@ -1,0 +1,92 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: kerberos
+spec:
+  bindings:
+  - name: relam
+    value: KUBEDOOP.DEV   # kerberos relam, should be uppercase, see hdfs also
+  - name: kadminPassword
+    value: kubedoopdev
+  - name: kadminKeytabSecret
+    value: kadmin-keytab
+  steps:
+  - name: install krb5 kdc
+    try:
+    - apply:  # create a krb5 deployment and service, both named "krb5"
+        file: krb5-install.yaml
+    - assert:
+        file: krb5-assert.yaml
+    - script:
+        env:
+        - name: RELAM
+          value: ($relam)
+        - name: NAMESPACE
+          value: ($namespace)
+        - name: DEPLOYMENT_NAME
+          value: krb5
+        - name: KADMIN_KEYTAB_SECRET
+          value: ($kadminKeytabSecret)
+        content: |
+          # debug node info
+          kubectl get node
+          # get pod of deploment by label
+          POD_NAME=$(kubectl get pod -n $NAMESPACE -l app=$DEPLOYMENT_NAME -o jsonpath="{.items[0].metadata.name}")
+
+          # check pod exist
+          if [ -z "$POD_NAME" ]; then
+            echo "pod not found"
+            exit 1
+          fi
+
+          # get kadmin keytab
+          KADMIN_KEYTAB=$(kubectl exec -n $NAMESPACE $POD_NAME -- sh -c "cat /var/kerberos/krb5kdc/kadmin.keytab | base64 -w 0")
+
+          # create secret, name is $KADMIN_KEYTAB_SECRET
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: $KADMIN_KEYTAB_SECRET
+            namespace: $NAMESPACE
+          data:
+            keytab: $KADMIN_KEYTAB
+    - assert: # assert kadmin keytab secret
+        resource:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: ($kadminKeytabSecret)
+          data:
+            (keytab != ""): true
+    - apply:
+        file: krb5-secretclass.yaml
+  - name: install zookeeper
+    try:
+    - apply:
+        file: ../setup/zookeeper.yaml
+    - assert:
+        file: ../setup/zookeeper-assert.yaml
+    cleanup:
+    - sleep:
+        duration: 30s
+  - name: install hdfs
+    try:
+    - apply:
+        file: krb5-secretclass.yaml
+    - apply:
+        file: hdfs.yaml
+    - assert:
+        file: hdfs-assert.yaml
+  - name: access hdfs
+    try:
+    - apply:
+        file: krb5-hdfs-access-script.yaml
+    - apply:
+        file: ../setup/access-hdfs-install.yaml
+    - assert:
+        file: ../setup/access-hdfs-assert.yaml
+    catch:
+      - podLogs:
+          name: access-hdfs
+          container: access-hdfs

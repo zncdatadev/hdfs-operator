@@ -1,0 +1,67 @@
+---
+# hdfs access assert script configmap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: krb5-hdfs-access
+data:
+    hdfs-access-assert.sh: |
+      #!/user/bin/env bash
+      set -ex
+
+      echo "Running HDFS access test"
+
+      echo "list credential in krb5 keytab"
+      klist -k /kubedoop/kerberos/keytab
+
+      # Extract unique principals from keytab
+      principals=$(klist -k /kubedoop/kerberos/keytab | grep -v -E "Keytab name:|KVNO Principal|---" | awk '{print $2}' | sort -u)
+
+      # Kinit by admin principal
+      admin_principal=$(klist -k /kubedoop/kerberos-admin/keytab | grep -v -E "Keytab|KVNO|---" | awk '{print $2}' | sort -u | grep -E "nn")
+      kinit -kt /kubedoop/kerberos-admin/keytab "$admin_principal"
+
+      # Get service from kerberos principal and mkdir dir for each service
+      # e.g. hdfs/nn -> hdfs
+      for principal in $principals; do
+          service=$(echo $principal | cut -d '/' -f 1)
+          echo "Creating directory for service: $service"
+          bin/hdfs dfs -mkdir -p "/kubedoop/$service"
+          bin/hdfs dfs -chown "$service" "/kubedoop/$service"
+      done
+
+      for principal in $principals; do
+          echo "Testing with principal: $principal"
+
+          echo "Authenticating with keytab"
+          kdestroy
+          kinit -kt /kubedoop/kerberos/keytab "$principal"
+          klist
+
+          # Check HDFS access, currently only list nor mkdir
+          bin/hdfs dfs -ls /
+          bin/hdfs dfs -mkdir -p /test_mk && exit 1
+
+          # Test HDFS operations
+          TEST_DIR="/kubedoop/$(echo $principal | cut -d '/' -f 1)/test"
+          TEST_FILE="$TEST_DIR/test.txt"
+
+          echo "Creating test directory"
+          bin/hdfs dfs -mkdir -p "$TEST_DIR"
+
+          echo "Writing test data"
+          echo "Hello HDFS" | bin/hdfs dfs -put - "$TEST_FILE"
+
+          echo "Reading test data"
+          bin/hdfs dfs -cat "$TEST_FILE" | grep "Hello HDFS"
+
+          echo "Listing directory"
+          bin/hdfs dfs -ls "$TEST_DIR"
+
+          echo "Cleaning up"
+          bin/hdfs dfs -rm -r "$TEST_DIR/*"
+
+          echo "Test completed for $principal"
+      done
+
+      echo "All HDFS access tests completed successfully"
