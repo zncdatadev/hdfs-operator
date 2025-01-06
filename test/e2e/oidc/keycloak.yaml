@@ -57,5 +57,5 @@ spec:
   selector:
     app: keycloak
   ports:
-  - port: 80
+  - port: 8080
     targetPort: http

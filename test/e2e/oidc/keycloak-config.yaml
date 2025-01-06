@@ -17,6 +17,7 @@ data:
           "firstName": "user",
           "lastName": "user",
           "email": "user@example.com",
+          "emailVerified": true,
           "credentials": [
             {
               "type": "password",
