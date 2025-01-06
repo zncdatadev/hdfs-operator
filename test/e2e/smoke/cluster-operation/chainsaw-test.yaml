@@ -1,0 +1,90 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: smoke-cluster-operation
+spec:
+  bindings:
+  - name: cluster_stopped
+    value: false
+  - name: cluster_paused
+    value: false
+  steps:
+  - name: install zookeeper
+    try:
+    - apply:
+        file: ../setup/zookeeper.yaml
+    - assert:
+        file: ../setup/zookeeper-assert.yaml
+    cleanup:
+    - sleep:
+        duration: 30s
+  - name: install hdfscluster
+    try:
+    # install hdfs cluster, clusterOperation.stopped: false, clusterOperation.reconciliationPaused: false
+    - apply:
+        file: hdfs.yaml
+    - assert:
+        bindings:
+          - name: available_replicas_nn
+            value: 2
+          - name: available_replicas_dn
+            value: 1
+          - name: available_replicas_jn
+            value: 1
+        file: hdfs-assert.yaml
+  - name: stop hdfscluster
+    try:
+    - apply:
+        bindings:
+          - name: cluster_stopped
+            value: true
+        file: hdfs.yaml
+    - assert:
+        bindings:
+          - name: available_replicas_nn
+            value: 0
+          - name: available_replicas_dn
+            value: 0
+          - name: available_replicas_jn
+            value: 0
+        file: hdfs-assert.yaml
+  - name: pause hdfscluster
+    try:
+    - apply:
+        bindings:
+          - name: cluster_paused
+            value: true
+          - name: cluster_stopped
+            value: false
+        file: hdfs.yaml
+    - assert:
+        bindings:
+          - name: available_replicas_nn
+            value: 0
+          - name: available_replicas_dn
+            value: 0
+          - name: available_replicas_jn
+            value: 0
+        file: hdfs-assert.yaml
+    # restart  hdfscluster, clusterOperation.stopped: false, clusterOperation.reconciliationPaused: false
+  - name: restart hdfs cluster
+    try:
+    - apply:
+        bindings:
+          - name: cluster_stopped
+            value: false
+          - name: cluster_paused
+            value: false
+        file: hdfs.yaml
+    - assert:
+        bindings:
+          - name: available_replicas_nn
+            value: 2
+          - name: available_replicas_dn
+            value: 1
+          - name: available_replicas_jn
+            value: 1
+        file: hdfs-assert.yaml
+    cleanup:
+    - sleep:
+        duration: 30s
