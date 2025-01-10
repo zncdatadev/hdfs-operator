@@ -6,7 +6,7 @@ spec:
   provider:
     oidc:
       hostname: (join('', ['keycloak.', ($namespace), '.svc.cluster.local']))
-      port: 80
+      port: 8080
       rootPath: (join('', ['/realms/', ($KEYCLOAK_REALM)]))
       providerHint: keycloak
       scopes:

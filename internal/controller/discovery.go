@@ -230,7 +230,13 @@ func (d *Discovery) getListenerAddress(
 	cache *map[string]*listenerv1alpha1.IngressAddressSpec,
 	ctx context.Context,
 	podName string) (*listenerv1alpha1.IngressAddressSpec, error) {
-	cacheKey := podName
+
+	listenerName, err := d.getListenerNameByPodName(ctx, podName)
+	if err != nil {
+		discoveryLog.Info("failed to get listener name by pod name", "podName", podName, "namespace", d.Instance.Namespace)
+		return nil, err
+	}
+	cacheKey := listenerName
 	cacheObj := *cache
 	if address, ok := cacheObj[cacheKey]; ok {
 		return address, nil
@@ -244,7 +250,7 @@ func (d *Discovery) getListenerAddress(
 		},
 	}
 	resourceClient := common.NewResourceClient(ctx, d.Client, d.Instance.Namespace)
-	err := resourceClient.Get(listener)
+	err = resourceClient.Get(listener)
 	if err != nil {
 		discoveryLog.Info("failed to get listener", "cacheKey", cacheKey)
 		return nil, ErrListenerNotFound
@@ -259,4 +265,29 @@ func (d *Discovery) getListenerAddress(
 	address := &listener.Status.IngressAddresses[0]
 	cacheObj[cacheKey] = address
 	return address, nil
+}
+
+// get listener name from pod's lable
+// label pattern: "listeners.kubedoop.dev/mnt.{listener_uid}: {listener_name}"
+// the pod can be fetched by pod name,namespaces
+func (d *Discovery) getListenerNameByPodName(ctx context.Context, podName string) (string, error) {
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      podName,
+			Namespace: d.Instance.Namespace,
+		},
+	}
+	resourceClient := common.NewResourceClient(ctx, d.Client, d.Instance.Namespace)
+	err := resourceClient.Get(pod)
+	if err != nil {
+		discoveryLog.Info("failed to get pod", "podName", podName)
+		return "", err
+	}
+
+	for key, value := range pod.Labels {
+		if strings.HasPrefix(key, "listeners.kubedoop.dev/mnt") {
+			return value, nil
+		}
+	}
+	return "", errors.New("not found listener name by pod name")
 }

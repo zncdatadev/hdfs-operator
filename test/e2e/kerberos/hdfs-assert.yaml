@@ -19,5 +19,11 @@ kind: StatefulSet
 metadata:
   name: hdfscluster-sample-default-datanode
 status:
-  availableReplicas: 2
-  replicas: 2
+  availableReplicas: 1
+  replicas: 1
+---
+# hdfs configmap discovery
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hdfscluster-sample

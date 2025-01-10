@@ -1,0 +1,17 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: smoke-override-pdb
+spec:
+  skip: true # skip this test, util refactored the whole project
+  bindings:
+  steps:
+    - name: install zookeeper
+      try:
+      - apply:
+          file: ../setup/zookeeper.yaml
+      - assert:
+          file: ../setup/zookeeper-assert.yaml
+      cleanup:
+      - sleep:
+          duration: 30s

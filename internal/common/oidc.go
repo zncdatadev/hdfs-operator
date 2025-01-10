@@ -187,15 +187,19 @@ func (o *OidcContainerBuilder) ContainerEnv() []corev1.EnvVar {
 			Value: "0.0.0.0:4180",
 		},
 		{
-			Name:  "OAUTH2_PROXY_REDIRECT_URL",
-			Value: "http://localhost:4180/oauth2/callback",
-		},
-		{
 			Name:  "OAUTH2_PROXY_CODE_CHALLENGE_METHOD",
 			Value: "S256",
 		},
 		{
 			Name:  "OAUTH2_PROXY_EMAIL_DOMAINS",
+			Value: "*",
+		},
+		{
+			Name:  "OAUTH2_PROXY_COOKIE_SECURE", // https://github.com/oauth2-proxy/oauth2-proxy/blob/c64ec1251b8366b48c6c445bbeb307b18fcb314f/oauthproxy.go#L1091
+			Value: "false",
+		},
+		{
+			Name:  "OAUTH2_PROXY_WHITELIST_DOMAINS",
 			Value: "*",
 		},
 	}

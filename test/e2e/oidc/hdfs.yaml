@@ -9,6 +9,8 @@ metadata:
     app.kubernetes.io/created-by: hdfs-operator
   name: hdfscluster-sample
 spec:
+  image:
+    productVersion: ($values.product_version)
   clusterConfig:
     zookeeperConfigMapName: sample-hdfs-znode
     authentication:

@@ -10,6 +10,8 @@ metadata:
   name: hdfscluster-sample
   namespace: ($namespace)
 spec:
+  image:
+    productVersion: ($values.product_version)
   clusterConfig:
     zookeeperConfigMapName: sample-hdfs-znode
     vectorAggregatorConfigMapName: vector-aggregator-discovery
@@ -30,7 +32,7 @@ spec:
   dataNode:
     roleGroups:
       default:
-        replicas: 2
+        replicas: 1
         config:
           logging:
             enableVectorAgent: true

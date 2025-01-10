@@ -1,0 +1,7 @@
+# pod's phase must be Succeeded
+apiVersion: v1
+kind: Pod
+metadata:
+  name: testing-tools
+status:
+  phase: Succeeded
