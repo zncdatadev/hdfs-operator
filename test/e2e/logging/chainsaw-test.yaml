@@ -1,0 +1,93 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: logging
+spec:
+  steps:
+  - name: install zookeeper
+    try:
+    - apply:
+        file: ../setup/zookeeper.yaml
+    - assert:
+        file: ../setup/zookeeper-assert.yaml
+    cleanup:
+    - sleep:
+        duration: 30s
+  - name: install vector-aggregator
+    try:
+    - script:
+        content: >-
+          helm upgrade --install vector-aggregator vector
+          --namespace $NAMESPACE
+          --version 0.36.1
+          --repo https://helm.vector.dev
+          --values vector-aggregator-values.yaml
+    - apply:
+        file: vector-aggregator.yaml
+    - assert:
+        file: vector-aggregator-assert.yaml
+  - name: install hdfs cluster
+    try:
+    - apply:
+        file: hdfs.yaml
+    - assert:
+        timeout: 460s
+        file: hdfs-assert.yaml
+    cleanup:
+    - sleep:
+        duration: 30s
+    catch:
+      - sleep:
+          duration: 5s
+      - script:
+          env:
+            - name: NAMESPACE
+              value: ($namespace)
+          content: |
+            set -ex
+            kubectl -n $NAMESPACE get pods
+      - describe:
+          apiVersion: v1
+          kind: Pod
+          selector: app.kubernetes.io/managed-by=hdfs-operator
+      - podLogs:
+          selector: app.kubernetes.io/managed-by=hdfs-operator
+          tail: -1
+  - name: assert hdfs logs
+    try:
+    - sleep:
+        duration: 50s
+    - script:
+        env:
+          - name: NAMESPACE
+            value: ($namespace)
+        content: |
+          #!/bin/bash
+          # Get logs from vector-aggregator-0 and check for specific log pattern
+          kubectl -n $NAMESPACE logs statefulset/vector-aggregator -c vector | \
+            grep -q '"cluster":"hdfscluster-sample","container":"namenode","errors":\[\],"file":"namenode.log4j.xml","level":"INFO"'
+          exit_code=$?
+
+          if [ $exit_code -eq 0 ]; then
+            echo "Found expected log pattern"
+            exit 0
+          else
+            echo "Did not find expected log pattern"
+            exit 1
+          fi
+    cleanup:
+    - sleep:
+        duration: 50s
+    # catch:
+    #   - script:
+    #       env:
+    #         - name: NAMESPACE
+    #           value: ($namespace)
+    #       content: |
+    #         kubectl -n $NAMESPACE describe pods
+      # - podLogs:
+      #     selector: app.kubernetes.io/instance=vector-aggregator
+      #     tail: -1
+      # - podLogs:
+      #     selector: app.kubernetes.io/instance=hdfs
+      #     tail: -1

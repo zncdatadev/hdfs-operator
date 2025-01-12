@@ -1,16 +1,18 @@
 apiVersion: hdfs.kubedoop.dev/v1alpha1
 kind: HdfsCluster
 metadata:
-  labels:
-    app.kubernetes.io/name: hdfscluster
-    app.kubernetes.io/instance: hdfscluster-sample
-    app.kubernetes.io/part-of: hdfs-operator
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: hdfs-operator
   name: hdfscluster-sample
 spec:
+  image:
+    productVersion: ($values.product_version)
   clusterConfig:
     zookeeperConfigMapName: sample-hdfs-znode
+    authentication:
+      kerberos:
+        secretClass: kerberos
+      tls:
+        jksPassword: changeit
+        secretClass: tls
   nameNode:
     roleGroups:
       default:
@@ -52,7 +54,7 @@ spec:
   dataNode:
     roleGroups:
       default:
-        replicas: 2
+        replicas: 1
         config:
           logging:
             datanode:

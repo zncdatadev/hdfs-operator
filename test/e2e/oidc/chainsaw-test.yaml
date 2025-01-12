@@ -4,74 +4,95 @@ metadata:
   name: oidc
 spec:
   bindings:
-  - name: KEYCLOAK_REALM
-    value: kubedoop
-  - name: KEYCLOAK_CLIENT_ID
-    value: auth2-proxy
-  - name: KEYCLOAK_CLIENT_SECRET
-    value: auth2-proxy
-  - name: KEYCLOAK_USER
-    value: user
-  - name: KEYCLOAK_PASSWORD
-    value: password
+    - name: KEYCLOAK_REALM
+      value: kubedoop
+    - name: KEYCLOAK_CLIENT_ID
+      value: auth2-proxy
+    - name: KEYCLOAK_CLIENT_SECRET
+      value: auth2-proxy
+    - name: KEYCLOAK_USER
+      value: user
+    - name: KEYCLOAK_PASSWORD
+      value: password
   steps:
-  - try:
-    - apply:
-        file: ../setup/zookeeper.yaml
-    - assert:
-        file: ../setup/zookeeper-assert.yaml
-    cleanup:
-    - sleep:
-        duration: 30s
-  - try:
-    - apply:
-        file: keycloak.yaml
-    - script:
-        env:
-          - name: NAMESPACE
-            value: ($namespace)
-          - name: KEYCLOAK_REALM
-            value: ($KEYCLOAK_REALM)
-          - name: KEYCLOAK_USER
-            value: ($KEYCLOAK_USER)
-          - name: KEYCLOAK_PASSWORD
-            value: ($KEYCLOAK_PASSWORD)
-          - name: KEYCLOAK_CLIENT_ID
-            value: ($KEYCLOAK_CLIENT_ID)
-          - name: KEYCLOAK_CLIENT_SECRET
-            value: ($KEYCLOAK_CLIENT_SECRET)
-        content: |
-          cat keycloak-config.yaml | envsubst | kubectl apply -n $NAMESPACE -f -
-    - assert:
-        file: keycloak-assert.yaml
-  - try:
-    - apply:
-        file: oidc-credentials.yaml
-    - apply:
-        file: authenticationclass.yaml
-  - try:
-    - apply:
-        file: hdfs.yaml
-    - assert:
-        timeout: 460s
-        file: hdfs-assert.yaml
-    cleanup:
-    - sleep:
-        duration: 30s
-    catch:
-      - sleep:
-          duration: 5s
-      - script:
-          env:
-            - name: NAMESPACE
-              value: ($namespace)
-          content: |
-            set -ex
-            kubectl -n $NAMESPACE get pods
-      - describe:
-          apiVersion: v1
-          kind: Pod
-          selector: app.kubernetes.io/managed-by=hdfs-operator
-      - podLogs:
-          selector: app.kubernetes.io/managed-by=hdfs-operator
-          tail: -1
+    - name: install zookeeper
+      try:
+        - apply:
+            file: ../setup/zookeeper.yaml
+        - assert:
+            file: ../setup/zookeeper-assert.yaml
+      cleanup:
+        - sleep:
+            duration: 30s
+    - name: install keycloak
+      try:
+        - apply:
+            file: keycloak.yaml
+        - script:
+            env:
+              - name: NAMESPACE
+                value: ($namespace)
+              - name: KEYCLOAK_REALM
+                value: ($KEYCLOAK_REALM)
+              - name: KEYCLOAK_USER
+                value: ($KEYCLOAK_USER)
+              - name: KEYCLOAK_PASSWORD
+                value: ($KEYCLOAK_PASSWORD)
+              - name: KEYCLOAK_CLIENT_ID
+                value: ($KEYCLOAK_CLIENT_ID)
+              - name: KEYCLOAK_CLIENT_SECRET
+                value: ($KEYCLOAK_CLIENT_SECRET)
+            content: |
+              cat keycloak-config.yaml | envsubst | kubectl apply -n $NAMESPACE -f -
+        - assert:
+            file: keycloak-assert.yaml
+    - name: install hdfs cluster
+      try:
+        - apply:
+            file: oidc-credentials.yaml
+        - apply:
+            file: oidc-authenticationclass.yaml
+        - apply:
+            file: hdfs.yaml
+        - assert:
+            timeout: 460s
+            file: hdfs-assert.yaml
+      cleanup:
+        - sleep:
+            duration: 30s
+      catch:
+        - sleep:
+            duration: 5s
+        - script:
+            env:
+              - name: NAMESPACE
+                value: ($namespace)
+            content: |
+              set -ex
+              kubectl -n $NAMESPACE get pods
+        - describe:
+            apiVersion: v1
+            kind: Pod
+            selector: app.kubernetes.io/managed-by=hdfs-operator
+        - podLogs:
+            selector: app.kubernetes.io/managed-by=hdfs-operator
+            tail: -1
+    - name: testing oidc login
+      try:
+        - script:
+            env:
+              - name: NAMESPACE
+                value: ($namespace)
+            content: |
+              envsubst < oidc-login-script.txt | kubectl apply -n $NAMESPACE  -f -
+        - apply:
+            file: testing-tools-install.yaml
+        - assert:
+            file: testing-tools-assert.yaml
+      catch:
+        - sleep:
+            duration: 5s
+        - podLogs:
+            container: testing-tools
+            selector: app=testing-tools
+            tail: -1
