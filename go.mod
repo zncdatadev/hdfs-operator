@@ -1,6 +1,7 @@
 module github.com/zncdatadev/hdfs-operator
 
 go 1.23.2
+toolchain go1.23.5
 
 require (
 	emperror.dev/errors v0.8.1
@@ -9,7 +10,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.22.1
 	github.com/onsi/gomega v1.36.2
 	github.com/stretchr/testify v1.10.0
-	github.com/zncdatadev/operator-go v0.12.0
+	github.com/zncdatadev/operator-go v0.12.2
 	k8s.io/api v0.32.0
 	k8s.io/apimachinery v0.32.0
 	k8s.io/client-go v0.32.0
