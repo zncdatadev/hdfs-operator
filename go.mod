@@ -2,6 +2,8 @@ module github.com/zncdatadev/hdfs-operator
 
 go 1.23.2
 
+toolchain go1.24.1
+
 require (
 	emperror.dev/errors v0.8.1
 	github.com/cisco-open/k8s-objectmatcher v1.10.0
@@ -11,7 +13,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/zncdatadev/operator-go v0.12.0
 	k8s.io/api v0.32.2
-	k8s.io/apimachinery v0.32.2
+	k8s.io/apimachinery v0.32.3
 	k8s.io/client-go v0.32.2
 	sigs.k8s.io/controller-runtime v0.20.2
 )
