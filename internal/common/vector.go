@@ -69,7 +69,7 @@ func GetVectorFactory(
 ) *builder.Vector {
 	return builder.NewVector(
 		hdfsv1alpha1.HdfsConfigVolumeMountName,
-		hdfsv1alpha1.HdfsLogVolumeMountName,
+		hdfsv1alpha1.KubedoopLogVolumeMountName,
 		image,
 	)
 }
