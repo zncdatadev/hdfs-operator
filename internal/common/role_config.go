@@ -59,72 +59,92 @@ func DefaultJournalNodeConfig(clusterName string) *RoleNodeConfig {
 	return DefaultNodeConfig(clusterName, JournalNode, "", 15*time.Minute)
 }
 
-// todo: refactor this, do this using detail type
-func (n *RoleNodeConfig) MergeDefaultConfig(mergedCfg any) {
+func (n *RoleNodeConfig) isConfigValid(configValue reflect.Value) bool {
+	return configValue.Kind() == reflect.Ptr
+}
 
-	// Make sure mergedCfg is a pointer type
+func (n *RoleNodeConfig) getConfigValue(mergedCfg any) (reflect.Value, bool) {
 	configValue := reflect.ValueOf(mergedCfg)
-	if configValue.Kind() != reflect.Ptr {
-		return
+	if !n.isConfigValid(configValue) {
+		return reflect.Value{}, false
 	}
 
-	// Get the value that the pointer points to
 	configValue = configValue.Elem()
-
-	// Get the Config field
 	config := configValue.FieldByName("Config")
 	if !config.IsValid() || !config.CanSet() {
+		return reflect.Value{}, false
+	}
+
+	return config.Elem(), true
+}
+
+func (n *RoleNodeConfig) mergeResourceFields(mergedResource *commonsv1alpha1.ResourcesSpec) *commonsv1alpha1.ResourcesSpec {
+	if mergedResource == nil {
+		return n.resources
+	}
+
+	result := &commonsv1alpha1.ResourcesSpec{
+		CPU:     mergedResource.CPU,
+		Memory:  mergedResource.Memory,
+		Storage: mergedResource.Storage,
+	}
+
+	if result.CPU == nil {
+		result.CPU = n.resources.CPU
+	}
+	if result.Memory == nil {
+		result.Memory = n.resources.Memory
+	}
+	if result.Storage == nil {
+		result.Storage = n.resources.Storage
+	}
+
+	return result
+}
+
+func (n *RoleNodeConfig) handleResourcesField(config reflect.Value) {
+	resourcesField := config.FieldByName("Resources")
+	if !resourcesField.IsValid() || !resourcesField.CanSet() {
 		return
 	}
-	config = config.Elem()
 
-	// Get the Resources field
-	resourcesField := config.FieldByName("Resources")
-	var resourceRes *commonsv1alpha1.ResourcesSpec
-	if resourcesField.IsValid() && resourcesField.CanSet() {
-		if resourcesField.IsZero() {
-			resourceRes = n.resources
-		} else {
-			// adjust resourcesField is commonsv1alpha1.ResourcesSpec
-			if resourcesField.Type().Kind() == reflect.Ptr && resourcesField.Type().Elem() == reflect.TypeOf(commonsv1alpha1.ResourcesSpec{}) {
-				// transform resourcesField to *commonsv1alpha1.ResourcesSpec
-				if resourcesField.Kind() == reflect.Ptr && resourcesField.Type().Elem() == reflect.TypeOf(commonsv1alpha1.ResourcesSpec{}) {
-					mergedResource := resourcesField.Interface().(*commonsv1alpha1.ResourcesSpec)
-					if mergedResource == nil {
-						resourceRes = n.resources
-					} else {
-						resourceRes = mergedResource
-						if mergedResource.CPU == nil {
-							resourceRes.CPU = n.resources.CPU
-						}
-						if mergedResource.Memory == nil {
-							resourceRes.Memory = n.resources.Memory
-						}
-						if mergedResource.Storage == nil {
-							resourceRes.Storage = n.resources.Storage
-						}
-					}
-				}
-			}
-		}
-		resourcesField.Set(reflect.ValueOf(resourceRes))
+	if resourcesField.Type().Kind() != reflect.Ptr ||
+		resourcesField.Type().Elem() != reflect.TypeOf(commonsv1alpha1.ResourcesSpec{}) {
+		return
 	}
 
-	// Get the ListenerClass field
+	var mergedResource *commonsv1alpha1.ResourcesSpec
+	if !resourcesField.IsZero() {
+		mergedResource = resourcesField.Interface().(*commonsv1alpha1.ResourcesSpec)
+	}
+
+	resourceRes := n.mergeResourceFields(mergedResource)
+	resourcesField.Set(reflect.ValueOf(resourceRes))
+}
+
+func (n *RoleNodeConfig) handleListenerClass(config reflect.Value) {
 	listenerClassField := config.FieldByName("ListenerClass")
 	if listenerClassField.IsValid() && listenerClassField.IsZero() && listenerClassField.CanSet() {
 		listenerClassField.Set(reflect.ValueOf(n.listenerClass))
 	}
+}
 
-	// Get the Affinity field
+func (n *RoleNodeConfig) handleAffinity(config reflect.Value) {
 	affinityField := config.FieldByName("Affinity")
 	if affinityField.IsValid() && affinityField.IsZero() && affinityField.CanSet() {
 		affinityField.Set(reflect.ValueOf(n.common.Affinity.Build()))
 	}
+}
 
-	// You can continue to add logic to handle other fieldgracefulShutdownTimeoutSecondss
-	// config.FieldByName("Logging").Set(reflect.ValueOf(n.common.Logging))
-	// config.FieldByName("GracefulShutdownTimeoutSeconds").Set(reflect.ValueOf(n.common.gracefulShutdownTimeoutSeconds))
+func (n *RoleNodeConfig) MergeDefaultConfig(mergedCfg any) {
+	config, ok := n.getConfigValue(mergedCfg)
+	if !ok {
+		return
+	}
+
+	n.handleResourcesField(config)
+	n.handleListenerClass(config)
+	n.handleAffinity(config)
 }
 
 func parseQuantity(q string) resource.Quantity {

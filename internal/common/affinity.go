@@ -55,61 +55,68 @@ func (a *AffinityBuilder) AddPodAffinity(podAffinity PodAffinity) *AffinityBuild
 	return a
 }
 
+func (a *AffinityBuilder) handleTerms(pa PodAffinity) (corev1.PodAffinityTerm, corev1.WeightedPodAffinityTerm) {
+	term := corev1.PodAffinityTerm{
+		LabelSelector: &metav1.LabelSelector{
+			MatchLabels: pa.labels,
+		},
+		TopologyKey: corev1.LabelHostname,
+	}
+
+	if pa.weight == 0 {
+		pa.weight = corev1.DefaultHardPodAffinitySymmetricWeight
+		affinityLogger.Info("Weight not set for preferred pod affinity, setting to %d", pa.weight)
+	}
+
+	weightTerm := corev1.WeightedPodAffinityTerm{
+		Weight:          pa.weight,
+		PodAffinityTerm: term,
+	}
+
+	return term, weightTerm
+}
+
+func (a *AffinityBuilder) assignTerm(pa PodAffinity, term corev1.PodAffinityTerm, weightTerm corev1.WeightedPodAffinityTerm,
+	terms *affinityTerms) {
+
+	if !pa.affinityRequired {
+		if pa.anti {
+			terms.antiPreferTerms = append(terms.antiPreferTerms, weightTerm)
+		} else {
+			terms.preferTerms = append(terms.preferTerms, weightTerm)
+		}
+		return
+	}
+
+	if pa.anti {
+		terms.antiRequireTerms = append(terms.antiRequireTerms, term)
+	} else {
+		terms.requireTerms = append(terms.requireTerms, term)
+	}
+}
+
+type affinityTerms struct {
+	preferTerms      []corev1.WeightedPodAffinityTerm
+	requireTerms     []corev1.PodAffinityTerm
+	antiPreferTerms  []corev1.WeightedPodAffinityTerm
+	antiRequireTerms []corev1.PodAffinityTerm
+}
+
 func (a *AffinityBuilder) buildPodAffinity() (*corev1.PodAffinity, *corev1.PodAntiAffinity) {
-	var preferTerms []corev1.WeightedPodAffinityTerm
-	var requireTerms []corev1.PodAffinityTerm
-	var antiPreferTerms []corev1.WeightedPodAffinityTerm
-	var antiRequireTerms []corev1.PodAffinityTerm
+	terms := &affinityTerms{}
 
 	for _, pa := range a.PodAffinity {
-		if pa.affinityRequired {
-			// return required
-			term := corev1.PodAffinityTerm{
-				LabelSelector: &metav1.LabelSelector{
-					MatchLabels: pa.labels,
-				},
-				TopologyKey: corev1.LabelHostname,
-			}
-			if pa.anti {
-				antiRequireTerms = append(antiRequireTerms, term)
-			} else {
-				requireTerms = append(requireTerms, term)
-			}
-		} else {
-			if pa.weight == 0 {
-				pa.weight = corev1.DefaultHardPodAffinitySymmetricWeight
-				affinityLogger.Info("Weight not set for preferred pod affinity, setting to %d", pa.weight)
-			}
-			// return preferred
-			weightTerm := corev1.WeightedPodAffinityTerm{
-				Weight: pa.weight,
-				PodAffinityTerm: corev1.PodAffinityTerm{
-					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: pa.labels,
-					},
-					TopologyKey: corev1.LabelHostname,
-				},
-			}
-			if pa.anti {
-				antiPreferTerms = append(antiPreferTerms, weightTerm)
-			} else {
-				preferTerms = append(preferTerms, weightTerm)
-			}
+		term, weightTerm := a.handleTerms(pa)
+		a.assignTerm(pa, term, weightTerm, terms)
+	}
+
+	return &corev1.PodAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution:  terms.requireTerms,
+			PreferredDuringSchedulingIgnoredDuringExecution: terms.preferTerms,
+		}, &corev1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution:  terms.antiRequireTerms,
+			PreferredDuringSchedulingIgnoredDuringExecution: terms.antiPreferTerms,
 		}
-	}
-
-	podAffinity := &corev1.PodAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution:  requireTerms,
-		PreferredDuringSchedulingIgnoredDuringExecution: preferTerms,
-	}
-
-	podAntiAffinity := &corev1.PodAntiAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution:  antiRequireTerms,
-		PreferredDuringSchedulingIgnoredDuringExecution: antiPreferTerms,
-	}
-
-	return podAffinity, podAntiAffinity
-
 }
 
 func (a *AffinityBuilder) Build() *corev1.Affinity {

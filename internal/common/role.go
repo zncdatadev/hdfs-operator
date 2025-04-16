@@ -66,26 +66,33 @@ type BaseRoleGroupReconciler[T client.Object] struct {
 	Reconcilers []ResourceReconciler
 }
 
+func handleSingleReconciler(ctx context.Context, r ResourceReconciler, single ResourceBuilder) (ctrl.Result, error) {
+	return r.ReconcileResource(ctx, NewSingleResourceBuilder(single))
+}
+
+func handleMultiReconciler(ctx context.Context, r ResourceReconciler, multi MultiResourceReconcilerBuilder) (ctrl.Result, error) {
+	return r.ReconcileResource(ctx, NewMultiResourceBuilder(multi))
+}
+
 func ReconcilerDoHandler(ctx context.Context, reconcilers []ResourceReconciler) (ctrl.Result, error) {
 	for _, r := range reconcilers {
-		if single, ok := r.(ResourceBuilder); ok {
-			res, err := r.ReconcileResource(ctx, NewSingleResourceBuilder(single))
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			if res.RequeueAfter > 0 {
-				return res, nil
-			}
-		} else if multi, ok := r.(MultiResourceReconcilerBuilder); ok {
-			res, err := r.ReconcileResource(ctx, NewMultiResourceBuilder(multi))
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			if res.RequeueAfter > 0 {
-				return res, nil
-			}
-		} else {
-			panic(fmt.Sprintf("unknown resource reconciler builder, actual type: %T", r))
+		var res ctrl.Result
+		var err error
+
+		switch concrete := r.(type) {
+		case ResourceBuilder:
+			res, err = handleSingleReconciler(ctx, r, concrete)
+		case MultiResourceReconcilerBuilder:
+			res, err = handleMultiReconciler(ctx, r, concrete)
+		default:
+			return ctrl.Result{}, fmt.Errorf("unknown resource reconciler builder, actual type: %T", r)
+		}
+
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		if res.RequeueAfter > 0 {
+			return res, nil
 		}
 	}
 	return ctrl.Result{}, nil

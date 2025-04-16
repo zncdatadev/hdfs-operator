@@ -44,30 +44,43 @@ func CreateRoleGroupLoggingConfigMapName(instanceName string, role string, group
 	return util.NewResourceNameGenerator(instanceName, role, groupName).GenerateResourceName("log")
 }
 
-func ConvertToResourceRequirements(resources *commonsv1alpha1.ResourcesSpec) *corev1.ResourceRequirements {
-	if resources != nil {
-		request := corev1.ResourceList{}
-		limit := corev1.ResourceList{}
-		if resources.CPU != nil && !resources.CPU.Min.IsZero() {
+func handleCPUResources(resources *commonsv1alpha1.ResourcesSpec, request, limit corev1.ResourceList) {
+	if resources.CPU != nil {
+		if !resources.CPU.Min.IsZero() {
 			request[corev1.ResourceCPU] = resources.CPU.Min
 		}
-		if resources.CPU != nil && !resources.CPU.Max.IsZero() {
+		if !resources.CPU.Max.IsZero() {
 			limit[corev1.ResourceCPU] = resources.CPU.Max
 		}
-		if resources.Memory != nil && !resources.Memory.Limit.IsZero() {
-			request[corev1.ResourceMemory] = resources.Memory.Limit
-			limit[corev1.ResourceMemory] = resources.Memory.Limit
-		}
-		r := &corev1.ResourceRequirements{}
-		if len(request) > 0 {
-			r.Requests = request
-		}
-		if len(limit) > 0 {
-			r.Limits = limit
-		}
-		return r
 	}
-	return nil
+}
+
+func handleMemoryResources(resources *commonsv1alpha1.ResourcesSpec, request, limit corev1.ResourceList) {
+	if resources.Memory != nil && !resources.Memory.Limit.IsZero() {
+		request[corev1.ResourceMemory] = resources.Memory.Limit
+		limit[corev1.ResourceMemory] = resources.Memory.Limit
+	}
+}
+
+func ConvertToResourceRequirements(resources *commonsv1alpha1.ResourcesSpec) *corev1.ResourceRequirements {
+	if resources == nil {
+		return nil
+	}
+
+	request := corev1.ResourceList{}
+	limit := corev1.ResourceList{}
+
+	handleCPUResources(resources, request, limit)
+	handleMemoryResources(resources, request, limit)
+
+	r := &corev1.ResourceRequirements{}
+	if len(request) > 0 {
+		r.Requests = request
+	}
+	if len(limit) > 0 {
+		r.Limits = limit
+	}
+	return r
 }
 
 // Name node
