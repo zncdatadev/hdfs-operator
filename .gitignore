@@ -39,3 +39,5 @@ cover.out
 
 # ai code local
 .codiumai.toml
+
+docker-digests.json
