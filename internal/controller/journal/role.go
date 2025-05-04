@@ -73,7 +73,7 @@ func (r *Role) ReconcileRole(ctx context.Context) (ctrl.Result, error) {
 	}
 	// reconciler groups
 	for name := range roleCfg.RoleGroups {
-		groupReconciler := NewRoleGroupReconciler(r.Scheme, r.Instance, r.Client, name, r.GetLabels(), r.Log)
+		groupReconciler := NewRoleGroupReconciler(r.Scheme, r.Instance, r.Client, name, r.GetLabels(), r.Log, r.Image)
 		res, err := groupReconciler.ReconcileGroup(ctx)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -96,7 +96,9 @@ func NewRoleGroupReconciler(
 	client client.Client,
 	groupName string,
 	roleLabels map[string]string,
-	log logr.Logger) *RoleGroup {
+	log logr.Logger,
+	image *util.Image,
+) *RoleGroup {
 	r := &RoleGroup{
 		BaseRoleGroupReconciler: common.BaseRoleGroupReconciler[*hdfsv1alpha1.HdfsCluster]{
 			Scheme:     scheme,
@@ -105,6 +107,7 @@ func NewRoleGroupReconciler(
 			GroupName:  groupName,
 			RoleLabels: roleLabels,
 			Log:        log,
+			Image:      image,
 		},
 	}
 	r.RegisterResource()
