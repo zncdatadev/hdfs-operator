@@ -119,6 +119,7 @@ type HdfsClusterList struct {
 // HdfsClusterSpec defines the desired state of HdfsCluster
 type HdfsClusterSpec struct {
 	// +kubebuilder:validation:Optional
+	// +default:value={"repo": "quay.io/zncdatadev", "pullPolicy": "IfNotPresent"}
 	Image *ImageSpec `json:"image,omitempty"`
 
 	// +kubebuilder:validation:Optional

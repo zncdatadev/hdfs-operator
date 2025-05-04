@@ -19,9 +19,9 @@ type NameNodeContainerBuilder struct {
 
 func NewNameNodeContainerBuilder(
 	instance *hdfsv1alpha1.HdfsCluster,
-	resource corev1.ResourceRequirements) *NameNodeContainerBuilder {
-	imageSpec := instance.Spec.Image
-	image := hdfsv1alpha1.TransformImage(imageSpec)
+	resource corev1.ResourceRequirements,
+	image *util.Image,
+) *NameNodeContainerBuilder {
 	zookeeperConfigMapName := instance.Spec.ClusterConfig.ZookeeperConfigMapName
 	return &NameNodeContainerBuilder{
 		ContainerBuilder:       *common.NewContainerBuilder(image.String(), image.GetPullPolicy(), resource),

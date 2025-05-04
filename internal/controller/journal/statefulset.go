@@ -3,13 +3,15 @@ package journal
 import (
 	"context"
 
-	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
-	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/operator-go/pkg/util"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/common"
 )
 
 type StatefulSetReconciler struct {
@@ -24,6 +26,7 @@ func NewStatefulSet(
 	labels map[string]string,
 	mergedCfg *hdfsv1alpha1.JournalNodeRoleGroupSpec,
 	replicate int32,
+	image *util.Image,
 ) *StatefulSetReconciler {
 	return &StatefulSetReconciler{
 		WorkloadStyleReconciler: *common.NewWorkloadStyleReconciler(
@@ -34,6 +37,7 @@ func NewStatefulSet(
 			labels,
 			mergedCfg,
 			replicate,
+			image,
 		),
 	}
 }
@@ -71,11 +75,10 @@ func (s *StatefulSetReconciler) Build(ctx context.Context) (client.Object, error
 	if err != nil {
 		return nil, err
 	} else if isVectorEnabled {
-		img := hdfsv1alpha1.TransformImage(s.Instance.Spec.Image)
-		common.ExtendStatefulSetByVector(nil, sts, img, createConfigName(s.Instance.GetName(), s.GroupName))
+		common.ExtendStatefulSetByVector(nil, sts, s.Image, createConfigName(s.Instance.GetName(), s.GroupName))
 	}
 	if s.Instance.Spec.ClusterConfig.Authentication != nil && s.Instance.Spec.ClusterConfig.Authentication.AuthenticationClass != "" {
-		oidcContainer, err := common.MakeOidcContainer(ctx, s.Client, s.Instance, s.getHttpPort())
+		oidcContainer, err := common.MakeOidcContainer(ctx, s.Client, s.Instance, s.getHttpPort(), s.Image)
 		if err != nil {
 			return nil, err
 		}
@@ -135,6 +138,7 @@ func (s *StatefulSetReconciler) makeJournalNodeContainer() corev1.Container {
 	journalNode := NewJournalNodeContainerBuilder(
 		s.Instance,
 		*common.ConvertToResourceRequirements(common.GetContainerResource(GetRole(), string(ContainerJournalNode))),
+		s.Image,
 	)
 	return journalNode.Build(journalNode)
 }
