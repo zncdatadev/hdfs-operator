@@ -80,7 +80,9 @@ func (s *StatefulSetReconciler) Build(ctx context.Context) (client.Object, error
 	if err != nil {
 		return nil, err
 	} else if isVectorEnabled {
-		common.ExtendStatefulSetByVector(nil, sts, s.Image, createConfigName(s.Instance.GetName(), s.GroupName))
+		vectorFactory := common.GetVectorFactory(s.Image)
+		sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, *vectorFactory.GetContainer())
+		sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, vectorFactory.GetVolumes()...)
 	}
 	if s.Instance.Spec.ClusterConfig.Authentication != nil && s.Instance.Spec.ClusterConfig.Authentication.AuthenticationClass != "" {
 		oidcContainer, err := common.MakeOidcContainer(ctx, s.Client, s.Instance, s.getHttpPort(), s.Image)

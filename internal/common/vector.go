@@ -10,7 +10,6 @@ import (
 	"github.com/zncdatadev/operator-go/pkg/productlogging"
 	"github.com/zncdatadev/operator-go/pkg/util"
 
-	appsv1 "k8s.io/api/apps/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -63,21 +62,14 @@ func ExtendConfigMapByVector(ctx context.Context, params VectorConfigParams, dat
 	}
 }
 
-func ExtendStatefulSetByVector(
-	logProvider []string,
-	dep *appsv1.StatefulSet,
+// GetVectorFactory returns a new vector factory
+// can provide vector container, volumes
+func GetVectorFactory(
 	image *util.Image,
-	vectorConfigMapName string) {
-	decorator := builder.VectorDecorator{
-		WorkloadObject:           dep,
-		Image:                    image,
-		LogVolumeName:            hdfsv1alpha1.KubedoopLogVolumeMountName,
-		VectorConfigVolumeName:   hdfsv1alpha1.HdfsConfigVolumeMountName,
-		VectorConfigMapName:      vectorConfigMapName,
-		LogProviderContainerName: logProvider,
-	}
-	err := decorator.Decorate()
-	if err != nil {
-		return
-	}
+) *builder.Vector {
+	return builder.NewVector(
+		hdfsv1alpha1.HdfsConfigVolumeMountName,
+		hdfsv1alpha1.KubedoopLogVolumeMountName,
+		image,
+	)
 }
