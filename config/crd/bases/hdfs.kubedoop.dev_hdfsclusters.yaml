@@ -3151,7 +3151,7 @@ spec:
                     type: string
                   pullSecretName:
                     type: string
-                  repository:
+                  repo:
                     default: quay.io/zncdatadev
                     type: string
                 type: object

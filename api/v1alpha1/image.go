@@ -16,7 +16,7 @@ type ImageSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=quay.io/zncdatadev
-	Repo string `json:"repository,omitempty"`
+	Repo string `json:"repo,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	KubedoopVersion string `json:"kubedoopVersion,omitempty"`
