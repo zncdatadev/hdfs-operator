@@ -18,13 +18,6 @@ spec:
       containers:
       - name: keycloak
         image: quay.io/keycloak/keycloak:25.0
-        resources:
-          limits:
-            cpu: 800m
-            memory: 1024Mi
-          requests:
-            cpu: 800m
-            memory: 1024Mi
         args:
         - start-dev
         - --import-realm
