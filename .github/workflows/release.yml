@@ -36,12 +36,10 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '~1.23'
+          go-version-file: go.mod
 
       - name: Run linter
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: v1.63
+        uses: golangci/golangci-lint-action@v7
 
   golang-test:
     name: Golang Test
@@ -53,7 +51,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '~1.23'
+          go-version-file: go.mod
 
       - name: Running Tests
         run: |
@@ -83,9 +81,9 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '~1.23'
+          go-version-file: go.mod
 
-      - name: Create KinD clustet pur
+      - name: Create KinD clustet
         env:
           KIND_K8S_VERSION: ${{ matrix.k8s-version}}
           KUBECONFIG: kind-kubeconfig-${{ matrix.k8s-version }}
