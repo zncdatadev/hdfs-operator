@@ -84,7 +84,7 @@ spec:
               - name: NAMESPACE
                 value: ($namespace)
             content: |
-              envsubst < oidc-login-script.txt | kubectl apply -n $NAMESPACE  -f -
+              envsubst < oidc-login-script.tpl | kubectl apply -n $NAMESPACE  -f -
         - apply:
             file: testing-tools-install.yaml
         - assert:
