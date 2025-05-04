@@ -18,13 +18,6 @@ spec:
       containers:
       - name: keycloak
         image: quay.io/keycloak/keycloak:25.0
-        resources:
-          limits:
-            cpu: 200m
-            memory: 512Mi
-          requests:
-            cpu: 100m
-            memory: 512Mi
         args:
         - start-dev
         - --import-realm
@@ -33,6 +26,8 @@ spec:
           value: admin
         - name: KEYCLOAK_ADMIN_PASSWORD
           value: admin
+        - name: JAVA_TOOL_OPTIONS
+          value: '-XX:+UseContainerSupport -XX:MaxRAMPercentage=90.0 -XX:InitialRAMPercentage=90.0'
         ports:
         - containerPort: 8080
           name: http

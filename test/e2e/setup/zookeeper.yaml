@@ -5,7 +5,7 @@ metadata:
 spec:
   clusterConfig:
     listenerClass: external-unstable
-  server:
+  servers:
     config:
       resources:
         cpu:
