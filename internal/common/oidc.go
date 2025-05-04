@@ -11,6 +11,7 @@ import (
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	authv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/authentication/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -26,6 +27,7 @@ func MakeOidcContainer(
 	client ctrlclient.Client,
 	instance *hdfsv1alpha1.HdfsCluster,
 	port int32,
+	image *util.Image,
 ) (*corev1.Container, error) {
 	authClass := &authv1alpha1.AuthenticationClass{}
 	if err := client.Get(ctx, ctrlclient.ObjectKey{Namespace: instance.Namespace, Name: instance.Spec.ClusterConfig.Authentication.AuthenticationClass}, authClass); err != nil {
@@ -46,6 +48,7 @@ func MakeOidcContainer(
 		authClass.Spec.AuthenticationProvider.OIDC,
 		instance.Spec.ClusterConfig.Authentication.Oidc,
 		port,
+		image,
 	)
 	obj := oidc.Build(oidc)
 	return &obj, nil
@@ -66,9 +69,8 @@ func NewOidcContainerBuilder(
 	oidcProvider *authv1alpha1.OIDCProvider,
 	oidc *hdfsv1alpha1.OidcSpec,
 	port int32,
+	image *util.Image,
 ) *OidcContainerBuilder {
-	imageSpec := instance.Spec.Image
-	image := hdfsv1alpha1.TransformImage(imageSpec)
 	return &OidcContainerBuilder{
 		ContainerBuilder: *NewContainerBuilder(image.String(), image.GetPullPolicy(), corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{

@@ -6,6 +6,7 @@ import (
 	. "github.com/onsi/gomega"
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/controller/journal"
+	"github.com/zncdatadev/operator-go/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -20,11 +21,15 @@ var _ = Describe("CommandArgs", func() {
 					},
 				},
 			}
-			builder := journal.NewJournalNodeContainerBuilder(&hdfsv1alpha1.HdfsCluster{
-				Spec: hdfsv1alpha1.HdfsClusterSpec{
-					ClusterConfig: clusterConfig,
+			builder := journal.NewJournalNodeContainerBuilder(
+				&hdfsv1alpha1.HdfsCluster{
+					Spec: hdfsv1alpha1.HdfsClusterSpec{
+						ClusterConfig: clusterConfig,
+					},
 				},
-			}, corev1.ResourceRequirements{})
+				corev1.ResourceRequirements{},
+				util.NewImage("hdfs", "0.0.0-dev", "3.4.5"),
+			)
 
 			// when
 			args := builder.CommandArgs()
@@ -47,11 +52,15 @@ var _ = Describe("CommandArgs", func() {
 					Kerberos: nil,
 				},
 			}
-			builder := journal.NewJournalNodeContainerBuilder(&hdfsv1alpha1.HdfsCluster{
-				Spec: hdfsv1alpha1.HdfsClusterSpec{
-					ClusterConfig: clusterConfig,
+			builder := journal.NewJournalNodeContainerBuilder(
+				&hdfsv1alpha1.HdfsCluster{
+					Spec: hdfsv1alpha1.HdfsClusterSpec{
+						ClusterConfig: clusterConfig,
+					},
 				},
-			}, corev1.ResourceRequirements{})
+				corev1.ResourceRequirements{},
+				util.NewImage("hdfs", "0.0.0-dev", "3.4.5"),
+			)
 
 			// when
 			args := builder.CommandArgs()

@@ -20,8 +20,8 @@ type DataNodeContainerBuilder struct {
 func NewDataNodeContainerBuilder(
 	instance *hdfsv1alpha1.HdfsCluster,
 	resource corev1.ResourceRequirements,
+	image *util.Image,
 ) *DataNodeContainerBuilder {
-	image := hdfsv1alpha1.TransformImage(instance.Spec.Image)
 	imagePullPolicy := image.GetPullPolicy()
 	clusterConfig := instance.Spec.ClusterConfig
 	return &DataNodeContainerBuilder{

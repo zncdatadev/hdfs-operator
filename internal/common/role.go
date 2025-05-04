@@ -7,10 +7,12 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	"github.com/zncdatadev/hdfs-operator/internal/util"
+	operatorutil "github.com/zncdatadev/operator-go/pkg/util"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/zncdatadev/hdfs-operator/internal/util"
 )
 
 type Role string
@@ -45,6 +47,7 @@ type BaseRoleReconciler[T client.Object] struct {
 	Client   client.Client
 	Log      logr.Logger
 	Labels   map[string]string
+	Image    *operatorutil.Image
 
 	Role Role
 }
@@ -62,6 +65,7 @@ type BaseRoleGroupReconciler[T client.Object] struct {
 	GroupName  string
 	RoleLabels map[string]string
 	Log        logr.Logger
+	Image      *operatorutil.Image
 
 	Reconcilers []ResourceReconciler
 }

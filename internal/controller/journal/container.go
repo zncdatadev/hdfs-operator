@@ -20,9 +20,8 @@ type ContainerBuilder struct {
 func NewJournalNodeContainerBuilder(
 	instance *hdfsv1alpha1.HdfsCluster,
 	resource corev1.ResourceRequirements,
+	image *util.Image,
 ) *ContainerBuilder {
-	imageSpec := instance.Spec.Image
-	image := hdfsv1alpha1.TransformImage(imageSpec)
 	clusterConfig := instance.Spec.ClusterConfig
 	return &ContainerBuilder{
 		ContainerBuilder:       *common.NewContainerBuilder(image.String(), image.GetPullPolicy(), resource),

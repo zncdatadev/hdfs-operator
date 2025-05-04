@@ -5,14 +5,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zncdatadev/hdfs-operator/internal/util"
 	opgostatus "github.com/zncdatadev/operator-go/pkg/status"
+	operatorutil "github.com/zncdatadev/operator-go/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/zncdatadev/hdfs-operator/internal/util"
 )
 
 // ResourceBuilderType union type for resource builder
@@ -157,7 +159,7 @@ func NewGeneraResourceStyleReconciler[T client.Object, G any](
 	mergedCfg G,
 ) *GeneralResourceStyleReconciler[T, G] {
 	return &GeneralResourceStyleReconciler[T, G]{
-		BaseResourceReconciler: *NewBaseResourceReconciler[T, G](
+		BaseResourceReconciler: *NewBaseResourceReconciler(
 			scheme,
 			instance,
 			client,
@@ -197,7 +199,7 @@ func NewConfigurationStyleReconciler[T client.Object, G any](
 	mergedCfg G,
 ) *ConfigurationStyleReconciler[T, G] {
 	return &ConfigurationStyleReconciler[T, G]{
-		GeneralResourceStyleReconciler: *NewGeneraResourceStyleReconciler[T, G](
+		GeneralResourceStyleReconciler: *NewGeneraResourceStyleReconciler(
 			scheme,
 			instance,
 			client,
@@ -240,6 +242,7 @@ func (s *ConfigurationStyleReconciler[T, G]) DoReconcile(
 type WorkloadStyleReconciler[T client.Object, G any] struct {
 	BaseResourceReconciler[T, G]
 	Replicas int32
+	Image    *operatorutil.Image
 }
 
 func NewWorkloadStyleReconciler[T client.Object, G any](
@@ -250,16 +253,19 @@ func NewWorkloadStyleReconciler[T client.Object, G any](
 	mergedLabels map[string]string,
 	mergedCfg G,
 	replicas int32,
+	image *operatorutil.Image,
 ) *WorkloadStyleReconciler[T, G] {
 	return &WorkloadStyleReconciler[T, G]{
-		BaseResourceReconciler: *NewBaseResourceReconciler[T, G](
+		BaseResourceReconciler: *NewBaseResourceReconciler(
 			scheme,
 			instance,
 			client,
 			groupName,
 			mergedLabels,
-			mergedCfg),
+			mergedCfg,
+		),
 		Replicas: replicas,
+		Image:    image,
 	}
 }
 
@@ -374,7 +380,7 @@ func NewMultiConfigurationStyleReconciler[T client.Object, G any](
 	mergedCfg G,
 ) *MultiConfigurationStyleReconciler[T, G] {
 	return &MultiConfigurationStyleReconciler[T, G]{
-		BaseResourceReconciler: *NewBaseResourceReconciler[T, G](
+		BaseResourceReconciler: *NewBaseResourceReconciler(
 			scheme,
 			instance,
 			client,
@@ -438,7 +444,7 @@ func NewGeneralConfigMap[T client.Object, G any](
 
 ) *GeneralConfigMapReconciler[T, G] {
 	return &GeneralConfigMapReconciler[T, G]{
-		GeneralResourceStyleReconciler: *NewGeneraResourceStyleReconciler[T, G](
+		GeneralResourceStyleReconciler: *NewGeneraResourceStyleReconciler(
 			scheme,
 			instance,
 			client,

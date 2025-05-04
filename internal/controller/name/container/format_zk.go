@@ -4,6 +4,7 @@ import (
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	"github.com/zncdatadev/operator-go/pkg/constants"
+	"github.com/zncdatadev/operator-go/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -19,9 +20,8 @@ func NewFormatZookeeperContainerBuilder(
 	instance *hdfsv1alpha1.HdfsCluster,
 	resource corev1.ResourceRequirements,
 	zookeeperConfigMapName string,
+	image *util.Image,
 ) *FormatZookeeperContainerBuilder {
-	imageSpec := instance.Spec.Image
-	image := hdfsv1alpha1.TransformImage(imageSpec)
 
 	return &FormatZookeeperContainerBuilder{
 		ContainerBuilder:       *common.NewContainerBuilder(image.String(), image.GetPullPolicy(), resource),

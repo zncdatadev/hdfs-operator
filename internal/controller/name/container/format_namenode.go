@@ -7,6 +7,7 @@ import (
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/constants"
+	"github.com/zncdatadev/operator-go/pkg/util"
 
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	corev1 "k8s.io/api/core/v1"
@@ -28,9 +29,8 @@ func NewFormatNameNodeContainerBuilder(
 	resource corev1.ResourceRequirements,
 	nameNodeReplicates int32,
 	statefulSetName string,
+	image *util.Image,
 ) *FormatNameNodeContainerBuilder {
-	imageSpec := instance.Spec.Image
-	image := hdfsv1alpha1.TransformImage(imageSpec)
 	clusterConfig := instance.Spec.ClusterConfig
 	return &FormatNameNodeContainerBuilder{
 		ContainerBuilder:       *common.NewContainerBuilder(image.String(), image.GetPullPolicy(), resource),

@@ -6,6 +6,7 @@ import (
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/constants"
+	"github.com/zncdatadev/operator-go/pkg/util"
 
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	corev1 "k8s.io/api/core/v1"
@@ -24,10 +25,9 @@ func NewWaitNameNodeContainerBuilder(
 	instance *hdfsv1alpha1.HdfsCluster,
 	resource corev1.ResourceRequirements,
 	groupName string,
+	image *util.Image,
 ) *WaitNameNodeContainerBuilder {
-	imageSpec := instance.Spec.Image
 	clusterConfigSpec := instance.Spec.ClusterConfig
-	image := hdfsv1alpha1.TransformImage(imageSpec)
 	return &WaitNameNodeContainerBuilder{
 		ContainerBuilder:       *common.NewContainerBuilder(image.String(), image.GetPullPolicy(), resource),
 		zookeeperConfigMapName: clusterConfigSpec.ZookeeperConfigMapName,

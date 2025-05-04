@@ -5,11 +5,13 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
-	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/operator-go/pkg/util"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/common"
 )
 
 // role server reconciler
@@ -23,13 +25,16 @@ func NewRoleNameNode(
 	scheme *runtime.Scheme,
 	instance *hdfsv1alpha1.HdfsCluster,
 	client client.Client,
-	log logr.Logger) *Role {
+	log logr.Logger,
+	image *util.Image,
+) *Role {
 	r := &Role{
 		BaseRoleReconciler: common.BaseRoleReconciler[*hdfsv1alpha1.HdfsCluster]{
 			Scheme:   scheme,
 			Instance: instance,
 			Client:   client,
 			Log:      log,
+			Image:    image,
 		},
 	}
 	r.Labels = r.GetLabels()
@@ -119,7 +124,7 @@ func (m *RoleGroup) RegisterResource() {
 	pdb := common.NewReconcilePDB(m.Client, m.Scheme, m.Instance, lables, m.GroupName, pdbSpec)
 	cm := NewConfigMap(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg)
 	// logging := NewNameNodeLogging(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, common.NameNode)
-	statefulSet := NewStatefulSet(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, mergedCfg.Replicas)
+	statefulSet := NewStatefulSet(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, mergedCfg.Replicas, m.Image)
 	svc := NewServiceHeadless(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg)
 	m.Reconcilers = []common.ResourceReconciler{cm, pdb, svc, statefulSet}
 }

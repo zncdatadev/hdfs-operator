@@ -4,14 +4,17 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	"github.com/zncdatadev/operator-go/pkg/util"
+	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	"github.com/zncdatadev/hdfs-operator/internal/controller/data"
 	"github.com/zncdatadev/hdfs-operator/internal/controller/journal"
 	"github.com/zncdatadev/hdfs-operator/internal/controller/name"
-	"k8s.io/apimachinery/pkg/runtime"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"github.com/zncdatadev/hdfs-operator/internal/util/version"
 )
 
 type ClusterReconciler struct {
@@ -37,14 +40,33 @@ func NewClusterReconciler(client client.Client, scheme *runtime.Scheme, cr *hdfs
 
 // RegisterRole register role reconciler
 func (c *ClusterReconciler) RegisterRole() {
-	nameNodeRole := name.NewRoleNameNode(c.scheme, c.cr, c.client, c.Log)
-	jounalNodeRole := journal.NewRoleJournalNode(c.scheme, c.cr, c.client, c.Log)
-	dataNodeRole := data.NewRoleDataNode(c.scheme, c.cr, c.client, c.Log)
+	nameNodeRole := name.NewRoleNameNode(c.scheme, c.cr, c.client, c.Log, c.GetImage())
+	jounalNodeRole := journal.NewRoleJournalNode(c.scheme, c.cr, c.client, c.Log, c.GetImage())
+	dataNodeRole := data.NewRoleDataNode(c.scheme, c.cr, c.client, c.Log, c.GetImage())
 	c.roleReconcilers = []common.RoleReconciler{
 		jounalNodeRole,
 		nameNodeRole,
 		dataNodeRole,
 	}
+}
+
+func (r *ClusterReconciler) GetImage() *util.Image {
+	image := util.NewImage(
+		hdfsv1alpha1.DefaultProductName,
+		version.BuildVersion,
+		hdfsv1alpha1.DefaultProductVersion,
+		func(options *util.ImageOptions) {
+			options.Custom = r.cr.Spec.Image.Custom
+			options.Repo = r.cr.Spec.Image.Repo
+			options.PullPolicy = r.cr.Spec.Image.PullPolicy
+		},
+	)
+
+	if r.cr.Spec.Image.KubedoopVersion != "" {
+		image.KubedoopVersion = r.cr.Spec.Image.KubedoopVersion
+	}
+
+	return image
 }
 
 func (c *ClusterReconciler) RegisterResource() {

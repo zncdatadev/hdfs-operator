@@ -22,7 +22,7 @@ func NewNameNodeLogging(
 		cfg:              mergedCfg,
 		currentConfigMap: currentConfigMap,
 	}
-	return common.NewOverrideExistLoggingRecociler[*hdfsv1alpha1.HdfsCluster](
+	return common.NewOverrideExistLoggingRecociler(
 		scheme,
 		instance,
 		client,

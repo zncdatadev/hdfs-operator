@@ -7,6 +7,7 @@ import (
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	"github.com/zncdatadev/hdfs-operator/internal/controller/data/container"
 	"github.com/zncdatadev/operator-go/pkg/constants"
+	"github.com/zncdatadev/operator-go/pkg/util"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -27,6 +28,7 @@ func NewStatefulSet(
 	labels map[string]string,
 	mergedCfg *hdfsv1alpha1.DataNodeRoleGroupSpec,
 	replicate int32,
+	image *util.Image,
 ) *StatefulSetReconciler {
 	return &StatefulSetReconciler{
 		WorkloadStyleReconciler: *common.NewWorkloadStyleReconciler(
@@ -37,6 +39,7 @@ func NewStatefulSet(
 			labels,
 			mergedCfg,
 			replicate,
+			image,
 		),
 	}
 }
@@ -77,11 +80,10 @@ func (s *StatefulSetReconciler) Build(ctx context.Context) (client.Object, error
 	if err != nil {
 		return nil, err
 	} else if isVectorEnabled {
-		img := hdfsv1alpha1.TransformImage(s.Instance.Spec.Image)
-		common.ExtendStatefulSetByVector(nil, sts, img, createConfigName(s.Instance.GetName(), s.GroupName))
+		common.ExtendStatefulSetByVector(nil, sts, s.Image, createConfigName(s.Instance.GetName(), s.GroupName))
 	}
 	if s.Instance.Spec.ClusterConfig.Authentication != nil && s.Instance.Spec.ClusterConfig.Authentication.AuthenticationClass != "" {
-		oidcContainer, err := common.MakeOidcContainer(ctx, s.Client, s.Instance, s.getHttpPort())
+		oidcContainer, err := common.MakeOidcContainer(ctx, s.Client, s.Instance, s.getHttpPort(), s.Image)
 		if err != nil {
 			return nil, err
 		}
@@ -142,6 +144,7 @@ func (s *StatefulSetReconciler) makeDataNodeContainer() corev1.Container {
 	dateNode := container.NewDataNodeContainerBuilder(
 		s.Instance,
 		*common.ConvertToResourceRequirements(common.GetContainerResource(container.GetRole(), string(container.DataNode))),
+		s.Image,
 	)
 	return dateNode.Build(dateNode)
 }
@@ -152,6 +155,7 @@ func (s *StatefulSetReconciler) makeWaitNameNodeContainer() corev1.Container {
 		s.Instance,
 		*common.ConvertToResourceRequirements(common.GetContainerResource(container.GetRole(), string(container.WaitNameNode))),
 		s.GroupName,
+		s.Image,
 	)
 	return initContainer.Build(initContainer)
 }
