@@ -6,75 +6,86 @@ import (
 	"strings"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
-	"github.com/zncdatadev/operator-go/pkg/constants"
-	"github.com/zncdatadev/operator-go/pkg/util"
-
 	"github.com/zncdatadev/hdfs-operator/internal/common"
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/constants"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
+	oputil "github.com/zncdatadev/operator-go/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 )
 
-// FormatNameNodeContainerBuilder container builder
+// FormatNameNodeContainerBuilder builds format namenode containers
 type FormatNameNodeContainerBuilder struct {
-	common.ContainerBuilder
-	zookeeperConfigMapName string
-	nameNodeReplicates     int32
-	statefulSetName        string
-	instanceName           string
-	namespace              string
-	clusterConfig          *hdfsv1alpha1.ClusterConfigSpec
+	instance           *hdfsv1alpha1.HdfsCluster
+	roleGroupInfo      *reconciler.RoleGroupInfo
+	roleGroupConfig    *commonsv1alpha1.RoleGroupConfigSpec
+	image              *oputil.Image
+	nameNodeReplicates int32
+	statefulSetName    string
 }
 
+// NewFormatNameNodeContainerBuilder creates a new format namenode container builder
 func NewFormatNameNodeContainerBuilder(
 	instance *hdfsv1alpha1.HdfsCluster,
-	resource corev1.ResourceRequirements,
+	roleGroupInfo *reconciler.RoleGroupInfo,
+	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec,
+	image *oputil.Image,
 	nameNodeReplicates int32,
 	statefulSetName string,
-	image *util.Image,
 ) *FormatNameNodeContainerBuilder {
-	clusterConfig := instance.Spec.ClusterConfig
 	return &FormatNameNodeContainerBuilder{
-		ContainerBuilder:       *common.NewContainerBuilder(image.String(), image.GetPullPolicy(), resource),
-		zookeeperConfigMapName: clusterConfig.ZookeeperConfigMapName,
-		nameNodeReplicates:     nameNodeReplicates,
-		statefulSetName:        statefulSetName,
-		instanceName:           instance.Name,
-		namespace:              instance.Namespace,
-		clusterConfig:          clusterConfig,
+		instance:           instance,
+		roleGroupInfo:      roleGroupInfo,
+		roleGroupConfig:    roleGroupConfig,
+		image:              image,
+		nameNodeReplicates: nameNodeReplicates,
+		statefulSetName:    statefulSetName,
 	}
 }
 
-func (f *FormatNameNodeContainerBuilder) ContainerEnv() []corev1.EnvVar {
-	return common.GetCommonContainerEnv(f.clusterConfig, FormatNameNode)
+// Build builds the format namenode container
+func (b *FormatNameNodeContainerBuilder) Build() *corev1.Container {
+	// Create the common container builder
+	builder := common.NewHdfsContainerBuilder(
+		FormatNameNode,
+		b.image,
+		b.instance.Spec.ClusterConfig.ZookeeperConfigMapName,
+		b.roleGroupInfo,
+		b.roleGroupConfig,
+	)
+
+	// Create format namenode component and build container
+	component := newFormatNameNodeComponent(b.instance, b.nameNodeReplicates, b.statefulSetName)
+
+	return builder.BuildWithComponent(component)
 }
 
-func (f *FormatNameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
-	mounts := common.GetCommonVolumeMounts(f.clusterConfig)
-	fnMounts := []corev1.VolumeMount{
-		{
-			Name:      hdfsv1alpha1.FormatNamenodesConfigVolumeMountName,
-			MountPath: constants.KubedoopConfigDirMount + "/" + f.ContainerName(),
-		},
-		{
-			Name:      hdfsv1alpha1.FormatNamenodesLogVolumeMountName,
-			MountPath: constants.KubedoopLogDirMount + "/" + f.ContainerName(),
-		},
-		{
-			Name:      hdfsv1alpha1.DataVolumeMountName,
-			MountPath: constants.KubedoopDataDir,
-		},
+// formatNameNodeComponent implements ContainerComponentInterface for FormatNameNode
+type formatNameNodeComponent struct {
+	*common.DefaultContainerComponent
+	instance           *hdfsv1alpha1.HdfsCluster
+	nameNodeReplicates int32
+	statefulSetName    string
+}
+
+// Only implement the required interface - no ports or health checks needed
+var _ common.ContainerComponentInterface = &formatNameNodeComponent{}
+
+func newFormatNameNodeComponent(instance *hdfsv1alpha1.HdfsCluster, nameNodeReplicates int32, statefulSetName string) *formatNameNodeComponent {
+	return &formatNameNodeComponent{
+		DefaultContainerComponent: common.NewDefaultContainerComponent(string(FormatNameNode)),
+		instance:                  instance,
+		nameNodeReplicates:        nameNodeReplicates,
+		statefulSetName:           statefulSetName,
 	}
-	return append(mounts, fnMounts...)
 }
 
-func (f *FormatNameNodeContainerBuilder) ContainerName() string {
-	return string(FormatNameNode)
+func (c *formatNameNodeComponent) GetCommand() []string {
+	return []string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}
 }
 
-func (f *FormatNameNodeContainerBuilder) Command() []string {
-	return common.GetCommonCommand()
-}
-func (f *FormatNameNodeContainerBuilder) CommandArgs() []string {
-	namenodeIds := strings.Join(f.PodNames(), " ")
+func (c *formatNameNodeComponent) GetArgs() []string {
+	namenodeIds := strings.Join(c.podNames(), " ")
 	tmpl := `mkdir -p /kubedoop/config/format-namenodes
 cp /kubedoop/mount/config/format-namenodes/*.xml /kubedoop/config/format-namenodes
 cp /kubedoop/mount/config/format-namenodes/format-namenodes.log4j.properties /kubedoop/config/format-namenodes/log4j.properties
@@ -116,12 +127,35 @@ else
     echo "Pod $POD_NAME already formatted. Skipping..."
 fi
 `
-	data := common.CreateExportKrbRealmEnvData(f.clusterConfig)
-	principal := common.CreateKerberosPrincipal(f.instanceName, f.namespace, GetRole())
+	data := common.CreateExportKrbRealmEnvData(c.instance.Spec.ClusterConfig)
+	principal := common.CreateKerberosPrincipal(c.instance.Name, c.instance.Namespace, GetRole())
 	maps.Copy(data, common.CreateGetKerberosTicketData(principal))
 	return common.ParseTemplate(tmpl, data)
 }
 
-func (f *FormatNameNodeContainerBuilder) PodNames() []string {
-	return common.CreatePodNamesByReplicas(f.nameNodeReplicates, f.statefulSetName)
+func (c *formatNameNodeComponent) GetEnvVars() []corev1.EnvVar {
+	return common.GetCommonContainerEnv(c.instance.Spec.ClusterConfig, FormatNameNode)
+}
+
+func (c *formatNameNodeComponent) GetVolumeMounts() []corev1.VolumeMount {
+	mounts := common.GetCommonVolumeMounts(c.instance.Spec.ClusterConfig)
+	formatNameNodeMounts := []corev1.VolumeMount{
+		{
+			Name:      hdfsv1alpha1.FormatNamenodesConfigVolumeMountName,
+			MountPath: constants.KubedoopConfigDirMount + "/" + c.GetContainerName(),
+		},
+		{
+			Name:      hdfsv1alpha1.FormatNamenodesLogVolumeMountName,
+			MountPath: constants.KubedoopLogDirMount + "/" + c.GetContainerName(),
+		},
+		{
+			Name:      hdfsv1alpha1.DataVolumeMountName,
+			MountPath: constants.KubedoopDataDir,
+		},
+	}
+	return append(mounts, formatNameNodeMounts...)
+}
+
+func (c *formatNameNodeComponent) podNames() []string {
+	return common.CreatePodNamesByReplicas(c.nameNodeReplicates, c.statefulSetName)
 }

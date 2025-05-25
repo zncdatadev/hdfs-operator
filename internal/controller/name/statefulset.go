@@ -154,43 +154,46 @@ func (s *StatefulSetReconciler) LogOverride(_ client.Object) {
 func (s *StatefulSetReconciler) makeNameNodeContainer() corev1.Container {
 	nameNode := container.NewNameNodeContainerBuilder(
 		s.Instance,
-		*common.ConvertToResourceRequirements(common.GetContainerResource(container.GetRole(), string(container.NameNode))),
+		nil, // roleGroupInfo - not used for namenode containers
+		nil, // roleGroupConfig - not used for namenode containers
 		s.Image,
 	)
-	return nameNode.Build(nameNode)
+	return *nameNode.Build()
 }
 
 // make zkfc container
 func (s *StatefulSetReconciler) makeZkfcContainer() corev1.Container {
 	zkfc := container.NewZkfcContainerBuilder(
 		s.Instance,
-		*common.ConvertToResourceRequirements(common.GetContainerResource(container.GetRole(), string(container.Zkfc))),
+		nil, // roleGroupInfo - not used for zkfc containers
+		nil, // roleGroupConfig - not used for zkfc containers
 		s.Image,
 	)
-	return zkfc.Build(zkfc)
+	return *zkfc.Build()
 }
 
 // make format name node container
 func (s *StatefulSetReconciler) makeFormatNameNodeContainer() corev1.Container {
 	formatNameNode := container.NewFormatNameNodeContainerBuilder(
 		s.Instance,
-		*common.ConvertToResourceRequirements(common.GetContainerResource(container.GetRole(), string(container.FormatNameNode))),
+		nil, // roleGroupInfo - not used for format containers
+		nil, // roleGroupConfig - not used for format containers
+		s.Image,
 		*s.getReplicates(),
 		common.CreateNameNodeStatefulSetName(s.Instance.GetName(), s.GroupName),
-		s.Image,
 	)
-	return formatNameNode.Build(formatNameNode)
+	return *formatNameNode.Build()
 }
 
 // make format zookeeper container
 func (s *StatefulSetReconciler) makeFormatZookeeperContainer() corev1.Container {
 	formatZookeeper := container.NewFormatZookeeperContainerBuilder(
 		s.Instance,
-		*common.ConvertToResourceRequirements(common.GetContainerResource(container.GetRole(), string(container.FormatZookeeper))),
-		s.getZookeeperConfigMapName(),
+		nil, // roleGroupInfo - not used for format containers
+		nil, // roleGroupConfig - not used for format containers
 		s.Image,
 	)
-	return formatZookeeper.Build(formatZookeeper)
+	return *formatZookeeper.Build()
 }
 
 // make volumes

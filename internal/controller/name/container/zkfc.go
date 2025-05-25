@@ -3,39 +3,72 @@ package container
 import (
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/constants"
-	"github.com/zncdatadev/operator-go/pkg/util"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
+	oputil "github.com/zncdatadev/operator-go/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 )
 
-// zkfc container builder
+// ZkfcContainerBuilder builds zkfc containers
 type ZkfcContainerBuilder struct {
-	common.ContainerBuilder
-	zookeeperConfigMapName string
-	clusterConfig          *hdfsv1alpha1.ClusterConfigSpec
+	instance        *hdfsv1alpha1.HdfsCluster
+	roleGroupInfo   *reconciler.RoleGroupInfo
+	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec
+	image           *oputil.Image
 }
 
+// NewZkfcContainerBuilder creates a new zkfc container builder
 func NewZkfcContainerBuilder(
 	instance *hdfsv1alpha1.HdfsCluster,
-	resource corev1.ResourceRequirements,
-	image *util.Image,
+	roleGroupInfo *reconciler.RoleGroupInfo,
+	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec,
+	image *oputil.Image,
 ) *ZkfcContainerBuilder {
-	clusterConfig := instance.Spec.ClusterConfig
-	zookeeperConfigMapName := clusterConfig.ZookeeperConfigMapName
 	return &ZkfcContainerBuilder{
-		ContainerBuilder:       *common.NewContainerBuilder(image.String(), image.GetPullPolicy(), resource),
-		zookeeperConfigMapName: zookeeperConfigMapName,
-		clusterConfig:          clusterConfig,
+		instance:        instance,
+		roleGroupInfo:   roleGroupInfo,
+		roleGroupConfig: roleGroupConfig,
+		image:           image,
 	}
 }
 
-func (z *ZkfcContainerBuilder) ContainerName() string {
+// Build builds the zkfc container
+func (b *ZkfcContainerBuilder) Build() *corev1.Container {
+	// Create the common container builder
+	builder := common.NewHdfsContainerBuilder(
+		Zkfc,
+		b.image,
+		b.instance.Spec.ClusterConfig.ZookeeperConfigMapName,
+		b.roleGroupInfo,
+		b.roleGroupConfig,
+	)
+
+	// Create zkfc component and build container
+	component := &zkfcComponent{
+		clusterConfig: b.instance.Spec.ClusterConfig,
+	}
+
+	return builder.BuildWithComponent(component)
+}
+
+// zkfcComponent implements ContainerComponentInterface for Zkfc
+type zkfcComponent struct {
+	clusterConfig *hdfsv1alpha1.ClusterConfigSpec
+}
+
+var _ common.ContainerComponentInterface = &zkfcComponent{}
+
+func (c *zkfcComponent) GetContainerName() string {
 	return string(Zkfc)
 }
 
-// CommandArgs zookeeper fail-over controller command args
-func (z *ZkfcContainerBuilder) CommandArgs() []string {
-	return common.ParseTemplate(`mkdir -p /kubedoop/config/zkfc
+func (c *zkfcComponent) GetCommand() []string {
+	return []string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}
+}
+
+func (c *zkfcComponent) GetArgs() []string {
+	tmpl := `mkdir -p /kubedoop/config/zkfc
 cp /kubedoop/mount/config/zkfc/*.xml /kubedoop/config/zkfc
 cp /kubedoop/mount/config/zkfc/zkfc.log4j.properties /kubedoop/config/zkfc/log4j.properties
 
@@ -44,28 +77,45 @@ cp /kubedoop/mount/config/zkfc/zkfc.log4j.properties /kubedoop/config/zkfc/log4j
 {{- end }}
 
 /kubedoop/hadoop/bin/hdfs zkfc
-`, common.CreateExportKrbRealmEnvData(z.clusterConfig))
+`
+	return common.ParseTemplate(tmpl, common.CreateExportKrbRealmEnvData(c.clusterConfig))
 }
 
-func (z *ZkfcContainerBuilder) ContainerEnv() []corev1.EnvVar {
-	return common.GetCommonContainerEnv(z.clusterConfig, Zkfc)
+func (c *zkfcComponent) GetEnvVars() []corev1.EnvVar {
+	return common.GetCommonContainerEnv(c.clusterConfig, Zkfc)
 }
 
-func (z *ZkfcContainerBuilder) VolumeMount() []corev1.VolumeMount {
-	mounts := common.GetCommonVolumeMounts(z.clusterConfig)
+func (c *zkfcComponent) GetPorts() []corev1.ContainerPort {
+	// Zkfc container doesn't need any ports
+	return nil
+}
+
+func (c *zkfcComponent) GetVolumeMounts() []corev1.VolumeMount {
+	mounts := common.GetCommonVolumeMounts(c.clusterConfig)
 	zkfcMounts := []corev1.VolumeMount{
 		{
 			Name:      hdfsv1alpha1.HdfsConfigVolumeMountName,
-			MountPath: constants.KubedoopConfigDirMount + "/" + z.ContainerName(),
+			MountPath: constants.KubedoopConfigDirMount + "/" + c.GetContainerName(),
 		},
 		{
-			Name:      hdfsv1alpha1.HdfsConfigVolumeMountName,
-			MountPath: constants.KubedoopLogDirMount + "/" + z.ContainerName(),
+			Name:      hdfsv1alpha1.HdfsLogVolumeMountName,
+			MountPath: constants.KubedoopLogDirMount + "/" + c.GetContainerName(),
 		},
 	}
 	return append(mounts, zkfcMounts...)
 }
 
-func (z *ZkfcContainerBuilder) Command() []string {
-	return common.GetCommonCommand()
+func (c *zkfcComponent) GetLivenessProbe() *corev1.Probe {
+	// Zkfc container doesn't need health checks
+	return nil
+}
+
+func (c *zkfcComponent) GetReadinessProbe() *corev1.Probe {
+	// Zkfc container doesn't need health checks
+	return nil
+}
+
+func (c *zkfcComponent) GetSecretEnvFrom() string {
+	// No secret environment required for zkfc
+	return ""
 }
