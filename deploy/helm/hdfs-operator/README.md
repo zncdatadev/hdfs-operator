@@ -19,9 +19,7 @@ please use `kubectl` to upgrade CRDs manually from [templates/crds](templates/cr
 To install the chart with the release name `hdfs-operator`:
 
 ```bash
-helm repo add kubedoop https://zncdatadev.github.io/kubedoop-helm-charts/
-
-helm install hdfs-operator kubedoop/hdfs-operator
+helm install hdfs-operator oci://quay.io/kubedoopcharts/hdfs-operator
 ```
 
 ## Usage
