@@ -52,7 +52,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Create KinD clustet pur
+      - name: Create KinD cluster
         env:
           KIND_K8S_VERSION: ${{ matrix.k8s-version}}
           KUBECONFIG: kind-kubeconfig-${{ matrix.k8s-version }}
