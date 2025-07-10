@@ -3,6 +3,7 @@ package container
 import (
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/constants"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
@@ -37,7 +38,7 @@ func NewFormatZookeeperContainerBuilder(
 func (b *FormatZookeeperContainerBuilder) Build() *corev1.Container {
 	// Create the common container builder
 	builder := common.NewHdfsContainerBuilder(
-		FormatZookeeper,
+		constant.FormatZookeeperComponent,
 		b.image,
 		b.instance.Spec.ClusterConfig.ZookeeperConfigMapName,
 		b.roleGroupInfo,
@@ -57,10 +58,11 @@ type formatZookeeperComponent struct {
 	clusterConfig *hdfsv1alpha1.ClusterConfigSpec
 }
 
+// Ensure formatZookeeperComponent implements the required interfaces
 var _ common.ContainerComponentInterface = &formatZookeeperComponent{}
 
 func (c *formatZookeeperComponent) GetContainerName() string {
-	return string(FormatZookeeper)
+	return string(constant.FormatZookeeperComponent)
 }
 
 func (c *formatZookeeperComponent) GetCommand() []string {
@@ -99,12 +101,7 @@ fi
 }
 
 func (c *formatZookeeperComponent) GetEnvVars() []corev1.EnvVar {
-	return common.GetCommonContainerEnv(c.clusterConfig, FormatZookeeper)
-}
-
-func (c *formatZookeeperComponent) GetPorts() []corev1.ContainerPort {
-	// Format zookeeper container doesn't need any ports
-	return nil
+	return common.GetCommonContainerEnv(c.clusterConfig, constant.FormatZookeeperComponent)
 }
 
 func (c *formatZookeeperComponent) GetVolumeMounts() []corev1.VolumeMount {
@@ -120,19 +117,4 @@ func (c *formatZookeeperComponent) GetVolumeMounts() []corev1.VolumeMount {
 		},
 	}
 	return append(mounts, formatZookeeperMounts...)
-}
-
-func (c *formatZookeeperComponent) GetLivenessProbe() *corev1.Probe {
-	// Format zookeeper container doesn't need health checks
-	return nil
-}
-
-func (c *formatZookeeperComponent) GetReadinessProbe() *corev1.Probe {
-	// Format zookeeper container doesn't need health checks
-	return nil
-}
-
-func (c *formatZookeeperComponent) GetSecretEnvFrom() string {
-	// No secret environment required for format zookeeper
-	return ""
 }

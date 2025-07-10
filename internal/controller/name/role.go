@@ -2,161 +2,164 @@ package name
 
 import (
 	"context"
-	"fmt"
-
-	"github.com/go-logr/logr"
-	"github.com/zncdatadev/operator-go/pkg/util"
-	"k8s.io/apimachinery/pkg/runtime"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"errors"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/client"
+	opconstants "github.com/zncdatadev/operator-go/pkg/constants"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
+	opgoutil "github.com/zncdatadev/operator-go/pkg/util"
 )
 
-// role server reconciler
-
-type Role struct {
-	common.BaseRoleReconciler[*hdfsv1alpha1.HdfsCluster]
+// NameNodeReconciler is the unified reconciler for NameNode
+// It implements both HdfsComponentReconciler and HdfsComponentResourceBuilder interfaces
+type NameNodeReconciler struct {
+	*common.BaseHdfsRoleReconciler
+	client               *client.Client
+	nameNodeSpec         *hdfsv1alpha1.RoleSpec
+	clusterComponentInfo *common.ClusterComponentsInfo
+	configSpec           hdfsv1alpha1.ConfigSpec
+	mergedConfig         *hdfsv1alpha1.RoleGroupSpec
 }
 
-// NewRoleNameNode  new roleMaster
-func NewRoleNameNode(
-	scheme *runtime.Scheme,
+var _ common.HdfsComponentReconciler = &NameNodeReconciler{}
+var _ common.HdfsComponentResourceBuilder = &NameNodeReconciler{}
+
+// NewNameNodeRole creates a new NameNode role reconciler
+func NewNameNodeRole(
+	client *client.Client,
+	roleInfo reconciler.RoleInfo,
+	spec *hdfsv1alpha1.RoleSpec,
+	image *opgoutil.Image,
 	instance *hdfsv1alpha1.HdfsCluster,
-	client client.Client,
-	log logr.Logger,
-	image *util.Image,
-) *Role {
-	r := &Role{
-		BaseRoleReconciler: common.BaseRoleReconciler[*hdfsv1alpha1.HdfsCluster]{
-			Scheme:   scheme,
-			Instance: instance,
-			Client:   client,
-			Log:      log,
-			Image:    image,
-		},
+) *NameNodeReconciler {
+	nameNodeReconciler := &NameNodeReconciler{
+		client:       client,
+		nameNodeSpec: spec,
 	}
-	r.Labels = r.GetLabels()
-	r.Role = r.RoleName()
-	return r
+
+	// Create base role reconciler with NameNode as component type
+	baseReconciler := common.NewBaseHdfsRoleReconciler(
+		client,
+		roleInfo,
+		spec,
+		instance,
+		image,
+		"namenode",
+		nameNodeReconciler, // Pass itself as the componentRec
+	)
+
+	nameNodeReconciler.BaseHdfsRoleReconciler = baseReconciler
+	return nameNodeReconciler
 }
 
-func (r *Role) RoleName() common.Role {
-	return common.NameNode
-}
-
-func (r *Role) CacheRoleGroupConfig() {
-	roleSpec := r.Instance.Spec.NameNode
-	groups := roleSpec.RoleGroups
-	// merge all the role-group cfg
-	// and cache it
-	for groupName, groupSpec := range groups {
-		mergedCfg := MergeConfig(roleSpec, groupSpec)
-		cacheKey := common.CreateRoleCfgCacheKey(r.Instance.GetName(), r.Role, groupName)
-		common.MergedCache.Set(cacheKey, mergedCfg)
+// RegisterResourceWithRoleGroup implements HdfsComponentReconciler interface
+func (r *NameNodeReconciler) RegisterResourceWithRoleGroup(
+	ctx context.Context,
+	replicas *int32,
+	roleGroupInfo *reconciler.RoleGroupInfo,
+	overrides *commonsv1alpha1.OverridesSpec,
+	config hdfsv1alpha1.ConfigSpec,
+) ([]reconciler.Reconciler, error) {
+	// Use common resource registration logic
+	reconcilers, err := common.RegisterStandardResources(
+		ctx,
+		r.client,
+		r, // NameNodeReconciler implements HdfsComponentResourceBuilder interface
+		replicas,
+		r.Image,
+		r.HdfsCluster,
+		r.ClusterOperation,
+		roleGroupInfo,
+		config,
+		overrides,
+	)
+	if err != nil {
+		return nil, err
 	}
+
+	return reconcilers, nil
 }
 
-func (r *Role) ReconcileRole(ctx context.Context) (ctrl.Result, error) {
-	roleCfg := r.Instance.Spec.NameNode
-	// role pdb
-	if roleCfg.Config != nil && roleCfg.Config.PodDisruptionBudget != nil {
-		pdb := common.NewReconcilePDB(r.Client, r.Scheme, r.Instance, r.GetLabels(), string(r.RoleName()),
-			roleCfg.PodDisruptionBudget)
-		res, err := pdb.ReconcileResource(ctx, common.NewSingleResourceBuilder(pdb))
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		if res.RequeueAfter > 0 {
-			return res, nil
-		}
+// CreateConfigMapReconciler implements common.HdfsComponentResourceBuilder.
+func (r *NameNodeReconciler) CreateConfigMapReconciler(
+	ctx context.Context,
+	client *client.Client,
+	hdfsCluster *hdfsv1alpha1.HdfsCluster,
+	roleGroupInfo *reconciler.RoleGroupInfo,
+	config hdfsv1alpha1.ConfigSpec,
+	overrides *commonsv1alpha1.OverridesSpec,
+) (reconciler.Reconciler, error) {
+
+	cmBuilder := NewNamenodeConfigMapBuilder(
+		ctx,
+		client,
+		roleGroupInfo,
+		overrides,
+		r.configSpec.RoleGroupConfigSpec,
+		hdfsCluster,
+		r.mergedConfig,
+	)
+
+	if a, ok := cmBuilder.(common.ConfigMapComponentBuilder); ok {
+		// Ensure the builder implements ConfigMapComponentBuilder
+		cmReconciler := common.NewConfigMapReconciler(
+			ctx,
+			client,
+			constant.NameNode,
+			roleGroupInfo,
+			overrides,
+			r.configSpec.RoleGroupConfigSpec,
+			hdfsCluster,
+			a, // NameNodeReconciler implements ConfigMapComponentBuilder
+			common.GetVectorConfigMapName(hdfsCluster),
+		)
+
+		return cmReconciler, nil
 	}
-	// reconciler groups
-	for name := range roleCfg.RoleGroups {
-		groupReconciler := NewRoleGroupReconciler(r.Scheme, r.Instance, r.Client, name, r.GetLabels(), r.Log, r.Image)
-		res, err := groupReconciler.ReconcileGroup(ctx)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		if res.RequeueAfter > 0 {
-			return res, nil
-		}
-	}
-	return ctrl.Result{}, nil
+
+	return nil, errors.New("NamenodeConfigMapBuilder does not implement ConfigMapComponentBuilder")
 }
 
-// RoleGroup master role group reconcile
-type RoleGroup struct {
-	common.BaseRoleGroupReconciler[*hdfsv1alpha1.HdfsCluster]
+// CreateServiceReconcilers implements HdfsComponentResourceBuilder interface
+func (r *NameNodeReconciler) CreateServiceReconcilers(
+	client *client.Client,
+	roleGroupInfo *reconciler.RoleGroupInfo,
+) []reconciler.Reconciler {
+	svcBuilder := NewNameNodeServiceBuilder(
+		client,
+		roleGroupInfo,
+		r.HdfsCluster.Spec.ClusterConfig,
+	)
+
+	// Since NameNodeServiceBuilder implements both ServicePortProvider and ServiceBuilder,
+	// we can pass it directly as ServicePortProvider
+	serviceReconciler := common.NewRoleGroupService(
+		client,
+		roleGroupInfo,
+		opconstants.ClusterInternal,
+		true,
+		svcBuilder, // Type assertion to get the concrete type
+	)
+
+	return []reconciler.Reconciler{serviceReconciler}
 }
 
-func NewRoleGroupReconciler(
-	scheme *runtime.Scheme,
-	instance *hdfsv1alpha1.HdfsCluster,
-	client client.Client,
-	groupName string,
-	roleLabels map[string]string,
-	log logr.Logger,
-	image *util.Image,
-) *RoleGroup {
-	r := &RoleGroup{
-		BaseRoleGroupReconciler: common.BaseRoleGroupReconciler[*hdfsv1alpha1.HdfsCluster]{
-			Scheme:     scheme,
-			Instance:   instance,
-			Client:     client,
-			GroupName:  groupName,
-			RoleLabels: roleLabels,
-			Log:        log,
-			Image:      image,
-		},
-	}
-	r.RegisterResource()
-	return r
-}
-
-func (m *RoleGroup) RegisterResource() {
-	cfg := m.MergeGroupConfigSpec()
-	lables := m.MergeLabels(cfg)
-	mergedCfg := cfg.(*hdfsv1alpha1.NameNodeRoleGroupSpec)
-	// merge default and merged config
-	nameNodeDefaultConfig := common.DefaultNameNodeConfig(m.Instance.GetName())
-	nameNodeDefaultConfig.MergeDefaultConfig(mergedCfg)
-
-	pdbSpec := mergedCfg.Config.PodDisruptionBudget
-	pdb := common.NewReconcilePDB(m.Client, m.Scheme, m.Instance, lables, m.GroupName, pdbSpec)
-	cm := NewConfigMap(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg)
-	// logging := NewNameNodeLogging(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, common.NameNode)
-	statefulSet := NewStatefulSet(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, mergedCfg.Replicas, m.Image)
-	svc := NewServiceHeadless(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg)
-	m.Reconcilers = []common.ResourceReconciler{cm, pdb, svc, statefulSet}
-}
-
-func (m *RoleGroup) MergeGroupConfigSpec() any {
-	cacheKey := common.CreateRoleCfgCacheKey(m.Instance.GetName(), common.NameNode, m.GroupName)
-	if cfg, ok := common.MergedCache.Get(cacheKey); ok {
-		return cfg
-	}
-	panic(fmt.Sprintf("role group config not found: %s, key: %s", m.GroupName, cacheKey))
-}
-
-func (m *RoleGroup) MergeLabels(mergedCfg any) map[string]string {
-	mergedMasterCfg := mergedCfg.(*hdfsv1alpha1.NameNodeRoleGroupSpec)
-	return m.AppendLabels(mergedMasterCfg.Config.NodeSelector)
-}
-
-// MergeConfig merge the role's config into the role group's config
-func MergeConfig(masterRole *hdfsv1alpha1.NameNodeSpec,
-	group *hdfsv1alpha1.NameNodeRoleGroupSpec) *hdfsv1alpha1.NameNodeRoleGroupSpec {
-	copiedRoleGroup := group.DeepCopy()
-	// Merge the role into the role group.
-	// if the role group has a config, and role group not has a config, will
-	// merge the role's config into the role group's config.
-	common.MergeObjects(copiedRoleGroup, masterRole, []string{"RoleGroups"})
-
-	// merge the role's config into the role group's config
-	if masterRole.Config != nil && copiedRoleGroup.Config != nil {
-		common.MergeObjects(copiedRoleGroup.Config, masterRole.Config, []string{})
-	}
-	return copiedRoleGroup
+// CreateStatefulSetReconciler implements HdfsComponentResourceBuilder interface
+func (r *NameNodeReconciler) CreateStatefulSetReconciler(
+	ctx context.Context,
+	client *client.Client,
+	image *opgoutil.Image,
+	replicas *int32,
+	hdfsCluster *hdfsv1alpha1.HdfsCluster,
+	clusterOperation *commonsv1alpha1.ClusterOperationSpec,
+	roleGroupInfo *reconciler.RoleGroupInfo,
+	config hdfsv1alpha1.ConfigSpec,
+	overrides *commonsv1alpha1.OverridesSpec,
+) (reconciler.Reconciler, error) {
+	
+	return nil, nil
 }

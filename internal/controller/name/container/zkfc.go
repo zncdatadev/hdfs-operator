@@ -3,6 +3,7 @@ package container
 import (
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/constants"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
@@ -37,7 +38,7 @@ func NewZkfcContainerBuilder(
 func (b *ZkfcContainerBuilder) Build() *corev1.Container {
 	// Create the common container builder
 	builder := common.NewHdfsContainerBuilder(
-		Zkfc,
+		constant.ZkfcComponent,
 		b.image,
 		b.instance.Spec.ClusterConfig.ZookeeperConfigMapName,
 		b.roleGroupInfo,
@@ -60,7 +61,7 @@ type zkfcComponent struct {
 var _ common.ContainerComponentInterface = &zkfcComponent{}
 
 func (c *zkfcComponent) GetContainerName() string {
-	return string(Zkfc)
+	return string(constant.ZkfcComponent)
 }
 
 func (c *zkfcComponent) GetCommand() []string {
@@ -82,12 +83,7 @@ cp /kubedoop/mount/config/zkfc/zkfc.log4j.properties /kubedoop/config/zkfc/log4j
 }
 
 func (c *zkfcComponent) GetEnvVars() []corev1.EnvVar {
-	return common.GetCommonContainerEnv(c.clusterConfig, Zkfc)
-}
-
-func (c *zkfcComponent) GetPorts() []corev1.ContainerPort {
-	// Zkfc container doesn't need any ports
-	return nil
+	return common.GetCommonContainerEnv(c.clusterConfig, constant.ZkfcComponent)
 }
 
 func (c *zkfcComponent) GetVolumeMounts() []corev1.VolumeMount {
@@ -103,19 +99,4 @@ func (c *zkfcComponent) GetVolumeMounts() []corev1.VolumeMount {
 		},
 	}
 	return append(mounts, zkfcMounts...)
-}
-
-func (c *zkfcComponent) GetLivenessProbe() *corev1.Probe {
-	// Zkfc container doesn't need health checks
-	return nil
-}
-
-func (c *zkfcComponent) GetReadinessProbe() *corev1.Probe {
-	// Zkfc container doesn't need health checks
-	return nil
-}
-
-func (c *zkfcComponent) GetSecretEnvFrom() string {
-	// No secret environment required for zkfc
-	return ""
 }

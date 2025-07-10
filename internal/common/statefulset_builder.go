@@ -4,61 +4,60 @@ import (
 	"context"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/builder"
+	"github.com/zncdatadev/operator-go/pkg/client"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	"github.com/zncdatadev/operator-go/pkg/util"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-)
-
-// RoleType represents different HDFS component types
-type RoleType string
-
-const (
-	NameNode    RoleType = "namenode"
-	DataNode    RoleType = "datanode"
-	JournalNode RoleType = "journalnode"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // StatefulSetBuilder is the common builder for HDFS StatefulSets
 type StatefulSetBuilder struct {
-	scheme      *runtime.Scheme
-	client      client.Client
-	instance    *hdfsv1alpha1.HdfsCluster
-	groupName   string
-	labels      map[string]string
-	roleType    RoleType
-	replicas    *int32
-	image       *util.Image
-	serviceName string
-	ctx         context.Context
+	*builder.StatefulSet
+	instance      *hdfsv1alpha1.HdfsCluster
+	roleGroupInfo *reconciler.RoleGroupInfo
+	roleType      constant.Role
+	ctx           context.Context
 }
 
 // NewStatefulSetBuilder creates a new StatefulSetBuilder with common configuration
 func NewStatefulSetBuilder(
 	ctx context.Context,
-	scheme *runtime.Scheme,
-	instance *hdfsv1alpha1.HdfsCluster,
-	client client.Client,
-	groupName string,
-	labels map[string]string,
-	roleType RoleType,
-	replicas *int32,
+	client *client.Client,
+	roleGroupInfo *reconciler.RoleGroupInfo,
 	image *util.Image,
-	serviceName string,
+	replicas *int32,
+	roleConfig *commonsv1alpha1.RoleGroupConfigSpec,
+	overrides *commonsv1alpha1.OverridesSpec,
+	instance *hdfsv1alpha1.HdfsCluster,
+	roleType constant.Role,
 ) *StatefulSetBuilder {
+	statefulSetBuilder := builder.NewStatefulSetBuilder(
+		client,
+		roleGroupInfo.GetFullName(),
+		replicas,
+		image,
+		overrides,
+		roleConfig,
+		func(o *builder.Options) {
+			o.ClusterName = roleGroupInfo.ClusterName
+			o.Labels = roleGroupInfo.GetLabels()
+			o.Annotations = roleGroupInfo.GetAnnotations()
+			o.RoleName = roleGroupInfo.RoleName
+			o.RoleGroupName = roleGroupInfo.GetGroupName()
+		},
+	)
+
 	return &StatefulSetBuilder{
-		scheme:      scheme,
-		client:      client,
-		instance:    instance,
-		groupName:   groupName,
-		labels:      labels,
-		roleType:    roleType,
-		replicas:    replicas,
-		image:       image,
-		serviceName: serviceName,
-		ctx:         ctx,
+		StatefulSet:   statefulSetBuilder,
+		instance:      instance,
+		roleGroupInfo: roleGroupInfo,
+		roleType:      roleType,
+		ctx:           ctx,
 	}
 }
 
@@ -81,39 +80,46 @@ type StatefulSetComponentBuilder interface {
 }
 
 // Build constructs the StatefulSet object combining common and component-specific configurations
-func (b *StatefulSetBuilder) Build(ctx context.Context, component StatefulSetComponentBuilder) (client.Object, error) {
+func (b *StatefulSetBuilder) Build(ctx context.Context, component StatefulSetComponentBuilder) (ctrlclient.Object, error) {
+	// Add component-specific containers
+	for _, container := range component.GetMainContainers() {
+		b.AddContainer(&container)
+	}
+
+	// Add init containers if any
+	for _, initContainer := range component.GetInitContainers() {
+		b.AddInitContainer(&initContainer)
+	}
+
 	// Get common volumes
-	commonVolumes := GetCommonVolumes(b.instance.Spec.ClusterConfig, b.instance.GetName(), string(b.roleType))
+	commonVolumes := GetCommonVolumes(b.instance.Spec.ClusterConfig, b.instance.GetName(), b.roleType)
 
-	// Combine common and component-specific volumes
-	allVolumes := append(commonVolumes, component.GetVolumes()...)
+	// Add common volumes
+	b.AddVolumes(commonVolumes)
 
-	// Create the StatefulSet object
-	sts := &appv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      component.GetName(),
-			Namespace: b.instance.GetNamespace(),
-			Labels:    b.labels,
-		},
-		Spec: appv1.StatefulSetSpec{
-			ServiceName:          b.serviceName,
-			Replicas:             b.replicas,
-			Selector:             &metav1.LabelSelector{MatchLabels: b.labels},
-			PodManagementPolicy:  appv1.ParallelPodManagement,
-			VolumeClaimTemplates: component.GetVolumeClaimTemplates(),
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: b.labels,
-				},
-				Spec: corev1.PodSpec{
-					ServiceAccountName: component.GetServiceAccountName(),
-					SecurityContext:    component.GetSecurityContext(),
-					Containers:         component.GetMainContainers(),
-					InitContainers:     component.GetInitContainers(),
-					Volumes:            allVolumes,
-				},
-			},
-		},
+	// Add component-specific volumes
+	b.AddVolumes(component.GetVolumes())
+
+	// Add volume claim templates
+	b.AddVolumeClaimTemplates(component.GetVolumeClaimTemplates())
+
+	// Create the StatefulSet object using the embedded builder
+	sts, err := b.GetObject()
+	if err != nil {
+		return nil, err
+	}
+
+	// Set parallel pod management for faster scaling
+	sts.Spec.PodManagementPolicy = appv1.ParallelPodManagement
+
+	// Set security context if provided
+	if securityContext := component.GetSecurityContext(); securityContext != nil {
+		sts.Spec.Template.Spec.SecurityContext = securityContext
+	}
+
+	// Set service account name if provided
+	if serviceAccountName := component.GetServiceAccountName(); serviceAccountName != "" {
+		sts.Spec.Template.Spec.ServiceAccountName = serviceAccountName
 	}
 
 	// Add vector container if enabled
@@ -150,32 +156,12 @@ func (b *StatefulSetBuilder) GetInstance() *hdfsv1alpha1.HdfsCluster {
 	return b.instance
 }
 
-// GetGroupName returns the group name
-func (b *StatefulSetBuilder) GetGroupName() string {
-	return b.groupName
-}
-
-// GetLabels returns the labels
-func (b *StatefulSetBuilder) GetLabels() map[string]string {
-	return b.labels
+// GetRoleGroupInfo returns the role group info
+func (b *StatefulSetBuilder) GetRoleGroupInfo() *reconciler.RoleGroupInfo {
+	return b.roleGroupInfo
 }
 
 // GetRoleType returns the role type
-func (b *StatefulSetBuilder) GetRoleType() RoleType {
+func (b *StatefulSetBuilder) GetRoleType() constant.Role {
 	return b.roleType
-}
-
-// GetImage returns the image
-func (b *StatefulSetBuilder) GetImage() *util.Image {
-	return b.image
-}
-
-// GetClient returns the client
-func (b *StatefulSetBuilder) GetClient() client.Client {
-	return b.client
-}
-
-// GetScheme returns the scheme
-func (b *StatefulSetBuilder) GetScheme() *runtime.Scheme {
-	return b.scheme
 }

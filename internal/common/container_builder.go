@@ -34,53 +34,6 @@ type ContainerSecretProvider interface {
 	GetSecretEnvFrom() string
 }
 
-// DefaultContainerComponent provides default implementations for optional methods
-type DefaultContainerComponent struct {
-	containerName string
-}
-
-func NewDefaultContainerComponent(containerName string) *DefaultContainerComponent {
-	return &DefaultContainerComponent{
-		containerName: containerName,
-	}
-}
-
-func (d *DefaultContainerComponent) GetContainerName() string {
-	return d.containerName
-}
-
-func (d *DefaultContainerComponent) GetCommand() []string {
-	return []string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}
-}
-
-func (d *DefaultContainerComponent) GetArgs() []string {
-	return []string{"echo 'Default implementation'"}
-}
-
-func (d *DefaultContainerComponent) GetEnvVars() []corev1.EnvVar {
-	return []corev1.EnvVar{}
-}
-
-func (d *DefaultContainerComponent) GetVolumeMounts() []corev1.VolumeMount {
-	return []corev1.VolumeMount{}
-}
-
-func (d *DefaultContainerComponent) GetPorts() []corev1.ContainerPort {
-	return []corev1.ContainerPort{}
-}
-
-func (d *DefaultContainerComponent) GetLivenessProbe() *corev1.Probe {
-	return nil
-}
-
-func (d *DefaultContainerComponent) GetReadinessProbe() *corev1.Probe {
-	return nil
-}
-
-func (d *DefaultContainerComponent) GetSecretEnvFrom() string {
-	return ""
-}
-
 // HdfsContainerBuilder represents the new HDFS container builder
 type HdfsContainerBuilder struct {
 	*builder.Container
@@ -99,7 +52,7 @@ type HdfsContainerBuilder struct {
 }
 
 func NewHdfsContainerBuilder(
-	container ContainerComponent,
+	container constant.ContainerComponent,
 	image *opgoutil.Image,
 	zookeeperConfigMapName string,
 	roleGroupInfo *reconciler.RoleGroupInfo,

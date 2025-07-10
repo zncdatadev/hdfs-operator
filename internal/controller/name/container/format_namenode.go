@@ -7,6 +7,7 @@ import (
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/constants"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
@@ -31,7 +32,6 @@ func NewFormatNameNodeContainerBuilder(
 	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec,
 	image *oputil.Image,
 	nameNodeReplicates int32,
-	statefulSetName string,
 ) *FormatNameNodeContainerBuilder {
 	return &FormatNameNodeContainerBuilder{
 		instance:           instance,
@@ -39,7 +39,6 @@ func NewFormatNameNodeContainerBuilder(
 		roleGroupConfig:    roleGroupConfig,
 		image:              image,
 		nameNodeReplicates: nameNodeReplicates,
-		statefulSetName:    statefulSetName,
 	}
 }
 
@@ -47,7 +46,7 @@ func NewFormatNameNodeContainerBuilder(
 func (b *FormatNameNodeContainerBuilder) Build() *corev1.Container {
 	// Create the common container builder
 	builder := common.NewHdfsContainerBuilder(
-		FormatNameNode,
+		constant.FormatNameNodeComponent,
 		b.image,
 		b.instance.Spec.ClusterConfig.ZookeeperConfigMapName,
 		b.roleGroupInfo,
@@ -62,7 +61,6 @@ func (b *FormatNameNodeContainerBuilder) Build() *corev1.Container {
 
 // formatNameNodeComponent implements ContainerComponentInterface for FormatNameNode
 type formatNameNodeComponent struct {
-	*common.DefaultContainerComponent
 	instance           *hdfsv1alpha1.HdfsCluster
 	nameNodeReplicates int32
 	statefulSetName    string
@@ -73,11 +71,14 @@ var _ common.ContainerComponentInterface = &formatNameNodeComponent{}
 
 func newFormatNameNodeComponent(instance *hdfsv1alpha1.HdfsCluster, nameNodeReplicates int32, statefulSetName string) *formatNameNodeComponent {
 	return &formatNameNodeComponent{
-		DefaultContainerComponent: common.NewDefaultContainerComponent(string(FormatNameNode)),
-		instance:                  instance,
-		nameNodeReplicates:        nameNodeReplicates,
-		statefulSetName:           statefulSetName,
+		instance:           instance,
+		nameNodeReplicates: nameNodeReplicates,
+		statefulSetName:    statefulSetName,
 	}
+}
+
+func (c *formatNameNodeComponent) GetContainerName() string {
+	return string(constant.FormatNameNodeComponent)
 }
 
 func (c *formatNameNodeComponent) GetCommand() []string {
@@ -128,13 +129,13 @@ else
 fi
 `
 	data := common.CreateExportKrbRealmEnvData(c.instance.Spec.ClusterConfig)
-	principal := common.CreateKerberosPrincipal(c.instance.Name, c.instance.Namespace, GetRole())
+	principal := common.CreateKerberosPrincipal(c.instance.Name, c.instance.Namespace, constant.NameNode)
 	maps.Copy(data, common.CreateGetKerberosTicketData(principal))
 	return common.ParseTemplate(tmpl, data)
 }
 
 func (c *formatNameNodeComponent) GetEnvVars() []corev1.EnvVar {
-	return common.GetCommonContainerEnv(c.instance.Spec.ClusterConfig, FormatNameNode)
+	return common.GetCommonContainerEnv(c.instance.Spec.ClusterConfig, constant.FormatNameNodeComponent)
 }
 
 func (c *formatNameNodeComponent) GetVolumeMounts() []corev1.VolumeMount {

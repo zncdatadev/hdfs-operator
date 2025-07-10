@@ -18,21 +18,23 @@ package controller
 
 import (
 	"context"
-	"time"
-
-	"emperror.dev/errors"
 
 	"github.com/go-logr/logr"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/client"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
 )
+
+var logger = ctrl.Log.WithName("hdfscluster-controller")
 
 // HdfsClusterReconciler reconciles a HdfsCluster object
 type HdfsClusterReconciler struct {
-	client.Client
+	ctrlclient.Client
 	Scheme *runtime.Scheme
 	Log    logr.Logger
 }
@@ -59,31 +61,59 @@ type HdfsClusterReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.15.0/pkg/reconcile
 func (r *HdfsClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	r.Log.Info("Reconciling hdfs cluster instance")
+	logger.V(1).Info("Reconciling HdfsCluster")
 
-	cr := &hdfsv1alpha1.HdfsCluster{}
-
-	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			r.Log.Error(err, "unable to fetch HdfsCluster")
-			return ctrl.Result{}, err
-		}
-		r.Log.Info("Hdfs-cluster resource not found. Ignoring since object must be deleted")
-		return ctrl.Result{}, nil
-	}
-
-	r.Log.Info("HdfsCluster found", "Name", cr.Name)
-	// reconcile order by "cluster -> role -> role-group -> resource"
-	result, err := NewClusterReconciler(r.Client, r.Scheme, cr).ReconcileCluster(ctx)
+	instance := &hdfsv1alpha1.HdfsCluster{}
+	err := r.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
-		if errors.Is(err, ErrListenerNotFound) || errors.Is(err, ErrListenerAddressesNotFound) {
-			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+		if ctrlclient.IgnoreNotFound(err) == nil {
+			logger.V(1).Info("HdfsCluster not found, may have been deleted")
+			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
-	} else if result.RequeueAfter > 0 {
+	}
+	logger.V(1).Info("HdfsCluster found", "namespace", instance.Namespace, "name", instance.Name)
+
+	resourceClient := &client.Client{
+		Client:         r.Client,
+		OwnerReference: instance,
+	}
+
+	gvk := instance.GetObjectKind().GroupVersionKind()
+
+	clusterReconciler := NewClusterReconciler(
+		resourceClient,
+		reconciler.ClusterInfo{
+			GVK: &metav1.GroupVersionKind{
+				Group:   gvk.Group,
+				Version: gvk.Version,
+				Kind:    gvk.Kind,
+			},
+			ClusterName: instance.Name,
+		},
+		&instance.Spec,
+	)
+
+	if err := clusterReconciler.RegisterResources(ctx); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if result, err := clusterReconciler.Reconcile(ctx); err != nil {
+		return ctrl.Result{}, err
+	} else if !result.IsZero() {
 		return result, nil
 	}
-	r.Log.Info("Reconcile successfully ", "Name", cr.Name)
+
+	logger.Info("Cluster resource reconciled, checking if ready.", "cluster", instance.Name, "namespace", instance.Namespace)
+
+	if result, err := clusterReconciler.Ready(ctx); err != nil {
+		return ctrl.Result{}, err
+	} else if !result.IsZero() {
+		return result, nil
+	}
+
+	logger.V(1).Info("Reconcile finished.", "cluster", instance.Name, "namespace", instance.Namespace)
+
 	return ctrl.Result{}, nil
 }
 

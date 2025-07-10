@@ -1,50 +1,29 @@
 package controller
 
 import (
-	"context"
-
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"github.com/zncdatadev/operator-go/pkg/builder"
+	"github.com/zncdatadev/operator-go/pkg/client"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
 )
 
-type ServiceAccountReconciler struct {
-	common.GeneralResourceStyleReconciler[*hdfsv1alpha1.HdfsCluster, any]
-}
-
-// NewServiceAccount new a ServiceAccountReconciler
-func NewServiceAccount(
-	scheme *runtime.Scheme,
+// NewServiceAccountReconciler creates a new ServiceAccountReconciler
+func NewServiceAccountReconciler(
+	client *client.Client,
 	instance *hdfsv1alpha1.HdfsCluster,
-	client client.Client,
-	groupName string,
 	mergedLabels map[string]string,
-	mergedCfg any,
-) *ServiceAccountReconciler {
-	return &ServiceAccountReconciler{
-		GeneralResourceStyleReconciler: *common.NewGeneraResourceStyleReconciler(
-			scheme,
-			instance,
-			client,
-			groupName,
-			mergedLabels,
-			mergedCfg,
-		),
-	}
-}
+	options ...builder.Option,
+) reconciler.ResourceReconciler[*builder.GenericServiceAccountBuilder] {
 
-// Build implements the ResourceBuilder interface
-func (r *ServiceAccountReconciler) Build(_ context.Context) (client.Object, error) {
-	saToken := true
-	return &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.CreateServiceAccountName(r.Instance.GetName()),
-			Namespace: r.Instance.Namespace,
-			Labels:    r.MergedLabels,
-		},
-		AutomountServiceAccountToken: &saToken,
-	}, nil
+	saBuilder := builder.NewGenericServiceAccountBuilder(
+		client,
+		common.CreateServiceAccountName(instance.GetName()),
+		options...,
+	)
+
+	return reconciler.NewGenericResourceReconciler(
+		client,
+		saBuilder,
+	)
 }

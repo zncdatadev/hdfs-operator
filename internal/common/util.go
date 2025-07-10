@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
 	"github.com/zncdatadev/hdfs-operator/internal/util"
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/constants"
@@ -70,36 +71,6 @@ func ConvertToResourceRequirements(resources *commonsv1alpha1.ResourcesSpec) *co
 	return nil
 }
 
-// Name node
-
-func CreateNameNodeStatefulSetName(instanceName string, groupName string) string {
-	return CreateRoleStatefulSetName(instanceName, NameNode, groupName)
-}
-
-func CreateNameNodeServiceName(instanceName string, groupName string) string {
-	return CreateRoleServiceName(instanceName, NameNode, groupName)
-}
-
-// Data node
-
-func CreateDataNodeStatefulSetName(instanceName string, groupName string) string {
-	return CreateRoleStatefulSetName(instanceName, DataNode, groupName)
-}
-
-func CreateDataNodeServiceName(instanceName string, groupName string) string {
-	return CreateRoleServiceName(instanceName, DataNode, groupName)
-}
-
-// Journal node
-
-func CreateJournalNodeStatefulSetName(instanceName string, groupName string) string {
-	return CreateRoleStatefulSetName(instanceName, JournalNode, groupName)
-}
-
-func CreateJournalNodeServiceName(instanceName string, groupName string) string {
-	return CreateRoleServiceName(instanceName, JournalNode, groupName)
-}
-
 // CreateJournalUrl create Journal Url
 func CreateJournalUrl(jnSvcs []string, instanceName string) string {
 	return fmt.Sprintf("qjournal://%s/%s", strings.Join(jnSvcs, ";"), instanceName)
@@ -122,14 +93,6 @@ func CreateNetworkUrl(podName string, svcName, namespace, clusterDomain string, 
 
 func CreateDnsDomain(svcName, namespace, clusterDomain string, port int32) string {
 	return fmt.Sprintf("%s.%s.svc.%s:%d", svcName, namespace, clusterDomain, port)
-}
-
-func CreateRoleStatefulSetName(instanceName string, role Role, groupName string) string {
-	return util.NewResourceNameGenerator(instanceName, string(role), groupName).GenerateResourceName("")
-}
-
-func CreateRoleServiceName(instanceName string, role Role, groupName string) string {
-	return util.NewResourceNameGenerator(instanceName, string(role), groupName).GenerateResourceName("")
 }
 
 // CreatePodNamesByReplicas create pod names by replicas
@@ -169,22 +132,7 @@ func CreateXmlContentByReplicas(replicas int32, keyTemplate string, valueTemplat
 	return res
 }
 
-func CreateRoleCfgCacheKey(instanceName string, role Role, groupName string) string {
-	return util.NewResourceNameGenerator(instanceName, string(role), groupName).GenerateResourceName("cache")
-}
-func GetMergedRoleGroupCfg(role Role, instanceName string, groupName string) any {
-	cfg, ok := MergedCache.Get(CreateRoleCfgCacheKey(instanceName, role, groupName))
-	if !ok {
-		cfg, ok = MergedCache.Get(CreateRoleCfgCacheKey(instanceName, role, "default"))
-		if ok {
-			return cfg
-		}
-		panic(fmt.Sprintf("%s config not found in cache)", role))
-	}
-	return cfg
-}
-
-func GetCommonContainerEnv(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, container ContainerComponent) []corev1.EnvVar {
+func GetCommonContainerEnv(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, container constant.ContainerComponent) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
 			Name:  "HADOOP_CONF_DIR",
@@ -209,7 +157,7 @@ func GetCommonContainerEnv(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, contai
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: clusterConfig.ZookeeperConfigMapName,
 					},
-					Key: ZookeeperHdfsDiscoveryKey,
+					Key: constant.ZookeeperHdfsDiscoveryKey,
 				},
 			},
 		},
@@ -236,7 +184,7 @@ func GetCommonContainerEnv(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, contai
 	return envs
 }
 
-func GetCommonVolumes(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, instanceName string, role Role) []corev1.Volume {
+func GetCommonVolumes(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, instanceName string, role constant.Role) []corev1.Volume {
 	limit := resource.MustParse("150Mi")
 	volumes := []corev1.Volume{
 		{
@@ -260,27 +208,27 @@ func GetCommonVolumes(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, instanceNam
 
 }
 
-func getEnvNameByContainerComponent(container ContainerComponent) string {
+func getEnvNameByContainerComponent(container constant.ContainerComponent) string {
 	switch string(container) {
-	case string(NameNode):
+	case string(constant.NameNodeComponent):
 		return "HDFS_NAMENODE_OPTS"
-	case string(DataNode):
+	case string(constant.DataNodeComponent):
 		return "HDFS_DATANODE_OPTS"
-	case string(JournalNode):
+	case string(constant.JournalNodeComponent):
 		return "HDFS_JOURNALNODE_OPTS"
 	default:
 		return ""
 	}
 }
 
-func getSubDirByContainerComponent(container ContainerComponent) string {
-	switch string(container) {
-	case string(NameNode):
-		return "namenode"
-	case string(DataNode):
-		return "datanode"
-	case string(JournalNode):
-		return "journalnode"
+func getSubDirByContainerComponent(container constant.ContainerComponent) string {
+	switch container {
+	case constant.NameNodeComponent:
+		return constant.NameNodeContainer
+	case constant.DataNodeComponent:
+		return constant.DataNodeContainer
+	case constant.JournalNodeComponent:
+		return constant.JournalNodeContainer
 	default:
 		panic(fmt.Sprintf("unsupported container component for get sub dir: %s", container))
 	}
@@ -311,6 +259,23 @@ const (
 	HdfsFileLogAppender    = "FILE"
 )
 
+// Log4j logging configuration structures
+type LogBuilderLoggers struct {
+	logger string
+	level  string
+}
+
+type LogBuilderAppender struct {
+	appenderName string
+	level        string
+}
+
+type Log4jLoggingDataBuilder struct {
+	Loggers []LogBuilderLoggers
+	Console *LogBuilderAppender
+	File    *LogBuilderAppender
+}
+
 func CreateLog4jBuilder(containerLogging *hdfsv1alpha1.LoggingConfigSpec, consoleAppenderName,
 	fileAppenderName string) *Log4jLoggingDataBuilder {
 	log4jBuilder := &Log4jLoggingDataBuilder{}
@@ -340,15 +305,7 @@ func CreateLog4jBuilder(containerLogging *hdfsv1alpha1.LoggingConfigSpec, consol
 	return log4jBuilder
 }
 
-func NameNodePodNames(instanceName string, groupName string) []string {
-	nameNodeStatefulSetName := CreateNameNodeStatefulSetName(instanceName, groupName)
-	nameNodeCfg := GetMergedRoleGroupCfg(NameNode, instanceName, groupName).(*hdfsv1alpha1.NameNodeRoleGroupSpec)
-	naneNodeReplicas := nameNodeCfg.Replicas
-	pods := CreatePodNamesByReplicas(naneNodeReplicas, nameNodeStatefulSetName)
-	return pods
-}
-
-func AffinityDefault(role Role, crName string) *corev1.Affinity {
+func AffinityDefault(role constant.Role, crName string) *corev1.Affinity {
 	return &corev1.Affinity{
 		PodAffinity: &corev1.PodAffinity{
 			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{

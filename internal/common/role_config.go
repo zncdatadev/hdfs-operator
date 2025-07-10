@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/constants"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -26,12 +27,12 @@ type GeneralNodeConfig struct {
 	gracefulShutdownTimeout time.Duration
 }
 
-func newDefaultResourceSpec(role Role) *commonsv1alpha1.ResourcesSpec {
-	return GetContainerResource(role, string(role))
+func newDefaultResourceSpec(role constant.Role) *commonsv1alpha1.ResourcesSpec {
+	return GetContainerResource(role, "todo")
 }
 
 // DefaultNodeConfig default node config
-func DefaultNodeConfig(clusterName string, role Role, listenerClass constants.ListenerClass, gracefulShutdownTimeout time.Duration) *RoleNodeConfig {
+func DefaultNodeConfig(clusterName string, role constant.Role, listenerClass constants.ListenerClass, gracefulShutdownTimeout time.Duration) *RoleNodeConfig {
 	return &RoleNodeConfig{
 		resources:     newDefaultResourceSpec(role),
 		listenerClass: listenerClass,
@@ -48,15 +49,15 @@ func DefaultNodeConfig(clusterName string, role Role, listenerClass constants.Li
 }
 
 func DefaultNameNodeConfig(clusterName string) *RoleNodeConfig {
-	return DefaultNodeConfig(clusterName, NameNode, constants.ClusterInternal, 15*time.Minute)
+	return DefaultNodeConfig(clusterName, constant.NameNode, constants.ClusterInternal, 15*time.Minute)
 }
 
 func DefaultDataNodeConfig(clusterName string) *RoleNodeConfig {
-	return DefaultNodeConfig(clusterName, DataNode, constants.ClusterInternal, 30*time.Minute)
+	return DefaultNodeConfig(clusterName, constant.DataNode, constants.ClusterInternal, 30*time.Minute)
 }
 
 func DefaultJournalNodeConfig(clusterName string) *RoleNodeConfig {
-	return DefaultNodeConfig(clusterName, JournalNode, "", 15*time.Minute)
+	return DefaultNodeConfig(clusterName, constant.JournalNode, "", 15*time.Minute)
 }
 
 // todo: refactor this, do this using detail type
@@ -132,24 +133,24 @@ func parseQuantity(q string) resource.Quantity {
 	return r
 }
 
-func GetContainerResource(role Role, containerName string) *commonsv1alpha1.ResourcesSpec {
+func GetContainerResource(role constant.Role, containerName constant.ContainerComponent) *commonsv1alpha1.ResourcesSpec {
 	var cpuMin, cpuMax, memoryLimit, storage resource.Quantity
 	switch role {
-	case NameNode:
+	case constant.NameNode:
 		switch containerName {
-		case "format-namenodes":
+		case constant.FormatNameNodeComponent:
 			cpuMin = parseQuantity("100m")
 			cpuMax = parseQuantity("200m")
 			memoryLimit = parseQuantity("512Mi")
-		case "format-zookeeper":
+		case constant.FormatZookeeperComponent:
 			cpuMin = parseQuantity("100m")
 			cpuMax = parseQuantity("200m")
 			memoryLimit = parseQuantity("512Mi")
-		case "zkfc":
+		case constant.ZkfcComponent:
 			cpuMin = parseQuantity("100m")
 			cpuMax = parseQuantity("200m")
 			memoryLimit = parseQuantity("512Mi")
-		case "namenode":
+		case constant.NameNodeComponent:
 			cpuMin = parseQuantity("300m")
 			cpuMax = parseQuantity("600m")
 			memoryLimit = parseQuantity("1024Mi")
@@ -157,7 +158,7 @@ func GetContainerResource(role Role, containerName string) *commonsv1alpha1.Reso
 		default:
 			panic("invalid container name in NameNode role:" + containerName)
 		}
-	case DataNode:
+	case constant.DataNode:
 		switch containerName {
 		case "datanode":
 			cpuMin = parseQuantity("100m")
@@ -171,7 +172,7 @@ func GetContainerResource(role Role, containerName string) *commonsv1alpha1.Reso
 		default:
 			panic("invalid container name in DataNode role" + containerName)
 		}
-	case JournalNode:
+	case constant.JournalNode:
 		cpuMin = parseQuantity("100m")
 		cpuMax = parseQuantity("300m")
 		memoryLimit = parseQuantity("512Mi")

@@ -9,6 +9,7 @@ import (
 	"github.com/zncdatadev/operator-go/pkg/constants"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
 	"github.com/zncdatadev/hdfs-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -63,15 +64,15 @@ func (c *CoreSiteXmlGenerator) EnableKerberos(
 }
 
 type NameNodeHdfsSiteXmlGenerator struct {
-	NameNodeReplicas int32
-	InstanceName     string
-	GroupName        string
-	NameSpace        string
-	ClusterDomain    string
-	hdfsReplication  int32
-	clusterConfig    *hdfsv1alpha1.ClusterConfigSpec
-
-	properties []util.XmlNameValuePair
+	NameNodeReplicas     int32
+	InstanceName         string
+	GroupName            string
+	NameSpace            string
+	ClusterDomain        string
+	hdfsReplication      int32
+	clusterConfig        *hdfsv1alpha1.ClusterConfigSpec
+	clusterComponentInfo *ClusterComponentsInfo
+	properties           []util.XmlNameValuePair
 }
 
 // NewNameNodeHdfsSiteXmlGenerator new a NameNodeHdfsSiteXmlGenerator
@@ -82,15 +83,17 @@ func NewNameNodeHdfsSiteXmlGenerator(
 	nameSpace string,
 	clusterConfig *hdfsv1alpha1.ClusterConfigSpec,
 	clusterDomain string,
-	hdfsReplication int32) *NameNodeHdfsSiteXmlGenerator {
+	hdfsReplication int32,
+	clusterComponentInfo *ClusterComponentsInfo) *NameNodeHdfsSiteXmlGenerator {
 	return &NameNodeHdfsSiteXmlGenerator{
-		NameNodeReplicas: nameNodeReplicas,
-		InstanceName:     instanceName,
-		GroupName:        groupName,
-		NameSpace:        nameSpace,
-		ClusterDomain:    clusterDomain,
-		hdfsReplication:  hdfsReplication,
-		clusterConfig:    clusterConfig,
+		NameNodeReplicas:     nameNodeReplicas,
+		InstanceName:         instanceName,
+		GroupName:            groupName,
+		NameSpace:            nameSpace,
+		ClusterDomain:        clusterDomain,
+		hdfsReplication:      hdfsReplication,
+		clusterConfig:        clusterConfig,
+		clusterComponentInfo: clusterComponentInfo,
 	}
 }
 
@@ -155,9 +158,7 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeHdfsReplication() util.XmlNameValuePa
 //		<value>qjournal://node1.example.com:8485;node2.example.com:8485;node3.example.com:8485/mycluster</value>
 //	</property>
 func (c *NameNodeHdfsSiteXmlGenerator) makeNamenodeSharedEditDir() util.XmlNameValuePair {
-	journalStatefulSetName := CreateJournalNodeStatefulSetName(c.InstanceName, c.GroupName)
-	JournalSvcName := CreateJournalNodeServiceName(c.InstanceName, c.GroupName)
-	journalUrls := CreateNetworksByReplicates(c.getJournalNodeReplicates(), journalStatefulSetName, JournalSvcName, c.NameSpace, c.ClusterDomain, 8485)
+	journalUrls := c.clusterComponentInfo.GetJournalNodeServicesForSharedEdits()
 	journalConnection := CreateJournalUrl(journalUrls, c.InstanceName)
 	return util.XmlNameValuePair{
 		Name:  "dfs.namenode.shared.edits.dir",
@@ -192,10 +193,8 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeRoleNodeDataDir() []util.XmlNameValue
 }
 
 // get journal node replicates
-func (c *NameNodeHdfsSiteXmlGenerator) getJournalNodeReplicates() int32 {
-	cfg := GetMergedRoleGroupCfg(JournalNode, c.InstanceName, c.GroupName)
-	journalCfg := cfg.(*hdfsv1alpha1.JournalNodeRoleGroupSpec)
-	return journalCfg.Replicas
+func (c *NameNodeHdfsSiteXmlGenerator) getJournalNodeReplicates(groupname string) int32 {
+	return c.clusterComponentInfo.GetJournalNodeReplicas(groupname)
 }
 
 // make name node hosts data
@@ -207,7 +206,7 @@ func (c *NameNodeHdfsSiteXmlGenerator) getJournalNodeReplicates() int32 {
 //		<value>simple-hdfs-namenode-default-0,simple-hdfs-namenode-default-1,simple-hdfs-namenode-default-2</value>
 //	</property>
 func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeHosts() util.XmlNameValuePair {
-	nameNodeStatefulSetName := CreateNameNodeStatefulSetName(c.InstanceName, c.GroupName)
+	nameNodeStatefulSetName := c.clusterComponentInfo.NameNode[c.GroupName].RoleGroupInfo.GetFullName()
 	pods := CreatePodNamesByReplicas(c.NameNodeReplicas, nameNodeStatefulSetName)
 	podNames := strings.Join(pods, ",")
 	return util.XmlNameValuePair{
@@ -233,8 +232,8 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeHosts() util.XmlNameValuePair
 //		<value>simple-hdfs-namenode-default-2.simple-hdfs-namenode-default.default.svc.cluster.local:9870</value>
 //	</property>
 func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeHttp() []util.XmlNameValuePair {
-	statefulSetName := CreateNameNodeStatefulSetName(c.InstanceName, c.GroupName)
-	svc := CreateNameNodeServiceName(c.InstanceName, c.GroupName)
+	statefulSetName := c.clusterComponentInfo.NameNode[c.GroupName].RoleGroupInfo.GetFullName()
+	svc := c.clusterComponentInfo.NameNode[c.GroupName].RoleGroupInfo.GetFullName()
 	dnsDomain, keyTemplate := DfsNameNodeHttpAddressHa(c.clusterConfig, c.InstanceName, statefulSetName, svc, c.NameSpace)
 	valueTemplate := fmt.Sprintf("%s-%%d.%s", statefulSetName, dnsDomain)
 	return CreateXmlContentByReplicas(c.NameNodeReplicas, keyTemplate, valueTemplate)
@@ -257,8 +256,8 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeHttp() []util.XmlNameValuePai
 //		<value>simple-hdfs-namenode-default-2.simple-hdfs-namenode-default.default.svc.cluster.local:9868</value>
 //	</property>
 func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeRpc() []util.XmlNameValuePair {
-	statefulSetName := CreateNameNodeStatefulSetName(c.InstanceName, c.GroupName)
-	svc := CreateNameNodeServiceName(c.InstanceName, c.GroupName)
+	statefulSetName := c.clusterComponentInfo.NameNode[c.GroupName].RoleGroupInfo.GetFullName()
+	svc := c.clusterComponentInfo.NameNode[c.GroupName].RoleGroupInfo.GetFullName()
 	dnsDomain := CreateDnsDomain(svc, c.NameSpace, c.ClusterDomain, hdfsv1alpha1.NameNodeRpcPort)
 	keyTemplate := fmt.Sprintf("dfs.namenode.rpc-address.%s.%s-%%d", c.InstanceName, statefulSetName)
 	valueTemplate := fmt.Sprintf("%s-%%d.%s", statefulSetName, dnsDomain)
@@ -283,7 +282,7 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeRpc() []util.XmlNameValuePair
 //		<value>/kubedoop/data/namenode</value>
 //	</property>
 func (c *NameNodeHdfsSiteXmlGenerator) makeNameNodeNameDir() []util.XmlNameValuePair {
-	statefulSetName := CreateNameNodeStatefulSetName(c.InstanceName, c.GroupName)
+	statefulSetName := c.clusterComponentInfo.NameNode[c.GroupName].RoleGroupInfo.GetFullName()
 	keyTemplate := fmt.Sprintf("dfs.namenode.name.dir.%s.%s-%%d", c.InstanceName, statefulSetName)
 	valueTemplate := hdfsv1alpha1.NameNodeRootDataDir
 	return CreateXmlContentByReplicas(c.NameNodeReplicas, keyTemplate, valueTemplate)
@@ -389,12 +388,12 @@ log4j.appender.FILE.layout.ConversionPattern=%d{ISO8601} %-5p %c{2} (%F:%M(%L)) 
 `
 const fileLocationTemplate = `log4j.appender.FILE.File=%s/%s/%s.log4j.xml`
 
-func MakeLog4jPropertiesData(containerComponent ContainerComponent) string {
+func MakeLog4jPropertiesData(containerComponent constant.ContainerComponent) string {
 	fileLocation := fmt.Sprintf(fileLocationTemplate, constants.KubedoopLogDir, containerComponent, containerComponent)
 	return log4jProperties + "\n" + fileLocation
 }
 
-func CreateComponentLog4jPropertiesName(component ContainerComponent) string {
+func CreateComponentLog4jPropertiesName(component constant.ContainerComponent) string {
 	return fmt.Sprintf("%s.log4j.properties", string(component))
 }
 
@@ -447,7 +446,8 @@ func NewDataNodeHdfsSiteXmlGenerator(
 	instance *hdfsv1alpha1.HdfsCluster,
 	groupName string,
 	nameNodeReplicas int32,
-	dataNodeConfig map[string]string) *DataNodeHdfsSiteXmlGenerator {
+	dataNodeConfig map[string]string,
+	clusterComponentInfo *ClusterComponentsInfo) *DataNodeHdfsSiteXmlGenerator {
 
 	clusterSpec := instance.Spec.ClusterConfig
 	return &DataNodeHdfsSiteXmlGenerator{
@@ -458,7 +458,8 @@ func NewDataNodeHdfsSiteXmlGenerator(
 			instance.Namespace,
 			clusterSpec,
 			clusterSpec.ClusterDomain,
-			clusterSpec.DfsReplication),
+			clusterSpec.DfsReplication,
+			clusterComponentInfo),
 		DataNodeConfig: dataNodeConfig,
 	}
 }

@@ -6,7 +6,6 @@ import (
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	"github.com/zncdatadev/hdfs-operator/internal/constant"
-	"github.com/zncdatadev/hdfs-operator/internal/util"
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/constants"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
@@ -42,7 +41,7 @@ func NewNameNodeContainerBuilder(
 func (b *NameNodeContainerBuilder) Build() *corev1.Container {
 	// Create the common container builder
 	builder := common.NewHdfsContainerBuilder(
-		common.ContainerComponent(util.NameNode),
+		constant.NameNodeComponent,
 		b.image,
 		b.instance.Spec.ClusterConfig.ZookeeperConfigMapName,
 		b.roleGroupInfo,
@@ -57,7 +56,6 @@ func (b *NameNodeContainerBuilder) Build() *corev1.Container {
 
 // nameNodeComponent implements ContainerComponentInterface for NameNode
 type nameNodeComponent struct {
-	*common.DefaultContainerComponent
 	clusterName   string
 	clusterConfig *hdfsv1alpha1.ClusterConfigSpec
 }
@@ -69,10 +67,13 @@ var _ common.ContainerHealthCheckProvider = &nameNodeComponent{}
 
 func newNameNodeComponent(clusterName string, clusterConfig *hdfsv1alpha1.ClusterConfigSpec) *nameNodeComponent {
 	return &nameNodeComponent{
-		DefaultContainerComponent: common.NewDefaultContainerComponent(constant.NameNodeContainer),
-		clusterName:               clusterName,
-		clusterConfig:             clusterConfig,
+		clusterName:   clusterName,
+		clusterConfig: clusterConfig,
 	}
+}
+
+func (c *nameNodeComponent) GetContainerName() string {
+	return constant.NameNodeContainer
 }
 
 func (c *nameNodeComponent) GetCommand() []string {
@@ -111,7 +112,7 @@ cp /kubedoop/mount/config/namenode/namenode.log4j.properties /kubedoop/config/na
 }
 
 func (c *nameNodeComponent) GetEnvVars() []corev1.EnvVar {
-	return common.GetCommonContainerEnv(c.clusterConfig, common.ContainerComponent(util.NameNode))
+	return common.GetCommonContainerEnv(c.clusterConfig, constant.NameNodeComponent)
 }
 
 func (c *nameNodeComponent) GetVolumeMounts() []corev1.VolumeMount {

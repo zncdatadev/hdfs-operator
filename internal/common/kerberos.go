@@ -5,6 +5,7 @@ import (
 	"path"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
 	"github.com/zncdatadev/hdfs-operator/internal/util"
 	"github.com/zncdatadev/operator-go/pkg/config"
 	"github.com/zncdatadev/operator-go/pkg/constants"
@@ -155,7 +156,7 @@ func SecurityCoreSiteXml(instanceName string, ns string) []util.XmlNameValuePair
 	}
 }
 
-func SecurityEnvs(container ContainerComponent, jvmArgs *[]string) []corev1.EnvVar {
+func SecurityEnvs(container constant.ContainerComponent, jvmArgs *[]string) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
 			Name:  "HADOOP_OPTS",
@@ -183,7 +184,7 @@ func SecurityVolumeMounts() []corev1.VolumeMount {
 	}
 }
 
-func CreateKerberosSecretPvc(secretClass string, instanceName string, role Role) corev1.Volume {
+func CreateKerberosSecretPvc(secretClass string, instanceName string, role constant.Role) corev1.Volume {
 	kerberosServiceName := GetKerberosServiceName(role)
 
 	return corev1.Volume{
@@ -247,18 +248,18 @@ func PrincipalHostPart(instanceName string, ns string) string {
 	return fmt.Sprintf("%s.%s.svc.cluster.local@${env.KERBEROS_REALM}", instanceName, ns)
 }
 
-func CreateKerberosPrincipal(instanceName string, ns string, role Role) string {
+func CreateKerberosPrincipal(instanceName string, ns string, role constant.Role) string {
 	host := fmt.Sprintf("%s.%s.svc.cluster.local@${KERBEROS_REALM}", instanceName, ns)
 	return fmt.Sprintf("%s/%s", GetKerberosServiceName(role), host)
 }
 
-func GetKerberosServiceName(role Role) string {
+func GetKerberosServiceName(role constant.Role) string {
 	switch role {
-	case NameNode:
+	case constant.NameNode:
 		return "nn"
-	case DataNode:
+	case constant.DataNode:
 		return "dn"
-	case JournalNode:
+	case constant.JournalNode:
 		return "jn"
 	default:
 		panic(fmt.Sprintf("unsupported role for kerberos: %s", role))

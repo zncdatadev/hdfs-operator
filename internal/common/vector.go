@@ -10,29 +10,19 @@ import (
 	"github.com/zncdatadev/operator-go/pkg/productlogging"
 	"github.com/zncdatadev/operator-go/pkg/util"
 
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var vectorLogger = ctrl.Log.WithName("vector")
 
-const ContainerVector ContainerComponent = "vector"
-
-func IsVectorEnable(roleLoggingConfig interface{}) (bool, error) {
+func IsVectorEnable(roleLoggingConfig *commonsv1alpha1.LoggingSpec) (bool, error) {
 	if roleLoggingConfig == nil {
 		return false, fmt.Errorf("role logging config is nil")
 	}
 
-	switch t := roleLoggingConfig.(type) {
-	case *hdfsv1alpha1.NameNodeContainerLoggingSpec:
-		return t.EnableVectorAgent, nil
-	case *hdfsv1alpha1.DataNodeContainerLoggingSpec:
-		return t.EnableVectorAgent, nil
-	case *hdfsv1alpha1.JournalNodeContainerLoggingSpec:
-		return t.EnableVectorAgent, nil
-	default:
-		return false, fmt.Errorf("unknown role logging type %T to check vector", t)
-	}
+	return *roleLoggingConfig.EnableVectorAgent, nil
 }
 
 type VectorConfigParams struct {

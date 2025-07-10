@@ -5,113 +5,111 @@ import (
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
-	"github.com/zncdatadev/hdfs-operator/internal/controller/data/container"
-	"github.com/zncdatadev/hdfs-operator/internal/util"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/builder"
+	"github.com/zncdatadev/operator-go/pkg/client"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type ConfigMapReconciler struct {
-	common.ConfigurationStyleReconciler[*hdfsv1alpha1.HdfsCluster, *hdfsv1alpha1.JournalNodeRoleGroupSpec]
+// =================================================================
+// NEW REFACTORED CODE - Following namenode pattern
+// =================================================================
+
+// Compile-time check to ensure JournalnodeConfigMapBuilder implements ConfigMapComponentBuilder
+var _ common.ConfigMapComponentBuilder = (*JournalnodeConfigMapBuilder)(nil)
+
+// JournalnodeConfigMapBuilder implements journalnode-specific ConfigMap logic
+type JournalnodeConfigMapBuilder struct {
+	*common.ConfigMapBuilder
+	instance             *hdfsv1alpha1.HdfsCluster
+	groupName            string
+	mergedCfg            *hdfsv1alpha1.RoleGroupSpec
+	clusterComponentInfo *common.ClusterComponentsInfo
 }
 
-// NewConfigMap new a ConfigMapReconciler
-func NewConfigMap(
-	scheme *runtime.Scheme,
+// NewJournalnodeConfigMapBuilder creates a new JournalnodeConfigMapBuilder
+func NewJournalnodeConfigMapBuilder(
+	ctx context.Context,
+	client *client.Client,
+	roleGroupInfo *reconciler.RoleGroupInfo,
+	overrides *commonsv1alpha1.OverridesSpec,
+	roleConfig *commonsv1alpha1.RoleGroupConfigSpec,
 	instance *hdfsv1alpha1.HdfsCluster,
-	client client.Client,
-	groupName string,
-	labels map[string]string,
-	mergedCfg *hdfsv1alpha1.JournalNodeRoleGroupSpec,
-) *ConfigMapReconciler {
-	return &ConfigMapReconciler{
-		ConfigurationStyleReconciler: *common.NewConfigurationStyleReconciler(
-			scheme,
-			instance,
-			client,
-			groupName,
-			labels,
-			mergedCfg,
-		),
+	mergedCfg *hdfsv1alpha1.RoleGroupSpec,
+) builder.ConfigBuilder {
+	vectorConfigMapName := common.GetVectorConfigMapName(instance)
+
+	configMapBuilder := &JournalnodeConfigMapBuilder{
+		instance:  instance,
+		groupName: roleGroupInfo.GetGroupName(),
+		mergedCfg: mergedCfg,
 	}
-}
-func (c *ConfigMapReconciler) ConfigurationOverride(resource client.Object) {
-	cm := resource.(*corev1.ConfigMap)
-	overrides := c.MergedCfg.ConfigOverrides
-	if overrides != nil {
-		common.OverrideConfigurations(cm, overrides)
-		// only name node log4j,other component log4j not override, I think it is not necessary
-		if override := overrides.Log4j; override != nil {
-			origin := cm.Data[common.CreateComponentLog4jPropertiesName(container.DataNode)]
-			overrideContent := util.MakePropertiesFileContent(override)
-			cm.Data[common.CreateComponentLog4jPropertiesName(container.DataNode)] = util.OverrideConfigFileContent(origin,
-				overrideContent)
-		}
-	}
-	c.LoggingOverride(cm)
+
+	jnbuilder := common.NewConfigMapBuilder(
+		ctx,
+		client,
+		constant.JournalNode,
+		roleGroupInfo,
+		overrides,
+		roleConfig,
+		instance,
+		configMapBuilder, // self as component
+		vectorConfigMapName,
+	)
+
+	return jnbuilder
 }
 
-func (c *ConfigMapReconciler) Build(ctx context.Context) (client.Object, error) {
+// Build builds the ConfigMap
+func (b *JournalnodeConfigMapBuilder) Build(ctx context.Context) (ctrlclient.Object, error) {
+	return b.ConfigMapBuilder.Build(ctx)
+}
+
+// BuildConfig builds the configuration data for the journalnode ConfigMap
+// This implements the ConfigMapComponentBuilder interface
+func (b *JournalnodeConfigMapBuilder) BuildConfig() (map[string]string, error) {
 	data := map[string]string{
-		hdfsv1alpha1.CoreSiteFileName:     c.makeCoreSiteData(),
-		hdfsv1alpha1.HdfsSiteFileName:     c.makeHdfsSiteData(),
+		hdfsv1alpha1.CoreSiteFileName:     b.makeCoreSiteData(),
+		hdfsv1alpha1.HdfsSiteFileName:     b.makeHdfsSiteData(),
 		hdfsv1alpha1.HadoopPolicyFileName: common.MakeHadoopPolicyData(),
 		hdfsv1alpha1.SecurityFileName:     common.MakeSecurityPropertiesData(),
-		hdfsv1alpha1.SslClientFileName:    common.MakeSslClientData(c.Instance.Spec.ClusterConfig),
-		hdfsv1alpha1.SslServerFileName:    common.MakeSslServerData(c.Instance.Spec.ClusterConfig),
-		// log4j
-		common.CreateComponentLog4jPropertiesName(ContainerJournalNode): common.MakeLog4jPropertiesData(ContainerJournalNode),
+		hdfsv1alpha1.SslClientFileName:    common.MakeSslClientData(b.instance.Spec.ClusterConfig),
+		hdfsv1alpha1.SslServerFileName:    common.MakeSslServerData(b.instance.Spec.ClusterConfig),
+		// log4j for journalnode
+		common.CreateComponentLog4jPropertiesName(constant.JournalNodeComponent): common.MakeLog4jPropertiesData(constant.JournalNodeComponent),
 	}
 
-	if isVectorEnabled, err := common.IsVectorEnable(c.MergedCfg.Config.Logging); err != nil {
-		return nil, err
-	} else if isVectorEnabled {
-		common.ExtendConfigMapByVector(
-			ctx,
-			common.VectorConfigParams{
-				Client:        c.Client,
-				ClusterConfig: c.Instance.Spec.ClusterConfig,
-				Namespace:     c.Instance.GetNamespace(),
-				InstanceName:  c.Instance.GetName(),
-				Role:          string(common.JournalNode),
-				GroupName:     c.GroupName,
-			},
-			data)
+	return data, nil
+}
+
+// GetConfigOverrides returns journalnode-specific configuration overrides
+func (b *JournalnodeConfigMapBuilder) GetConfigOverrides() map[string]map[string]string {
+	if b.mergedCfg != nil && b.mergedCfg.ConfigOverrides != nil {
+		return b.mergedCfg.ConfigOverrides
 	}
-
-	return &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      createConfigName(c.Instance.GetName(), c.GroupName),
-			Namespace: c.Instance.GetNamespace(),
-			Labels:    c.MergedLabels,
-		},
-		Data: data,
-	}, nil
+	return nil
 }
 
-// make core-site.xml data
-func (c *ConfigMapReconciler) makeCoreSiteData() string {
-	generator := &common.CoreSiteXmlGenerator{InstanceName: c.Instance.GetName()}
-	return generator.EnableKerberos(c.Instance.Spec.ClusterConfig, c.Instance.Namespace).HaZookeeperQuorum().Generate()
+// makeCoreSiteData generates core-site.xml data for journalnode
+func (b *JournalnodeConfigMapBuilder) makeCoreSiteData() string {
+	generator := &common.CoreSiteXmlGenerator{InstanceName: b.instance.GetName()}
+	return generator.EnableKerberos(b.instance.Spec.ClusterConfig, b.instance.Namespace).HaZookeeperQuorum().Generate()
 }
 
-// make hdfs-site.xml data
-func (c *ConfigMapReconciler) makeHdfsSiteData() string {
-	clusterSpec := c.Instance.Spec.ClusterConfig
+// makeHdfsSiteData generates hdfs-site.xml data for journalnode
+func (b *JournalnodeConfigMapBuilder) makeHdfsSiteData() string {
+	clusterSpec := b.instance.Spec.ClusterConfig
+	// Create ClusterComponentsInfo for the updated generator
+	clusterComponentInfo := common.NewClusterComponentsInfo(b.instance.GetName(), b.instance.GetNamespace(), clusterSpec)
 	generator := common.NewNameNodeHdfsSiteXmlGenerator(
-		c.Instance.GetName(), c.GroupName, c.getNameNodeReplicas(), c.Instance.Namespace,
-		c.Instance.Spec.ClusterConfig, clusterSpec.ClusterDomain, clusterSpec.DfsReplication)
+		b.instance.GetName(), b.groupName, b.getNameNodeReplicas(), b.instance.Namespace,
+		b.instance.Spec.ClusterConfig, clusterSpec.ClusterDomain, clusterSpec.DfsReplication, clusterComponentInfo)
 	return generator.EnablerKerberos(clusterSpec).EnableHttps().Generate()
 }
 
-func (c *ConfigMapReconciler) getNameNodeReplicas() int32 {
-	cfg := common.GetMergedRoleGroupCfg(common.NameNode, c.Instance.GetName(), c.GroupName)
-	nameNodeCfg := cfg.(*hdfsv1alpha1.NameNodeRoleGroupSpec)
-	return nameNodeCfg.Replicas
-}
-func (c *ConfigMapReconciler) LoggingOverride(current *corev1.ConfigMap) {
-	logging := NewJournalNodeLogging(c.Scheme, c.Instance, c.Client, c.GroupName, c.MergedLabels, c.MergedCfg, current)
-	logging.OverrideExist(current)
+// getNameNodeReplicas gets the number of NameNode replicas
+func (b *JournalnodeConfigMapBuilder) getNameNodeReplicas() int32 {
+	return b.clusterComponentInfo.NameNode[b.groupName].Replicas
 }
