@@ -128,7 +128,7 @@ func (b *StatefulSetBuilder) Build(ctx context.Context, component StatefulSetCom
 	}
 
 	// Add OIDC container if needed
-	if err := b.addOIDCContainer(ctx, sts); err != nil {
+	if err := b.addOIDCContainer(sts); err != nil {
 		return nil, err
 	}
 
@@ -143,10 +143,12 @@ func (b *StatefulSetBuilder) addVectorContainer(sts *appv1.StatefulSet) error {
 }
 
 // addOIDCContainer adds OIDC container if authentication is configured
-func (b *StatefulSetBuilder) addOIDCContainer(ctx context.Context, sts *appv1.StatefulSet) error {
+func (b *StatefulSetBuilder) addOIDCContainer(_ *appv1.StatefulSet) error {
 	if b.instance.Spec.ClusterConfig.Authentication != nil && b.instance.Spec.ClusterConfig.Authentication.AuthenticationClass != "" {
 		// This method should be implemented by role-specific builders
 		// For now, we'll leave it empty and let the specific implementations handle it
+		// TODO: Implement OIDC container configuration
+		return nil
 	}
 	return nil
 }

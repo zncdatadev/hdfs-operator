@@ -18,11 +18,10 @@ import (
 // It implements both HdfsComponentReconciler and HdfsComponentResourceBuilder interfaces
 type JournalNodeReconciler struct {
 	*common.BaseHdfsRoleReconciler
-	client               *client.Client
-	journalNodeSpec      *hdfsv1alpha1.RoleSpec
-	clusterComponentInfo *common.ClusterComponentsInfo
-	configSpec           hdfsv1alpha1.ConfigSpec
-	mergedConfig         *hdfsv1alpha1.RoleGroupSpec
+	client          *client.Client
+	journalNodeSpec *hdfsv1alpha1.RoleSpec
+	configSpec      hdfsv1alpha1.ConfigSpec
+	mergedConfig    *hdfsv1alpha1.RoleGroupSpec
 }
 
 var _ common.HdfsComponentReconciler = &JournalNodeReconciler{}

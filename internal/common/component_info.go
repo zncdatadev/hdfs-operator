@@ -61,7 +61,7 @@ func (c *ClusterComponentsInfo) GetNameNodeServiceNames(groupName string) []stri
 
 // GetJournalNodeServiceNames gets all JournalNode service names
 func (c *ClusterComponentsInfo) GetJournalNodeServiceNames() []string {
-	var serviceNames []string
+	serviceNames := make([]string, 0, len(c.JournalNode))
 	for _, info := range c.JournalNode {
 		serviceNames = append(serviceNames, info.RoleGroupInfo.GetFullName())
 	}
@@ -72,7 +72,7 @@ func (c *ClusterComponentsInfo) GetJournalNodeServiceNames() []string {
 // GetJournalNodeServicesForSharedEdits gets journal node services formatted for HDFS shared edits configuration
 func (c *ClusterComponentsInfo) GetJournalNodeServicesForSharedEdits() []string {
 	serviceNames := c.GetJournalNodeServiceNames()
-	var journalNodes []string
+	journalNodes := make([]string, 0, len(serviceNames))
 	for _, serviceName := range serviceNames {
 		// Add the journal port (8485) to each service
 		journalNodes = append(journalNodes, serviceName+":8485")

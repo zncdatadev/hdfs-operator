@@ -192,11 +192,6 @@ func (c *NameNodeHdfsSiteXmlGenerator) makeRoleNodeDataDir() []util.XmlNameValue
 	}
 }
 
-// get journal node replicates
-func (c *NameNodeHdfsSiteXmlGenerator) getJournalNodeReplicates(groupname string) int32 {
-	return c.clusterComponentInfo.GetJournalNodeReplicas(groupname)
-}
-
 // make name node hosts data
 // if multiple name nodes, just add more data, separated by ","
 // like below:

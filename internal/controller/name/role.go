@@ -18,11 +18,10 @@ import (
 // It implements both HdfsComponentReconciler and HdfsComponentResourceBuilder interfaces
 type NameNodeReconciler struct {
 	*common.BaseHdfsRoleReconciler
-	client               *client.Client
-	nameNodeSpec         *hdfsv1alpha1.RoleSpec
-	clusterComponentInfo *common.ClusterComponentsInfo
-	configSpec           hdfsv1alpha1.ConfigSpec
-	mergedConfig         *hdfsv1alpha1.RoleGroupSpec
+	client       *client.Client
+	nameNodeSpec *hdfsv1alpha1.RoleSpec
+	configSpec   hdfsv1alpha1.ConfigSpec
+	mergedConfig *hdfsv1alpha1.RoleGroupSpec
 }
 
 var _ common.HdfsComponentReconciler = &NameNodeReconciler{}
@@ -160,6 +159,6 @@ func (r *NameNodeReconciler) CreateStatefulSetReconciler(
 	config hdfsv1alpha1.ConfigSpec,
 	overrides *commonsv1alpha1.OverridesSpec,
 ) (reconciler.Reconciler, error) {
-	
+
 	return nil, nil
 }

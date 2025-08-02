@@ -124,9 +124,7 @@ func (b *ConfigMapBuilder) Build(ctx context.Context) (ctrlclient.Object, error)
 
 	// Apply component-specific configuration overrides
 	if componentOverrides := b.component.GetConfigOverrides(); componentOverrides != nil {
-		if err := b.applyComponentOverrides(componentOverrides); err != nil {
-			return nil, err
-		}
+		b.applyComponentOverrides(componentOverrides)
 	}
 
 	// vector config
@@ -146,7 +144,7 @@ func (b *ConfigMapBuilder) Build(ctx context.Context) (ctrlclient.Object, error)
 }
 
 // applyComponentOverrides applies component-specific configuration overrides
-func (b *ConfigMapBuilder) applyComponentOverrides(overrides map[string]map[string]string) error {
+func (b *ConfigMapBuilder) applyComponentOverrides(overrides map[string]map[string]string) {
 	// Handle configuration file overrides
 	if overrides != nil {
 		if coreSiteOverrides, ok := overrides[hdfsv1alpha1.CoreSiteFileName]; ok {
@@ -165,7 +163,6 @@ func (b *ConfigMapBuilder) applyComponentOverrides(overrides map[string]map[stri
 		}
 		// Add more specific override handling as needed
 	}
-	return nil
 }
 
 // vector config

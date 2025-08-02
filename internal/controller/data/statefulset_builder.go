@@ -34,13 +34,13 @@ func (b *DataNodeStatefulSetBuilder) GetName() string {
 
 // GetMainContainers returns the main containers for DataNode
 func (b *DataNodeStatefulSetBuilder) GetMainContainers() []corev1.Container {
-	containers, _ := b.buildContainers()
+	containers := b.buildContainers()
 	return containers
 }
 
 // GetInitContainers returns init containers for DataNode
 func (b *DataNodeStatefulSetBuilder) GetInitContainers() []corev1.Container {
-	initContainers, _ := b.buildInitContainers()
+	initContainers := b.buildInitContainers()
 	return initContainers
 }
 
@@ -89,16 +89,10 @@ func NewDataNodeStatefulSetBuilder(
 // Build builds the DataNode StatefulSet
 func (b *DataNodeStatefulSetBuilder) Build(ctx context.Context) (*appsv1.StatefulSet, error) {
 	// Build DataNode containers
-	containers, err := b.buildContainers()
-	if err != nil {
-		return nil, err
-	}
+	containers := b.buildContainers()
 
 	// Build init containers
-	initContainers, err := b.buildInitContainers()
-	if err != nil {
-		return nil, err
-	}
+	initContainers := b.buildInitContainers()
 
 	// Create StatefulSet
 	sts := &appsv1.StatefulSet{
@@ -131,7 +125,7 @@ func (b *DataNodeStatefulSetBuilder) Build(ctx context.Context) (*appsv1.Statefu
 }
 
 // buildContainers builds the main containers for DataNode
-func (b *DataNodeStatefulSetBuilder) buildContainers() ([]corev1.Container, error) {
+func (b *DataNodeStatefulSetBuilder) buildContainers() []corev1.Container {
 	image := b.instance.Spec.Image
 
 	// Build DataNode container (passing ImageSpec directly for now)
@@ -151,11 +145,11 @@ func (b *DataNodeStatefulSetBuilder) buildContainers() ([]corev1.Container, erro
 		containers = append(containers, *vectorContainer)
 	}
 
-	return containers, nil
+	return containers
 }
 
 // buildInitContainers builds init containers for DataNode
-func (b *DataNodeStatefulSetBuilder) buildInitContainers() ([]corev1.Container, error) {
+func (b *DataNodeStatefulSetBuilder) buildInitContainers() []corev1.Container {
 	image := b.instance.Spec.Image
 
 	// Build wait-for-namenodes init container
@@ -167,7 +161,7 @@ func (b *DataNodeStatefulSetBuilder) buildInitContainers() ([]corev1.Container, 
 	)
 	waitForNameNodesContainer := waitForNameNodesBuilder.Build()
 
-	return []corev1.Container{*waitForNameNodesContainer}, nil
+	return []corev1.Container{*waitForNameNodesContainer}
 }
 
 // buildVolumes builds volumes for DataNode StatefulSet

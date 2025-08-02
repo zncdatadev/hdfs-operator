@@ -17,11 +17,9 @@ import (
 // It implements both HdfsComponentReconciler and HdfsComponentResourceBuilder interfaces
 type DataNodeReconciler struct {
 	*common.BaseHdfsRoleReconciler
-	client               *client.Client
-	dataNodeSpec         *hdfsv1alpha1.RoleSpec
-	clusterComponentInfo *common.ClusterComponentsInfo
-	configSpec           hdfsv1alpha1.ConfigSpec
-	mergedConfig         *hdfsv1alpha1.RoleGroupSpec
+	client       *client.Client
+	dataNodeSpec *hdfsv1alpha1.RoleSpec
+	configSpec   hdfsv1alpha1.ConfigSpec
 }
 
 var _ common.HdfsComponentReconciler = &DataNodeReconciler{}

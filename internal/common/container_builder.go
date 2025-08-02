@@ -110,7 +110,7 @@ func (c *HdfsContainerBuilder) BuildWithComponent(component ContainerComponentIn
 		c.SetResources(c.RoleGroupConfig.Resources)
 	}
 
-	return c.Container.Build()
+	return c.Build()
 }
 
 // commonVolumeMounts returns the common volume mounts for all containers
