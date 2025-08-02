@@ -7,7 +7,9 @@ import (
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	"github.com/zncdatadev/hdfs-operator/internal/constant"
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/constants"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
+	oputil "github.com/zncdatadev/operator-go/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -17,7 +19,7 @@ type DataNodeContainerBuilder struct {
 	instance        *hdfsv1alpha1.HdfsCluster
 	roleGroupInfo   *reconciler.RoleGroupInfo
 	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec
-	image           *hdfsv1alpha1.ImageSpec
+	image           *oputil.Image
 }
 
 // NewDataNodeContainerBuilder creates a new datanode container builder
@@ -25,7 +27,7 @@ func NewDataNodeContainerBuilder(
 	instance *hdfsv1alpha1.HdfsCluster,
 	roleGroupInfo *reconciler.RoleGroupInfo,
 	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec,
-	image *hdfsv1alpha1.ImageSpec,
+	image *oputil.Image,
 ) *DataNodeContainerBuilder {
 	return &DataNodeContainerBuilder{
 		instance:        instance,
@@ -37,192 +39,156 @@ func NewDataNodeContainerBuilder(
 
 // Build builds the datanode container
 func (b *DataNodeContainerBuilder) Build() *corev1.Container {
-	// Convert ImageSpec to container string
-	imageString := b.image.Repo + "/hadoop:" + b.image.ProductVersion
+	// Create the common container builder
+	builder := common.NewHdfsContainerBuilder(
+		constant.DataNodeComponent,
+		b.image,
+		b.instance.Spec.ClusterConfig.ZookeeperConfigMapName,
+		b.roleGroupInfo,
+		b.roleGroupConfig,
+	)
 
-	// Create datanode component implementation
-	component := newDataNodeComponent(b.instance, b.roleGroupInfo)
+	// Create datanode component and build container
+	component := newDataNodeComponent(b.instance.Name, b.instance.Spec.ClusterConfig)
 
-	// Build the container manually since we don't have the right Image type
-	container := &corev1.Container{
-		Name:            component.GetContainerName(),
-		Image:           imageString,
-		Command:         component.GetCommand(),
-		Args:            component.GetArgs(),
-		Env:             component.GetEnvVars(),
-		VolumeMounts:    component.GetVolumeMounts(),
-		Ports:           component.GetPorts(),
-		LivenessProbe:   component.GetLivenessProbe(),
-		ReadinessProbe:  component.GetReadinessProbe(),
-		StartupProbe:    component.GetStartupProbe(),
-		Resources:       *component.GetResources(),
-		SecurityContext: component.GetSecurityContext(),
-		ImagePullPolicy: b.image.PullPolicy,
-	}
-
-	return container
+	return builder.BuildWithComponent(component)
 }
 
 // DataNodeComponent implements the component interface for DataNode
 type DataNodeComponent struct {
-	instance      *hdfsv1alpha1.HdfsCluster
-	roleGroupInfo *reconciler.RoleGroupInfo
+	clusterName   string
+	clusterConfig *hdfsv1alpha1.ClusterConfigSpec
 }
 
 // Compile-time check to ensure DataNodeComponent implements ContainerComponentInterface
 var _ common.ContainerComponentInterface = &DataNodeComponent{}
+var _ common.ContainerPortsProvider = &DataNodeComponent{}
+var _ common.ContainerHealthCheckProvider = &DataNodeComponent{}
 
-func newDataNodeComponent(instance *hdfsv1alpha1.HdfsCluster, roleGroupInfo *reconciler.RoleGroupInfo) *DataNodeComponent {
+func newDataNodeComponent(clusterName string, clusterConfig *hdfsv1alpha1.ClusterConfigSpec) *DataNodeComponent {
 	return &DataNodeComponent{
-		instance:      instance,
-		roleGroupInfo: roleGroupInfo,
+		clusterName:   clusterName,
+		clusterConfig: clusterConfig,
 	}
 }
 
 func (c *DataNodeComponent) GetContainerName() string {
-	return string(constant.DataNodeComponent)
+	return constant.DataNodeContainer
 }
 
 func (c *DataNodeComponent) GetCommand() []string {
-	return []string{"/stackable/hadoop/bin/hdfs"}
+	return []string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}
 }
 
 func (c *DataNodeComponent) GetArgs() []string {
-	return []string{"datanode"}
+	var args []string
+	args = append(args, `mkdir -p /kubedoop/config/datanode
+cp /kubedoop/mount/config/datanode/*.xml /kubedoop/config/datanode
+cp /kubedoop/mount/config/datanode/datanode.log4j.properties /kubedoop/config/datanode/log4j.properties`)
+	if common.IsKerberosEnabled(c.clusterConfig) {
+		args = append(args, `{{ if .kerberosEnabled}}
+{{- .kerberosEnv}}
+{{- end}}`)
+	}
+
+	// Add common bash functions and datanode startup
+	args = append(args,
+		oputil.CommonBashTrapFunctions,
+		oputil.RemoveVectorShutdownFileCommand(),
+		oputil.InvokePrepareSignalHandlers,
+		oputil.ExportPodAddress(),
+		"/kubedoop/hadoop/bin/hdfs datanode &",
+		oputil.InvokeWaitForTermination,
+		oputil.CreateVectorShutdownFileCommand(),
+	)
+
+	tmpl := strings.Join(args, "\n")
+	krbData := common.CreateExportKrbRealmEnvData(c.clusterConfig)
+	return common.ParseTemplate(tmpl, krbData)
 }
 
 func (c *DataNodeComponent) GetEnvVars() []corev1.EnvVar {
-	return []corev1.EnvVar{
-		{
-			Name:  "HADOOP_CONF_DIR",
-			Value: "/stackable/config",
-		},
-		{
-			Name:  "HADOOP_LOG_DIR",
-			Value: "/stackable/log",
-		},
-		{
-			Name:  "HADOOP_USER_NAME",
-			Value: "hdfs",
-		},
-		{
-			Name:  "HDFS_DATANODE_USER",
-			Value: "hdfs",
-		},
-	}
+	return common.GetCommonContainerEnv(c.clusterConfig, constant.DataNodeComponent)
 }
 
 func (c *DataNodeComponent) GetVolumeMounts() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
+	mounts := common.GetCommonVolumeMounts(c.clusterConfig)
+	datanodeMounts := []corev1.VolumeMount{
 		{
 			Name:      hdfsv1alpha1.HdfsConfigVolumeMountName,
-			MountPath: "/stackable/config",
+			MountPath: constants.KubedoopConfigDirMount + "/" + c.GetContainerName(),
 		},
 		{
 			Name:      hdfsv1alpha1.HdfsLogVolumeMountName,
-			MountPath: "/stackable/log",
+			MountPath: constants.KubedoopLogDirMount + "/" + c.GetContainerName(),
 		},
 		{
-			Name:      "datanode-data",
-			MountPath: "/stackable/data/datanode",
+			Name:      hdfsv1alpha1.ListenerVolumeName,
+			MountPath: constants.KubedoopListenerDir,
+		},
+		{
+			Name:      hdfsv1alpha1.DataVolumeMountName,
+			MountPath: hdfsv1alpha1.DataNodeRootDataDirPrefix + hdfsv1alpha1.DataVolumeMountName, // !!! the last "data" is pvc name
 		},
 	}
+	return append(mounts, datanodeMounts...)
 }
 
 func (c *DataNodeComponent) GetPorts() []corev1.ContainerPort {
-	return []corev1.ContainerPort{
+	ports := []corev1.ContainerPort{
 		{
-			Name:          "data",
-			ContainerPort: 9866,
+			Name:          hdfsv1alpha1.MetricName,
+			ContainerPort: hdfsv1alpha1.DataNodeMetricPort,
 			Protocol:      corev1.ProtocolTCP,
 		},
 		{
-			Name:          "http",
-			ContainerPort: 9864,
+			Name:          hdfsv1alpha1.DataName,
+			ContainerPort: hdfsv1alpha1.DataNodeDataPort,
 			Protocol:      corev1.ProtocolTCP,
 		},
 		{
-			Name:          "ipc",
-			ContainerPort: 9867,
+			Name:          hdfsv1alpha1.IpcName,
+			ContainerPort: hdfsv1alpha1.DataNodeIpcPort,
 			Protocol:      corev1.ProtocolTCP,
 		},
 	}
+	return append(ports, common.HttpPort(c.clusterConfig, hdfsv1alpha1.DataNodeHttpsPort, hdfsv1alpha1.DataNodeHttpPort))
 }
 
 func (c *DataNodeComponent) GetLivenessProbe() *corev1.Probe {
 	return &corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
-			HTTPGet: &corev1.HTTPGetAction{
-				Path: "/",
-				Port: intstr.FromString("http"),
-			},
-		},
-		InitialDelaySeconds: 30,
+		FailureThreshold:    5,
+		InitialDelaySeconds: 10,
 		PeriodSeconds:       10,
-		TimeoutSeconds:      5,
-		FailureThreshold:    3,
+		SuccessThreshold:    1,
+		TimeoutSeconds:      1,
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: common.TlsHttpGetAction(c.clusterConfig, "/datanode.html"),
+		},
 	}
 }
 
 func (c *DataNodeComponent) GetReadinessProbe() *corev1.Probe {
 	return &corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
-			HTTPGet: &corev1.HTTPGetAction{
-				Path: "/",
-				Port: intstr.FromString("http"),
-			},
-		},
-		InitialDelaySeconds: 10,
-		PeriodSeconds:       5,
-		TimeoutSeconds:      3,
 		FailureThreshold:    3,
+		InitialDelaySeconds: 10,
+		PeriodSeconds:       10,
+		SuccessThreshold:    1,
+		TimeoutSeconds:      1,
+		ProbeHandler: corev1.ProbeHandler{
+			TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromString(hdfsv1alpha1.IpcName)},
+		},
 	}
 }
 
 func (c *DataNodeComponent) GetStartupProbe() *corev1.Probe {
 	return &corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
-			HTTPGet: &corev1.HTTPGetAction{
-				Path: "/",
-				Port: intstr.FromString("http"),
-			},
-		},
+		FailureThreshold:    30,
 		InitialDelaySeconds: 10,
 		PeriodSeconds:       10,
 		TimeoutSeconds:      5,
-		FailureThreshold:    30,
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: common.TlsHttpGetAction(c.clusterConfig, "/datanode.html"),
+		},
 	}
-}
-
-func (c *DataNodeComponent) GetResources() *corev1.ResourceRequirements {
-	return &corev1.ResourceRequirements{}
-}
-
-func (c *DataNodeComponent) GetSecurityContext() *corev1.SecurityContext {
-	return &corev1.SecurityContext{
-		RunAsUser:    &[]int64{1000}[0],
-		RunAsGroup:   &[]int64{1000}[0],
-		RunAsNonRoot: &[]bool{true}[0],
-	}
-}
-
-// GetJvmOpts returns JVM options for DataNode
-func (c *DataNodeComponent) GetJvmOpts() string {
-	opts := []string{
-		"-Xmx1g",
-		"-Xms1g",
-		"-XX:+UseG1GC",
-		"-XX:MaxGCPauseMillis=20",
-		"-XX:InitiatingHeapOccupancyPercent=35",
-		"-XX:+ExplicitGCInvokesConcurrent",
-		"-Djava.awt.headless=true",
-		"-Djava.net.preferIPv4Stack=true",
-		"-Dhadoop.log.dir=/stackable/log",
-		"-Dhadoop.log.file=hadoop.log",
-		"-Dhadoop.home.dir=/stackable/hadoop",
-		"-Dhadoop.id.str=hdfs",
-		"-Dhadoop.root.logger=INFO,RFA",
-		"-Dhadoop.policy.file=hadoop-policy.xml",
-	}
-	return strings.Join(opts, " ")
 }
