@@ -143,8 +143,16 @@ func (c *WaitForNameNodesComponent) nameNodeIds() string {
 	// Get namenode role group info from the cluster
 	nameNodeRoleGroups := c.instance.Spec.NameNode.RoleGroups
 	var podNames []string
+	clusteInfo := c.roleGroupInfo.ClusterInfo
 	for groupName, roleGroupSpec := range nameNodeRoleGroups {
-		statefulSetName := c.instance.Name + "-" + string(constant.NameNode) + "-" + groupName
+		nnRoleGroupInfo := reconciler.RoleGroupInfo{
+			RoleInfo: reconciler.RoleInfo{
+				ClusterInfo: clusteInfo,
+				RoleName:    string(constant.NameNode),
+			},
+			RoleGroupName: groupName,
+		}
+		statefulSetName := nnRoleGroupInfo.GetFullName()
 		replicas := *roleGroupSpec.Replicas
 		groupPodNames := common.CreatePodNamesByReplicas(replicas, statefulSetName)
 		podNames = append(podNames, groupPodNames...)

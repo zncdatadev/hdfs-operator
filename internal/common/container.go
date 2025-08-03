@@ -96,7 +96,7 @@ func (c *HdfsContainerBuilder) BuildWithComponent(component ContainerComponentIn
 	c.SetLivenessProbe(c.liveness).
 		SetReadinessProbe(c.readiness).
 		AddEnvVars(c.envs).
-		AddEnvFromConfigMap(RoleGroupEnvsConfigMapName(c.RoleGroupInfo.GetClusterName())).
+		// AddEnvFromConfigMap(RoleGroupEnvsConfigMapName(c.RoleGroupInfo.GetClusterName())).
 		AddPorts(c.ports).
 		SetCommand([]string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}).
 		AddVolumeMounts(c.volumeMounts).
@@ -129,6 +129,6 @@ func (c *HdfsContainerBuilder) commonVolumeMounts() []corev1.VolumeMount {
 }
 
 // RoleGroupEnvsConfigMapName generates the role group environment config map name
-func RoleGroupEnvsConfigMapName(clusterName string) string {
-	return clusterName + "-env"
-}
+// func RoleGroupEnvsConfigMapName(clusterName string) string {
+// 	return clusterName + "-env"
+// }

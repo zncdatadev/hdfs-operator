@@ -12,7 +12,6 @@ import (
 func NewServiceAccountReconciler(
 	client *client.Client,
 	instance *hdfsv1alpha1.HdfsCluster,
-	mergedLabels map[string]string,
 	options ...builder.Option,
 ) reconciler.ResourceReconciler[*builder.GenericServiceAccountBuilder] {
 

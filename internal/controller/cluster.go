@@ -4,10 +4,14 @@ import (
 	"context"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/common"
 	"github.com/zncdatadev/hdfs-operator/internal/constant"
+	"github.com/zncdatadev/hdfs-operator/internal/controller/data"
+	"github.com/zncdatadev/hdfs-operator/internal/controller/journal"
 	"github.com/zncdatadev/hdfs-operator/internal/controller/name"
 	"github.com/zncdatadev/hdfs-operator/internal/util/version"
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/builder"
 	resourceClient "github.com/zncdatadev/operator-go/pkg/client"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	"github.com/zncdatadev/operator-go/pkg/util"
@@ -22,23 +26,25 @@ type Reconciler struct {
 	reconciler.BaseCluster[*hdfsv1alpha1.HdfsClusterSpec]
 	ClusterConfig    *hdfsv1alpha1.ClusterConfigSpec
 	ClusterOperation *commonsv1alpha1.ClusterOperationSpec
+
+	instance *hdfsv1alpha1.HdfsCluster
 }
 
 // NewClusterReconciler creates a new cluster reconciler for HdfsCluster resources
 func NewClusterReconciler(
 	client *resourceClient.Client,
 	clusterInfo reconciler.ClusterInfo,
-	spec *hdfsv1alpha1.HdfsClusterSpec,
+	instance *hdfsv1alpha1.HdfsClusterSpec,
 ) *Reconciler {
 	return &Reconciler{
 		BaseCluster: *reconciler.NewBaseCluster(
 			client,
 			clusterInfo,
-			spec.ClusterOperationSpec,
-			spec,
+			instance.ClusterOperationSpec,
+			instance,
 		),
-		ClusterConfig:    spec.ClusterConfig,
-		ClusterOperation: spec.ClusterOperationSpec,
+		ClusterConfig:    instance.ClusterConfig,
+		ClusterOperation: instance.ClusterOperationSpec,
 	}
 }
 
@@ -63,18 +69,26 @@ func (r *Reconciler) GetImage(roleType constant.Role) *util.Image {
 }
 
 // RegisterResources registers all resources for the HdfsCluster
-func (r *Reconciler) RegisterResources(ctx context.Context) error {
+func (r *Reconciler) RegisterResources(
+	ctx context.Context) error {
 	// Optional: Create service account for the cluster if needed
-	// sa := createServiceAccount(r.Client, r.GetName())
-	// if sa != nil {
-	//     r.AddResource(sa)
-	// }
+	sa := NewServiceAccountReconciler(r.Client, r.instance, func(o *builder.Options) {
+		o.ClusterName = r.ClusterInfo.ClusterName
+		o.Labels = r.ClusterInfo.GetLabels()
+		o.Annotations = r.ClusterInfo.GetAnnotations()
+	})
+	if sa != nil {
+		r.AddResource(sa)
+	}
+
+	clusterComponent := &common.ClusterComponentsInfo{}
+	common.PopulateClusterComponents(r.instance, clusterComponent, &r.ClusterInfo)
 
 	// NameNode role
-	if r.Spec.NameNode != nil {
+	if r.instance.Spec.NameNode != nil {
 		nameNodeRoleInfo := reconciler.RoleInfo{
 			ClusterInfo: r.ClusterInfo,
-			RoleName:    "namenode",
+			RoleName:    string(constant.NameNode),
 		}
 
 		// Create NameNode reconciler with base image
@@ -82,11 +96,9 @@ func (r *Reconciler) RegisterResources(ctx context.Context) error {
 		nameNodeReconciler := name.NewNameNodeRole(
 			r.Client,
 			nameNodeRoleInfo,
-			r.Spec.NameNode,
+			*r.Spec.NameNode,
 			nameNodeImage,
-			&hdfsv1alpha1.HdfsCluster{
-				Spec: *r.Spec,
-			},
+			r.instance,
 		)
 
 		if err := nameNodeReconciler.RegisterResources(ctx); err != nil {
@@ -96,19 +108,54 @@ func (r *Reconciler) RegisterResources(ctx context.Context) error {
 		clusterLogger.Info("Registered NameNode role")
 	}
 
-	// Note: DataNode and JournalNode are using old API and need to be refactored
-	// For now, we'll skip them until they are updated to the new architecture
-
-	// TODO: Refactor DataNode and JournalNode to use new API like NameNode
-	// DataNode role
-	// if r.Spec.DataNode != nil {
-	//     ...
-	// }
-
 	// JournalNode role
-	// if r.Spec.JournalNode != nil {
-	//     ...
-	// }
+	if r.instance.Spec.JournalNode != nil {
+		journalNodeRoleInfo := reconciler.RoleInfo{
+			ClusterInfo: r.ClusterInfo,
+			RoleName:    string(constant.JournalNode),
+		}
+		// Create JournalNode reconciler with base image
+		journalNodeImage := r.GetImage(constant.JournalNode)
+		journalNodeReconciler := journal.NewJournalNodeRole(
+			r.Client,
+
+			journalNodeRoleInfo,
+			r.Spec.JournalNode,
+			journalNodeImage,
+			r.instance,
+			clusterComponent,
+		)
+		if err := journalNodeReconciler.RegisterResources(ctx); err != nil {
+			return err
+		}
+		r.AddResource(journalNodeReconciler)
+		clusterLogger.Info("Registered JournalNode role")
+	}
+
+	// DataNode role
+	if r.instance.Spec.DataNode != nil {
+		dataNodeRoleInfo := reconciler.RoleInfo{
+			ClusterInfo: r.ClusterInfo,
+			RoleName:    string(constant.DataNode),
+		}
+		// Create DataNode reconciler with base image
+		dataNodeImage := r.GetImage(constant.DataNode)
+		dataNodeReconciler := data.NewDataNodeRole(
+			r.Client,
+			dataNodeRoleInfo,
+			r.Spec.DataNode,
+			dataNodeImage,
+			r.instance,
+			clusterComponent,
+		)
+		if err := dataNodeReconciler.RegisterResources(ctx); err != nil {
+			return err
+		}
+		r.AddResource(dataNodeReconciler)
+		clusterLogger.Info("Registered DataNode role")
+
+	}
+	// TODO: discovery
 
 	return nil
 }

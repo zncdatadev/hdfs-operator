@@ -9,7 +9,10 @@ import (
 	"github.com/zncdatadev/operator-go/pkg/client"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	opgoutil "github.com/zncdatadev/operator-go/pkg/util"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
+
+var logger = ctrl.Log.WithName("role-reconciler")
 
 // HdfsComponentReconciler is the interface that all component reconcilers must implement
 type HdfsComponentReconciler interface {
@@ -19,7 +22,7 @@ type HdfsComponentReconciler interface {
 		replicas *int32,
 		roleGroupInfo *reconciler.RoleGroupInfo,
 		overrides *commonsv1alpha1.OverridesSpec,
-		config hdfsv1alpha1.ConfigSpec,
+		config *hdfsv1alpha1.ConfigSpec,
 	) ([]reconciler.Reconciler, error)
 }
 
@@ -40,7 +43,7 @@ type HdfsComponentResourceBuilder interface {
 		hdfsCluster *hdfsv1alpha1.HdfsCluster,
 		clusterOperation *commonsv1alpha1.ClusterOperationSpec,
 		roleGroupInfo *reconciler.RoleGroupInfo,
-		config hdfsv1alpha1.ConfigSpec,
+		config *hdfsv1alpha1.ConfigSpec,
 		overrides *commonsv1alpha1.OverridesSpec,
 	) (reconciler.Reconciler, error)
 
@@ -49,14 +52,15 @@ type HdfsComponentResourceBuilder interface {
 		client *client.Client,
 		hdfsCluster *hdfsv1alpha1.HdfsCluster,
 		roleGroupInfo *reconciler.RoleGroupInfo,
-		config hdfsv1alpha1.ConfigSpec,
+		config *hdfsv1alpha1.ConfigSpec,
 		overrides *commonsv1alpha1.OverridesSpec,
+		clusterComponentInfo *ClusterComponentsInfo,
 	) (reconciler.Reconciler, error)
 }
 
 // BaseHdfsRoleReconciler is the common base for NameNode, DataNode and JournalNode role reconcilers
 type BaseHdfsRoleReconciler struct {
-	reconciler.BaseRoleReconciler[interface{}]
+	reconciler.BaseRoleReconciler[hdfsv1alpha1.RoleSpec]
 	HdfsCluster      *hdfsv1alpha1.HdfsCluster
 	ClusterConfig    *hdfsv1alpha1.ClusterConfigSpec
 	ClusterOperation *commonsv1alpha1.ClusterOperationSpec
@@ -69,7 +73,7 @@ type BaseHdfsRoleReconciler struct {
 func NewBaseHdfsRoleReconciler(
 	client *client.Client,
 	roleInfo reconciler.RoleInfo,
-	spec interface{},
+	spec hdfsv1alpha1.RoleSpec,
 	hdfsCluster *hdfsv1alpha1.HdfsCluster,
 	image *opgoutil.Image,
 	componentType string,
@@ -98,8 +102,44 @@ func NewBaseHdfsRoleReconciler(
 
 // RegisterResources registers all resources for all role groups
 func (r *BaseHdfsRoleReconciler) RegisterResources(ctx context.Context) error {
-	// This method needs to be implemented specifically for each HDFS role type
-	// (NameNode, DataNode, JournalNode) as they have different Spec structures
+	for name, roleGroup := range r.Spec.RoleGroups {
+		// Merge configurations
+		mergedConfig, err := opgoutil.MergeObject(r.Spec.Config, roleGroup.Config)
+		if err != nil {
+			return err
+		}
+
+		// Merge override configurations
+		overrides, err := opgoutil.MergeObject(r.Spec.OverridesSpec, roleGroup.OverridesSpec)
+		if err != nil {
+			return err
+		}
+
+		if overrides == nil {
+			overrides = &commonsv1alpha1.OverridesSpec{}
+		}
+
+		info := &reconciler.RoleGroupInfo{
+			RoleInfo:      r.RoleInfo,
+			RoleGroupName: name,
+		}
+
+		reconcilers, err := r.ComponentRec.RegisterResourceWithRoleGroup(
+			ctx,
+			roleGroup.Replicas,
+			info,
+			overrides,
+			mergedConfig,
+		)
+		if err != nil {
+			return err
+		}
+
+		for _, reconciler := range reconcilers {
+			r.AddResource(reconciler)
+			logger.Info("registered resource", "role", r.GetName(), "roleGroup", name, "reconciler", reconciler.GetName())
+		}
+	}
 	return nil
 }
 
@@ -113,8 +153,9 @@ func RegisterStandardResources(
 	hdfsCluster *hdfsv1alpha1.HdfsCluster,
 	clusterOperation *commonsv1alpha1.ClusterOperationSpec,
 	roleGroupInfo *reconciler.RoleGroupInfo,
-	config hdfsv1alpha1.ConfigSpec,
+	config *hdfsv1alpha1.ConfigSpec,
 	overrides *commonsv1alpha1.OverridesSpec,
+	clusterComponentInfo *ClusterComponentsInfo,
 ) ([]reconciler.Reconciler, error) {
 	var reconcilers = make([]reconciler.Reconciler, 0)
 
@@ -147,6 +188,7 @@ func RegisterStandardResources(
 		roleGroupInfo,
 		config,
 		overrides,
+		clusterComponentInfo,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ConfigMap reconciler: %w", err)

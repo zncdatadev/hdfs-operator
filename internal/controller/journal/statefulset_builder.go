@@ -43,6 +43,7 @@ func NewJournalnodeStatefulSetBuilder(
 	instance *hdfsv1alpha1.HdfsCluster,
 	mergedCfg *hdfsv1alpha1.RoleGroupSpec,
 ) *JournalnodeStatefulSetBuilder {
+	jnStsBuiler := &JournalnodeStatefulSetBuilder{}
 	// Create the common StatefulSetBuilder
 	commonBuilder := common.NewStatefulSetBuilder(
 		ctx,
@@ -54,6 +55,7 @@ func NewJournalnodeStatefulSetBuilder(
 		overrides,
 		instance,
 		constant.JournalNode,
+		jnStsBuiler,
 	)
 
 	return &JournalnodeStatefulSetBuilder{
@@ -67,7 +69,7 @@ func NewJournalnodeStatefulSetBuilder(
 // Build constructs the StatefulSet using the inherited common builder and journalnode-specific component
 func (b *JournalnodeStatefulSetBuilder) Build(ctx context.Context) (ctrlclient.Object, error) {
 	// Use the inherited common builder's Build method, passing self as the component builder
-	return b.StatefulSetBuilder.Build(ctx, b)
+	return b.StatefulSetBuilder.Build(ctx)
 }
 
 // StatefulSetComponentBuilder interface implementation
@@ -86,9 +88,7 @@ func (b *JournalnodeStatefulSetBuilder) GetMainContainers() []corev1.Container {
 
 // GetInitContainers returns init containers for journalnode
 func (b *JournalnodeStatefulSetBuilder) GetInitContainers() []corev1.Container {
-	return []corev1.Container{
-		b.makeWaitForZookeeperContainer(),
-	}
+	return []corev1.Container{}
 }
 
 // GetVolumes returns journalnode-specific volumes
@@ -142,16 +142,6 @@ func (b *JournalnodeStatefulSetBuilder) makeJournalNodeContainer() corev1.Contai
 	return *journalNodeBuilder.Build()
 }
 
-func (b *JournalnodeStatefulSetBuilder) makeWaitForZookeeperContainer() corev1.Container {
-	waitForZk := container.NewWaitForZookeeperContainerBuilder(
-		b.GetInstance(),
-		b.roleGroupInfo,
-		b.roleGroupConfig,
-		b.image,
-	)
-	return *waitForZk.Build()
-}
-
 func (b *JournalnodeStatefulSetBuilder) createDataPvcTemplate() corev1.PersistentVolumeClaim {
 	// Default storage size
 	storageSize := resource.MustParse("10Gi")
@@ -173,7 +163,9 @@ func (b *JournalnodeStatefulSetBuilder) createDataPvcTemplate() corev1.Persisten
 		},
 	}
 }
-
+func (b *JournalnodeStatefulSetBuilder) GetHttpPort() int32 {
+	return common.HttpPort(b.GetInstance().Spec.ClusterConfig, hdfsv1alpha1.JournalNodeHttpsPort, hdfsv1alpha1.JournalNodeHttpPort).ContainerPort
+}
 func (b *JournalnodeStatefulSetBuilder) createListenPvcTemplate() corev1.PersistentVolumeClaim {
 	listenerClass := constants.ClusterInternal
 	if b.mergedCfg.Config != nil && b.mergedCfg.Config.ListenerClass != nil {

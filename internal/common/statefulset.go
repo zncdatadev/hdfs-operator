@@ -22,6 +22,7 @@ type StatefulSetBuilder struct {
 	roleGroupInfo *reconciler.RoleGroupInfo
 	roleType      constant.Role
 	ctx           context.Context
+	component     StatefulSetComponentBuilder
 }
 
 // NewStatefulSetBuilder creates a new StatefulSetBuilder with common configuration
@@ -35,6 +36,7 @@ func NewStatefulSetBuilder(
 	overrides *commonsv1alpha1.OverridesSpec,
 	instance *hdfsv1alpha1.HdfsCluster,
 	roleType constant.Role,
+	component StatefulSetComponentBuilder,
 ) *StatefulSetBuilder {
 	statefulSetBuilder := builder.NewStatefulSetBuilder(
 		client,
@@ -58,6 +60,7 @@ func NewStatefulSetBuilder(
 		roleGroupInfo: roleGroupInfo,
 		roleType:      roleType,
 		ctx:           ctx,
+		component:     component,
 	}
 }
 
@@ -77,17 +80,20 @@ type StatefulSetComponentBuilder interface {
 	GetSecurityContext() *corev1.PodSecurityContext
 	// GetServiceAccountName returns the service account name
 	GetServiceAccountName() string
+
+	// GetHttpPort returns the HTTP port for the component
+	GetHttpPort() int32
 }
 
 // Build constructs the StatefulSet object combining common and component-specific configurations
-func (b *StatefulSetBuilder) Build(ctx context.Context, component StatefulSetComponentBuilder) (ctrlclient.Object, error) {
+func (b *StatefulSetBuilder) Build(ctx context.Context) (ctrlclient.Object, error) {
 	// Add component-specific containers
-	for _, container := range component.GetMainContainers() {
+	for _, container := range b.component.GetMainContainers() {
 		b.AddContainer(&container)
 	}
 
 	// Add init containers if any
-	for _, initContainer := range component.GetInitContainers() {
+	for _, initContainer := range b.component.GetInitContainers() {
 		b.AddInitContainer(&initContainer)
 	}
 
@@ -98,10 +104,10 @@ func (b *StatefulSetBuilder) Build(ctx context.Context, component StatefulSetCom
 	b.AddVolumes(commonVolumes)
 
 	// Add component-specific volumes
-	b.AddVolumes(component.GetVolumes())
+	b.AddVolumes(b.GetVolumes())
 
 	// Add volume claim templates
-	b.AddVolumeClaimTemplates(component.GetVolumeClaimTemplates())
+	b.AddVolumeClaimTemplates(b.GetVolumeClaimTemplates())
 
 	// Create the StatefulSet object using the embedded builder
 	sts, err := b.GetObject()
@@ -113,12 +119,12 @@ func (b *StatefulSetBuilder) Build(ctx context.Context, component StatefulSetCom
 	sts.Spec.PodManagementPolicy = appv1.ParallelPodManagement
 
 	// Set security context if provided
-	if securityContext := component.GetSecurityContext(); securityContext != nil {
+	if securityContext := b.component.GetSecurityContext(); securityContext != nil {
 		sts.Spec.Template.Spec.SecurityContext = securityContext
 	}
 
 	// Set service account name if provided
-	if serviceAccountName := component.GetServiceAccountName(); serviceAccountName != "" {
+	if serviceAccountName := b.component.GetServiceAccountName(); serviceAccountName != "" {
 		sts.Spec.Template.Spec.ServiceAccountName = serviceAccountName
 	}
 
@@ -128,7 +134,7 @@ func (b *StatefulSetBuilder) Build(ctx context.Context, component StatefulSetCom
 	}
 
 	// Add OIDC container if needed
-	if err := b.addOIDCContainer(sts); err != nil {
+	if err := b.addOIDCContainer(b.component); err != nil {
 		return nil, err
 	}
 
@@ -136,19 +142,30 @@ func (b *StatefulSetBuilder) Build(ctx context.Context, component StatefulSetCom
 }
 
 // addVectorContainer adds vector container if logging is enabled
-func (b *StatefulSetBuilder) addVectorContainer(sts *appv1.StatefulSet) error {
-	// This method should be implemented by role-specific builders
-	// For now, we'll leave it empty and let the specific implementations handle it
+func (b *StatefulSetBuilder) addVectorContainer(_ *appv1.StatefulSet) error {
+	if vectorEnable, err := IsVectorEnable(b.RoleGroupConfig.Logging); err != nil {
+		return err
+	} else if vectorEnable {
+		vectorFactory := GetVectorFactory(b.Image)
+		if vectorFactory != nil {
+			b.AddContainer(vectorFactory.GetContainer())
+			b.AddVolumes(vectorFactory.GetVolumes())
+		}
+	}
 	return nil
+
 }
 
 // addOIDCContainer adds OIDC container if authentication is configured
-func (b *StatefulSetBuilder) addOIDCContainer(_ *appv1.StatefulSet) error {
+func (b *StatefulSetBuilder) addOIDCContainer(component StatefulSetComponentBuilder) error {
 	if b.instance.Spec.ClusterConfig.Authentication != nil && b.instance.Spec.ClusterConfig.Authentication.AuthenticationClass != "" {
-		// This method should be implemented by role-specific builders
-		// For now, we'll leave it empty and let the specific implementations handle it
-		// TODO: Implement OIDC container configuration
-		return nil
+		oidcContainer, err := MakeOidcContainer(b.ctx, b.Client.Client, b.GetInstance(), b.roleGroupInfo, b.RoleGroupConfig, component.GetHttpPort(), b.Image)
+		if err != nil {
+			return err
+		}
+		if oidcContainer != nil {
+			b.AddContainer(oidcContainer)
+		}
 	}
 	return nil
 }

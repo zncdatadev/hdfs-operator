@@ -9,9 +9,10 @@ import (
 
 // DataNodeConfigMapBuilder builds ConfigMap for DataNode
 type DataNodeConfigMapBuilder struct {
-	instance        *hdfsv1alpha1.HdfsCluster
-	roleGroupInfo   *reconciler.RoleGroupInfo
-	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec
+	instance             *hdfsv1alpha1.HdfsCluster
+	roleGroupInfo        *reconciler.RoleGroupInfo
+	roleGroupConfig      *commonsv1alpha1.RoleGroupConfigSpec
+	clusterComponentInfo *common.ClusterComponentsInfo
 }
 
 // ConfigMapComponentBuilder interface for DataNode ConfigMap
@@ -22,11 +23,13 @@ func NewDataNodeConfigMapBuilder(
 	instance *hdfsv1alpha1.HdfsCluster,
 	roleGroupInfo *reconciler.RoleGroupInfo,
 	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec,
+	clusterComponentInfo *common.ClusterComponentsInfo,
 ) *DataNodeConfigMapBuilder {
 	return &DataNodeConfigMapBuilder{
-		instance:        instance,
-		roleGroupInfo:   roleGroupInfo,
-		roleGroupConfig: roleGroupConfig,
+		instance:             instance,
+		roleGroupInfo:        roleGroupInfo,
+		roleGroupConfig:      roleGroupConfig,
+		clusterComponentInfo: clusterComponentInfo,
 	}
 }
 

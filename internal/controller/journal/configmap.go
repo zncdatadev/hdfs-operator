@@ -38,13 +38,15 @@ func NewJournalnodeConfigMapBuilder(
 	roleConfig *commonsv1alpha1.RoleGroupConfigSpec,
 	instance *hdfsv1alpha1.HdfsCluster,
 	mergedCfg *hdfsv1alpha1.RoleGroupSpec,
+	clusterComponentInfo *common.ClusterComponentsInfo,
 ) builder.ConfigBuilder {
 	vectorConfigMapName := common.GetVectorConfigMapName(instance)
 
 	configMapBuilder := &JournalnodeConfigMapBuilder{
-		instance:  instance,
-		groupName: roleGroupInfo.GetGroupName(),
-		mergedCfg: mergedCfg,
+		instance:             instance,
+		groupName:            roleGroupInfo.GetGroupName(),
+		mergedCfg:            mergedCfg,
+		clusterComponentInfo: clusterComponentInfo,
 	}
 
 	jnbuilder := common.NewConfigMapBuilder(

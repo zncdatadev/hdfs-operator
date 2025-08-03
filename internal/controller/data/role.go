@@ -17,9 +17,11 @@ import (
 // It implements both HdfsComponentReconciler and HdfsComponentResourceBuilder interfaces
 type DataNodeReconciler struct {
 	*common.BaseHdfsRoleReconciler
-	client       *client.Client
-	dataNodeSpec *hdfsv1alpha1.RoleSpec
-	configSpec   hdfsv1alpha1.ConfigSpec
+	client               *client.Client
+	dataNodeSpec         *hdfsv1alpha1.RoleSpec
+	configSpec           hdfsv1alpha1.ConfigSpec
+	mergedConfig         *hdfsv1alpha1.RoleGroupSpec
+	clusterComponentInfo *common.ClusterComponentsInfo
 }
 
 var _ common.HdfsComponentReconciler = &DataNodeReconciler{}
@@ -32,20 +34,22 @@ func NewDataNodeRole(
 	spec *hdfsv1alpha1.RoleSpec,
 	image *opgoutil.Image,
 	instance *hdfsv1alpha1.HdfsCluster,
+	clusterComponentInfo *common.ClusterComponentsInfo,
 ) *DataNodeReconciler {
 	dataNodeReconciler := &DataNodeReconciler{
-		client:       client,
-		dataNodeSpec: spec,
+		client:               client,
+		dataNodeSpec:         spec,
+		clusterComponentInfo: clusterComponentInfo,
 	}
 
 	// Create base role reconciler with DataNode as component type
 	baseReconciler := common.NewBaseHdfsRoleReconciler(
 		client,
 		roleInfo,
-		spec,
+		*spec,
 		instance,
 		image,
-		"datanode",
+		string(constant.DataNode),
 		dataNodeReconciler, // Pass itself as the componentRec
 	)
 
@@ -59,7 +63,7 @@ func (r *DataNodeReconciler) RegisterResourceWithRoleGroup(
 	replicas *int32,
 	roleGroupInfo *reconciler.RoleGroupInfo,
 	overrides *commonsv1alpha1.OverridesSpec,
-	config hdfsv1alpha1.ConfigSpec,
+	config *hdfsv1alpha1.ConfigSpec,
 ) ([]reconciler.Reconciler, error) {
 	// Use common resource registration logic
 	reconcilers, err := common.RegisterStandardResources(
@@ -73,6 +77,7 @@ func (r *DataNodeReconciler) RegisterResourceWithRoleGroup(
 		roleGroupInfo,
 		config,
 		overrides,
+		r.clusterComponentInfo,
 	)
 	if err != nil {
 		return nil, err
@@ -87,14 +92,16 @@ func (r *DataNodeReconciler) CreateConfigMapReconciler(
 	client *client.Client,
 	hdfsCluster *hdfsv1alpha1.HdfsCluster,
 	roleGroupInfo *reconciler.RoleGroupInfo,
-	config hdfsv1alpha1.ConfigSpec,
+	config *hdfsv1alpha1.ConfigSpec,
 	overrides *commonsv1alpha1.OverridesSpec,
+	clusterComponentInfo *common.ClusterComponentsInfo,
 ) (reconciler.Reconciler, error) {
 
 	cmBuilder := NewDataNodeConfigMapBuilder(
 		hdfsCluster,
 		roleGroupInfo,
 		r.configSpec.RoleGroupConfigSpec,
+		clusterComponentInfo,
 	)
 
 	// DataNodeConfigMapBuilder implements ConfigMapComponentBuilder
@@ -147,9 +154,20 @@ func (r *DataNodeReconciler) CreateStatefulSetReconciler(
 	hdfsCluster *hdfsv1alpha1.HdfsCluster,
 	clusterOperation *commonsv1alpha1.ClusterOperationSpec,
 	roleGroupInfo *reconciler.RoleGroupInfo,
-	config hdfsv1alpha1.ConfigSpec,
+	config *hdfsv1alpha1.ConfigSpec,
 	overrides *commonsv1alpha1.OverridesSpec,
 ) (reconciler.Reconciler, error) {
-
-	return nil, nil
+	dnStsBuilder := NewDataNodeStatefulSetBuilder(
+		ctx,
+		client,
+		roleGroupInfo,
+		image,
+		replicas,
+		r.configSpec.RoleGroupConfigSpec,
+		overrides,
+		hdfsCluster,
+		r.mergedConfig,
+	)
+	dnStsReconciler := reconciler.NewStatefulSet(client, dnStsBuilder, r.ClusterStopped())
+	return dnStsReconciler, nil
 }

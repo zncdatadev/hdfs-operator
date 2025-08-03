@@ -43,6 +43,8 @@ func NewDataNodeStatefulSetBuilder(
 	instance *hdfsv1alpha1.HdfsCluster,
 	mergedCfg *hdfsv1alpha1.RoleGroupSpec,
 ) *DataNodeStatefulSetBuilder {
+
+	dnStsBuilder := &DataNodeStatefulSetBuilder{}
 	// Create the common StatefulSetBuilder
 	commonBuilder := common.NewStatefulSetBuilder(
 		ctx,
@@ -54,6 +56,7 @@ func NewDataNodeStatefulSetBuilder(
 		overrides,
 		instance,
 		constant.DataNode,
+		dnStsBuilder,
 	)
 
 	return &DataNodeStatefulSetBuilder{
@@ -68,7 +71,7 @@ func NewDataNodeStatefulSetBuilder(
 // Build constructs the StatefulSet using the inherited common builder and datanode-specific component
 func (b *DataNodeStatefulSetBuilder) Build(ctx context.Context) (ctrlclient.Object, error) {
 	// Use the inherited common builder's Build method, passing self as the component builder
-	return b.StatefulSetBuilder.Build(ctx, b)
+	return b.StatefulSetBuilder.Build(ctx)
 }
 
 // StatefulSetComponentBuilder interface implementation
@@ -90,6 +93,10 @@ func (b *DataNodeStatefulSetBuilder) GetInitContainers() []corev1.Container {
 	return []corev1.Container{
 		b.makeWaitForNameNodesContainer(),
 	}
+}
+
+func (b *DataNodeStatefulSetBuilder) GetHttpPort() int32 {
+	return common.HttpPort(b.GetInstance().Spec.ClusterConfig, hdfsv1alpha1.DataNodeHttpsPort, hdfsv1alpha1.DataNodeHttpPort).ContainerPort
 }
 
 // GetVolumes returns datanode-specific volumes
@@ -157,6 +164,7 @@ func (b *DataNodeStatefulSetBuilder) makeWaitForNameNodesContainer() corev1.Cont
 	return *waitForNameNodes.Build()
 }
 
+// TODO: extract this to a common method if needed in other builders(nn,jn,dn)
 func (b *DataNodeStatefulSetBuilder) createDataPvcTemplate() corev1.PersistentVolumeClaim {
 	storageSize := b.mergedCfg.Config.Resources.Storage.Capacity
 	return corev1.PersistentVolumeClaim{

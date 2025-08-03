@@ -14,6 +14,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// TODO: refactor this
+
 const coreSiteTemplate = `<?xml version="1.0"?>
 <configuration>
   <property>

@@ -19,7 +19,7 @@ import (
 )
 
 // Compile-time check to ensure NamenodeStatefulSetBuilder implements StatefulSetComponentBuilder
-var _ common.StatefulSetComponentBuilder = (*NamenodeStatefulSetBuilder)(nil)
+var _ common.StatefulSetComponentBuilder = &NamenodeStatefulSetBuilder{}
 
 // NamenodeStatefulSetBuilder inherits from common StatefulSetBuilder and implements namenode-specific logic
 type NamenodeStatefulSetBuilder struct {
@@ -43,6 +43,7 @@ func NewNamenodeStatefulSetBuilder(
 	instance *hdfsv1alpha1.HdfsCluster,
 	mergedCfg *hdfsv1alpha1.RoleGroupSpec,
 ) *NamenodeStatefulSetBuilder {
+	nnStsBuilder := &NamenodeStatefulSetBuilder{}
 	// Create the common StatefulSetBuilder
 	commonBuilder := common.NewStatefulSetBuilder(
 		ctx,
@@ -54,6 +55,7 @@ func NewNamenodeStatefulSetBuilder(
 		overrides,
 		instance,
 		constant.NameNode,
+		nnStsBuilder,
 	)
 
 	return &NamenodeStatefulSetBuilder{
@@ -67,7 +69,7 @@ func NewNamenodeStatefulSetBuilder(
 // Build constructs the StatefulSet using the inherited common builder and namenode-specific component
 func (b *NamenodeStatefulSetBuilder) Build(ctx context.Context) (ctrlclient.Object, error) {
 	// Use the inherited common builder's Build method, passing self as the component builder
-	return b.StatefulSetBuilder.Build(ctx, b)
+	return b.StatefulSetBuilder.Build(ctx)
 }
 
 // StatefulSetComponentBuilder interface implementation
@@ -75,6 +77,10 @@ func (b *NamenodeStatefulSetBuilder) Build(ctx context.Context) (ctrlclient.Obje
 // GetName returns the StatefulSet name
 func (b *NamenodeStatefulSetBuilder) GetName() string {
 	return b.roleGroupInfo.GetFullName()
+}
+
+func (b *NamenodeStatefulSetBuilder) GetHttpPort() int32 {
+	return common.HttpPort(b.GetInstance().Spec.ClusterConfig, hdfsv1alpha1.NameNodeHttpsPort, hdfsv1alpha1.NameNodeHttpPort).ContainerPort
 }
 
 // GetMainContainers returns the main containers for namenode
@@ -146,6 +152,7 @@ func (b *NamenodeStatefulSetBuilder) GetVolumeClaimTemplates() []corev1.Persiste
 // GetServiceAccountName returns the service account name for namenode
 func (b *NamenodeStatefulSetBuilder) GetServiceAccountName() string {
 	return common.CreateServiceAccountName(b.GetInstance().GetName())
+
 }
 
 // Helper methods for container creation

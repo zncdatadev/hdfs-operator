@@ -18,10 +18,11 @@ import (
 // It implements both HdfsComponentReconciler and HdfsComponentResourceBuilder interfaces
 type JournalNodeReconciler struct {
 	*common.BaseHdfsRoleReconciler
-	client          *client.Client
-	journalNodeSpec *hdfsv1alpha1.RoleSpec
-	configSpec      hdfsv1alpha1.ConfigSpec
-	mergedConfig    *hdfsv1alpha1.RoleGroupSpec
+	client               *client.Client
+	journalNodeSpec      *hdfsv1alpha1.RoleSpec
+	configSpec           hdfsv1alpha1.ConfigSpec
+	mergedConfig         *hdfsv1alpha1.RoleGroupSpec
+	clusterComponentInfo *common.ClusterComponentsInfo
 }
 
 var _ common.HdfsComponentReconciler = &JournalNodeReconciler{}
@@ -34,20 +35,22 @@ func NewJournalNodeRole(
 	spec *hdfsv1alpha1.RoleSpec,
 	image *opgoutil.Image,
 	instance *hdfsv1alpha1.HdfsCluster,
+	clusterComponentInfo *common.ClusterComponentsInfo,
 ) *JournalNodeReconciler {
 	journalNodeReconciler := &JournalNodeReconciler{
-		client:          client,
-		journalNodeSpec: spec,
+		client:               client,
+		journalNodeSpec:      spec,
+		clusterComponentInfo: clusterComponentInfo,
 	}
 
 	// Create base role reconciler with JournalNode as component type
 	baseReconciler := common.NewBaseHdfsRoleReconciler(
 		client,
 		roleInfo,
-		spec,
+		*spec,
 		instance,
 		image,
-		"journalnode",
+		string(constant.JournalNode),
 		journalNodeReconciler, // Pass itself as the componentRec
 	)
 
@@ -61,7 +64,7 @@ func (r *JournalNodeReconciler) RegisterResourceWithRoleGroup(
 	replicas *int32,
 	roleGroupInfo *reconciler.RoleGroupInfo,
 	overrides *commonsv1alpha1.OverridesSpec,
-	config hdfsv1alpha1.ConfigSpec,
+	config *hdfsv1alpha1.ConfigSpec,
 ) ([]reconciler.Reconciler, error) {
 	// Use common resource registration logic
 	reconcilers, err := common.RegisterStandardResources(
@@ -75,6 +78,7 @@ func (r *JournalNodeReconciler) RegisterResourceWithRoleGroup(
 		roleGroupInfo,
 		config,
 		overrides,
+		r.clusterComponentInfo,
 	)
 	if err != nil {
 		return nil, err
@@ -89,8 +93,9 @@ func (r *JournalNodeReconciler) CreateConfigMapReconciler(
 	client *client.Client,
 	hdfsCluster *hdfsv1alpha1.HdfsCluster,
 	roleGroupInfo *reconciler.RoleGroupInfo,
-	config hdfsv1alpha1.ConfigSpec,
+	config *hdfsv1alpha1.ConfigSpec,
 	overrides *commonsv1alpha1.OverridesSpec,
+	clusterComponentInfo *common.ClusterComponentsInfo,
 ) (reconciler.Reconciler, error) {
 
 	cmBuilder := NewJournalnodeConfigMapBuilder(
@@ -101,6 +106,7 @@ func (r *JournalNodeReconciler) CreateConfigMapReconciler(
 		r.configSpec.RoleGroupConfigSpec,
 		hdfsCluster,
 		r.mergedConfig,
+		clusterComponentInfo,
 	)
 
 	if a, ok := cmBuilder.(common.ConfigMapComponentBuilder); ok {
@@ -156,9 +162,24 @@ func (r *JournalNodeReconciler) CreateStatefulSetReconciler(
 	hdfsCluster *hdfsv1alpha1.HdfsCluster,
 	clusterOperation *commonsv1alpha1.ClusterOperationSpec,
 	roleGroupInfo *reconciler.RoleGroupInfo,
-	config hdfsv1alpha1.ConfigSpec,
+	config *hdfsv1alpha1.ConfigSpec,
 	overrides *commonsv1alpha1.OverridesSpec,
 ) (reconciler.Reconciler, error) {
-
-	return nil, nil
+	jnStsBuilder := NewJournalnodeStatefulSetBuilder(
+		ctx,
+		client,
+		roleGroupInfo,
+		image,
+		replicas,
+		r.configSpec.RoleGroupConfigSpec,
+		overrides,
+		hdfsCluster,
+		r.mergedConfig,
+	)
+	jnStsReconciler := reconciler.NewStatefulSet(
+		client,
+		jnStsBuilder,
+		r.ClusterStopped(),
+	)
+	return jnStsReconciler, nil
 }
