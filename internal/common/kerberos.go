@@ -131,15 +131,15 @@ func SecurityCoreSiteXml(instanceName string, ns string) []util.XmlNameValuePair
 		},
 		{
 			Name:  "dfs.journalnode.keytab.file",
-			Value: fmt.Sprintf("%s/keytab", constants.KubedoopKerberosDir),
+			Value: path.Join(constants.KubedoopKerberosDir, "keytab"),
 		},
 		{
 			Name:  "dfs.namenode.keytab.file",
-			Value: fmt.Sprintf("%s/keytab", constants.KubedoopKerberosDir),
+			Value: path.Join(constants.KubedoopKerberosDir, "keytab"),
 		},
 		{
 			Name:  "dfs.datanode.keytab.file",
-			Value: fmt.Sprintf("%s/keytab", constants.KubedoopKerberosDir),
+			Value: path.Join(constants.KubedoopKerberosDir, "keytab"),
 		},
 		{
 			Name:  "dfs.journalnode.kerberos.principal.pattern",
@@ -160,18 +160,18 @@ func SecurityEnvs(container constant.ContainerComponent, jvmArgs *[]string) []co
 	envs := []corev1.EnvVar{
 		{
 			Name:  "HADOOP_OPTS",
-			Value: fmt.Sprintf("-Djava.security.krb5.conf=%s/krb5.conf", constants.KubedoopKerberosDir),
+			Value: fmt.Sprintf("-Djava.security.krb5.conf=%s", path.Join(constants.KubedoopKerberosDir, "krb5.conf")),
 		},
 		{
 			Name:  "KRB5_CONFIG",
-			Value: fmt.Sprintf("%s/krb5.conf", constants.KubedoopKerberosDir),
+			Value: path.Join(constants.KubedoopKerberosDir, "krb5.conf"),
 		},
 		{
 			Name:  "KRB5_CLIENT_KTNAME",
-			Value: fmt.Sprintf("%s/keytab", constants.KubedoopKerberosDir),
+			Value: path.Join(constants.KubedoopKerberosDir, "keytab"),
 		},
 	}
-	*jvmArgs = append(*jvmArgs, fmt.Sprintf("-Djava.security.krb5.conf=%s/krb5.conf", constants.KubedoopKerberosDir))
+	*jvmArgs = append(*jvmArgs, fmt.Sprintf("-Djava.security.krb5.conf=%s", path.Join(constants.KubedoopKerberosDir, "krb5.conf")))
 	return envs
 }
 
@@ -221,7 +221,7 @@ func CreateKerberosSecretPvc(secretClass string, instanceName string, role const
 func CreateExportKrbRealmEnvData(clusterConfig *hdfsv1alpha1.ClusterConfigSpec) map[string]interface{} {
 	return map[string]interface{}{
 		"kerberosEnabled": IsKerberosEnabled(clusterConfig),
-		"kerberosEnv":     ExportKrbRealmFromConfig(path.Join(constants.KubedoopKerberosDir, "/krb5.conf")),
+		"kerberosEnv":     ExportKrbRealmFromConfig(path.Join(constants.KubedoopKerberosDir, "krb5.conf")),
 	}
 }
 
@@ -267,7 +267,7 @@ func GetKerberosServiceName(role constant.Role) string {
 }
 
 func GetKerberosTicket(principal string) string {
-	keytabLocation := constants.KubedoopKerberosDir + "/keytab"
+	keytabLocation := path.Join(constants.KubedoopKerberosDir, "keytab")
 	return fmt.Sprintf(`
 echo "Getting ticket for %s" from %s
 kinit "%s" -kt %s

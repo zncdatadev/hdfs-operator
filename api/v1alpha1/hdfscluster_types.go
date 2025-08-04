@@ -62,10 +62,10 @@ const (
 
 // directory
 const (
-	NameNodeRootDataDir    = constants.KubedoopDataDir + "/namenode"
-	JournalNodeRootDataDir = constants.KubedoopDataDir + "/journalnode"
+	NameNodeRootDataDir    = constants.KubedoopDataDir + "namenode"
+	JournalNodeRootDataDir = constants.KubedoopDataDir + "journalnode"
 
-	DataNodeRootDataDirPrefix = constants.KubedoopDataDir + "/"
+	DataNodeRootDataDirPrefix = constants.KubedoopDataDir
 	DataNodeRootDataDirSuffix = "/datanode"
 
 	HadoopHome = constants.KubedoopRoot + "/hadoop"

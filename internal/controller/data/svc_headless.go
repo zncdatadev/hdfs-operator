@@ -3,7 +3,6 @@ package data
 import (
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
-	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/client"
 	"github.com/zncdatadev/operator-go/pkg/constants"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
@@ -13,9 +12,8 @@ import (
 // DataNodeServiceBuilder builds Service for DataNode
 type DataNodeServiceBuilder struct {
 	common.HdfsServiceBuilder
-	instance        *hdfsv1alpha1.HdfsCluster
-	roleGroupInfo   *reconciler.RoleGroupInfo
-	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec
+	instance      *hdfsv1alpha1.HdfsCluster
+	roleGroupInfo *reconciler.RoleGroupInfo
 }
 
 // ServicePortProvider interface for DataNode Service
@@ -26,7 +24,6 @@ func NewDataNodeServiceBuilder(
 	client *client.Client,
 	instance *hdfsv1alpha1.HdfsCluster,
 	roleGroupInfo *reconciler.RoleGroupInfo,
-	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec,
 ) *DataNodeServiceBuilder {
 	dnBulder := &DataNodeServiceBuilder{}
 	dnBulder.HdfsServiceBuilder = *common.NewHdfsServiceBuilder(
@@ -38,7 +35,6 @@ func NewDataNodeServiceBuilder(
 	)
 	dnBulder.instance = instance
 	dnBulder.roleGroupInfo = roleGroupInfo
-	dnBulder.roleGroupConfig = roleGroupConfig
 	return dnBulder
 }
 

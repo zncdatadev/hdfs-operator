@@ -23,7 +23,7 @@ const (
 	DataNodeContainer         = "datanode"
 	JournalNodeContainer      = "journalnode"
 	ZkfcContainer             = "zkfc"
-	FormatNameNodeContainer   = "format-namenode"
+	FormatNameNodeContainer   = "format-namenodes"
 	FormatZookeeperContainer  = "format-zookeeper"
 	WaitForNameNodesContainer = "wait-for-namenodes"
 	OidcContainer             = "oidc"
@@ -104,16 +104,6 @@ const (
 	RpcPortName    = "rpc"
 	IpcPortName    = "ipc"
 	DataPortName   = "data"
-)
-
-// Container resource keys
-const (
-	NameNodeResourceKey        = "namenode"
-	DataNodeResourceKey        = "datanode"
-	JournalNodeResourceKey     = "journalnode"
-	ZkfcResourceKey            = "zkfc"
-	FormatNameNodeResourceKey  = "format-namenode"
-	FormatZookeeperResourceKey = "format-zookeeper"
 )
 
 // Zookeeper

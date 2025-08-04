@@ -3,6 +3,7 @@ package container
 import (
 	"fmt"
 	"maps"
+	"path"
 	"strings"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
@@ -32,6 +33,7 @@ func NewFormatNameNodeContainerBuilder(
 	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec,
 	image *oputil.Image,
 	nameNodeReplicates int32,
+	namenodeStsName string,
 ) *FormatNameNodeContainerBuilder {
 	return &FormatNameNodeContainerBuilder{
 		instance:           instance,
@@ -39,6 +41,7 @@ func NewFormatNameNodeContainerBuilder(
 		roleGroupConfig:    roleGroupConfig,
 		image:              image,
 		nameNodeReplicates: nameNodeReplicates,
+		statefulSetName:    namenodeStsName,
 	}
 }
 
@@ -85,6 +88,7 @@ func (c *formatNameNodeComponent) GetCommand() []string {
 	return []string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}
 }
 
+// todo: container name must be referenced
 func (c *formatNameNodeComponent) GetArgs() []string {
 	namenodeIds := strings.Join(c.podNames(), " ")
 	tmpl := `mkdir -p /kubedoop/config/format-namenodes
@@ -134,6 +138,54 @@ fi
 	return common.ParseTemplate(tmpl, data)
 }
 
+// func (f *FormatNameNodeContainerBuilder) CommandArgs() []string {
+// 	namenodeIds := strings.Join(f.PodNames(), " ")
+// 	tmpl := `mkdir -p /kubedoop/config/format-namenodes
+// cp /kubedoop/mount/config/format-namenodes/*.xml /kubedoop/config/format-namenodes
+// cp /kubedoop/mount/config/format-namenodes/format-namenodes.log4j.properties /kubedoop/config/format-namenodes/log4j.properties
+
+// {{ if .kerberosEnabled }}
+// {{- .kerberosEnv }}
+
+// {{- .kinitScript }}
+
+// {{- end }}
+
+// echo "Start formatting namenode $POD_NAME. Checking for active namenodes:"
+// ` + fmt.Sprintf("for namenode_id in %s", namenodeIds) + "\n" +
+// 		`do
+//     echo -n "Checking pod $namenode_id... "
+//     SERVICE_STATE=$(/kubedoop/hadoop/bin/hdfs haadmin -getServiceState $namenode_id | tail -n1 || true)
+//     if [ "$SERVICE_STATE" == "active" ]
+//     then
+//         ACTIVE_NAMENODE=$namenode_id
+//         echo "active"
+//         break
+//     fi
+//     echo ""
+// done
+
+// if [ ! -f "/kubedoop/data/namenode/current/VERSION" ]
+// then
+//     if [ -z ${ACTIVE_NAMENODE+x} ]
+//     then
+//         echo "Create pod $POD_NAME as active namenode."
+//         /kubedoop/hadoop/bin/hdfs namenode -format -noninteractive
+//     else
+//         echo "Create pod $POD_NAME as standby namenode."
+//         /kubedoop/hadoop/bin/hdfs namenode -bootstrapStandby -nonInteractive
+//     fi
+// else
+//     cat "/kubedoop/data/namenode/current/VERSION"
+//     echo "Pod $POD_NAME already formatted. Skipping..."
+// fi
+// `
+// 	data := common.CreateExportKrbRealmEnvData(f.clusterConfig)
+// 	principal := common.CreateKerberosPrincipal(f.instanceName, f.namespace, GetRole())
+// 	maps.Copy(data, common.CreateGetKerberosTicketData(principal))
+// 	return common.ParseTemplate(tmpl, data)
+// }
+
 func (c *formatNameNodeComponent) GetEnvVars() []corev1.EnvVar {
 	return common.GetCommonContainerEnv(c.instance.Spec.ClusterConfig, constant.FormatNameNodeComponent)
 }
@@ -143,11 +195,11 @@ func (c *formatNameNodeComponent) GetVolumeMounts() []corev1.VolumeMount {
 	formatNameNodeMounts := []corev1.VolumeMount{
 		{
 			Name:      hdfsv1alpha1.FormatNamenodesConfigVolumeMountName,
-			MountPath: constants.KubedoopConfigDirMount + "/" + c.GetContainerName(),
+			MountPath: path.Join(constants.KubedoopConfigDirMount, c.GetContainerName()),
 		},
 		{
 			Name:      hdfsv1alpha1.FormatNamenodesLogVolumeMountName,
-			MountPath: constants.KubedoopLogDirMount + "/" + c.GetContainerName(),
+			MountPath: path.Join(constants.KubedoopLogDirMount, c.GetContainerName()), // todo: 所有path 标准化
 		},
 		{
 			Name:      hdfsv1alpha1.DataVolumeMountName,

@@ -23,39 +23,10 @@ type ConfigMapBuilder struct {
 	roleGroupInfo                 *reconciler.RoleGroupInfo
 	hdfsCluster                   *hdfsv1alpha1.HdfsCluster
 	overrides                     *commonsv1alpha1.OverridesSpec
-	roleConfig                    *commonsv1alpha1.RoleGroupConfigSpec
+	roleConfig                    *hdfsv1alpha1.ConfigSpec
 	ctx                           context.Context
 	component                     ConfigMapComponentBuilder
 	vectorAggregatorConfigMapName string
-}
-
-func NewConfigMapReconciler(
-	ctx context.Context,
-	client *client.Client,
-	roleType constant.Role,
-	roleGroupInfo *reconciler.RoleGroupInfo,
-	overrides *commonsv1alpha1.OverridesSpec,
-	roleConfig *commonsv1alpha1.RoleGroupConfigSpec,
-	hdfsCluster *hdfsv1alpha1.HdfsCluster,
-	component ConfigMapComponentBuilder,
-	vectorAggregatorConfigMapName string,
-) reconciler.ResourceReconciler[builder.ConfigBuilder] {
-	builder := NewConfigMapBuilder(
-		ctx,
-		client,
-		roleType,
-		roleGroupInfo,
-		overrides,
-		roleConfig,
-		hdfsCluster,
-		component,
-		vectorAggregatorConfigMapName,
-	)
-
-	return reconciler.NewGenericResourceReconciler(
-		client,
-		builder,
-	)
 }
 
 // NewConfigMapBuilder creates a new ConfigMapBuilder with common configuration
@@ -65,11 +36,10 @@ func NewConfigMapBuilder(
 	roleType constant.Role,
 	roleGroupInfo *reconciler.RoleGroupInfo,
 	overrides *commonsv1alpha1.OverridesSpec,
-	roleConfig *commonsv1alpha1.RoleGroupConfigSpec,
+	configSpec *hdfsv1alpha1.ConfigSpec,
 	hdfsCluster *hdfsv1alpha1.HdfsCluster,
 	component ConfigMapComponentBuilder,
-	vectorAggregatorConfigMapName string,
-) builder.ConfigBuilder {
+) *ConfigMapBuilder {
 	return &ConfigMapBuilder{
 		ConfigMapBuilder: *builder.NewConfigMapBuilder(
 			client,
@@ -85,10 +55,10 @@ func NewConfigMapBuilder(
 		roleGroupInfo:                 roleGroupInfo,
 		hdfsCluster:                   hdfsCluster,
 		overrides:                     overrides,
-		roleConfig:                    roleConfig,
+		roleConfig:                    configSpec,
 		ctx:                           ctx,
 		component:                     component,
-		vectorAggregatorConfigMapName: vectorAggregatorConfigMapName,
+		vectorAggregatorConfigMapName: GetVectorConfigMapName(hdfsCluster),
 	}
 }
 

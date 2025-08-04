@@ -2,7 +2,6 @@ package journal
 
 import (
 	"context"
-	"errors"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
@@ -20,8 +19,6 @@ type JournalNodeReconciler struct {
 	*common.BaseHdfsRoleReconciler
 	client               *client.Client
 	journalNodeSpec      *hdfsv1alpha1.RoleSpec
-	configSpec           hdfsv1alpha1.ConfigSpec
-	mergedConfig         *hdfsv1alpha1.RoleGroupSpec
 	clusterComponentInfo *common.ClusterComponentsInfo
 }
 
@@ -50,7 +47,7 @@ func NewJournalNodeRole(
 		*spec,
 		instance,
 		image,
-		string(constant.JournalNode),
+		constant.JournalNode,
 		journalNodeReconciler, // Pass itself as the componentRec
 	)
 
@@ -93,6 +90,7 @@ func (r *JournalNodeReconciler) CreateConfigMapReconciler(
 	client *client.Client,
 	hdfsCluster *hdfsv1alpha1.HdfsCluster,
 	roleGroupInfo *reconciler.RoleGroupInfo,
+	replicas *int32,
 	config *hdfsv1alpha1.ConfigSpec,
 	overrides *commonsv1alpha1.OverridesSpec,
 	clusterComponentInfo *common.ClusterComponentsInfo,
@@ -103,30 +101,15 @@ func (r *JournalNodeReconciler) CreateConfigMapReconciler(
 		client,
 		roleGroupInfo,
 		overrides,
-		r.configSpec.RoleGroupConfigSpec,
+		config,
 		hdfsCluster,
-		r.mergedConfig,
 		clusterComponentInfo,
 	)
 
-	if a, ok := cmBuilder.(common.ConfigMapComponentBuilder); ok {
-		// Ensure the builder implements ConfigMapComponentBuilder
-		cmReconciler := common.NewConfigMapReconciler(
-			ctx,
-			client,
-			constant.JournalNode,
-			roleGroupInfo,
-			overrides,
-			r.configSpec.RoleGroupConfigSpec,
-			hdfsCluster,
-			a, // JournalNodeReconciler implements ConfigMapComponentBuilder
-			common.GetVectorConfigMapName(hdfsCluster),
-		)
-
-		return cmReconciler, nil
-	}
-
-	return nil, errors.New("JournalnodeConfigMapBuilder does not implement ConfigMapComponentBuilder")
+	return reconciler.NewGenericResourceReconciler(
+		client,
+		cmBuilder,
+	), nil
 }
 
 // CreateServiceReconcilers implements HdfsComponentResourceBuilder interface
@@ -171,10 +154,9 @@ func (r *JournalNodeReconciler) CreateStatefulSetReconciler(
 		roleGroupInfo,
 		image,
 		replicas,
-		r.configSpec.RoleGroupConfigSpec,
+		config,
 		overrides,
 		hdfsCluster,
-		r.mergedConfig,
 	)
 	jnStsReconciler := reconciler.NewStatefulSet(
 		client,

@@ -19,8 +19,6 @@ type DataNodeReconciler struct {
 	*common.BaseHdfsRoleReconciler
 	client               *client.Client
 	dataNodeSpec         *hdfsv1alpha1.RoleSpec
-	configSpec           hdfsv1alpha1.ConfigSpec
-	mergedConfig         *hdfsv1alpha1.RoleGroupSpec
 	clusterComponentInfo *common.ClusterComponentsInfo
 }
 
@@ -49,7 +47,7 @@ func NewDataNodeRole(
 		*spec,
 		instance,
 		image,
-		string(constant.DataNode),
+		constant.DataNode,
 		dataNodeReconciler, // Pass itself as the componentRec
 	)
 
@@ -92,32 +90,27 @@ func (r *DataNodeReconciler) CreateConfigMapReconciler(
 	client *client.Client,
 	hdfsCluster *hdfsv1alpha1.HdfsCluster,
 	roleGroupInfo *reconciler.RoleGroupInfo,
+	replicas *int32,
 	config *hdfsv1alpha1.ConfigSpec,
 	overrides *commonsv1alpha1.OverridesSpec,
 	clusterComponentInfo *common.ClusterComponentsInfo,
 ) (reconciler.Reconciler, error) {
 
 	cmBuilder := NewDataNodeConfigMapBuilder(
-		hdfsCluster,
-		roleGroupInfo,
-		r.configSpec.RoleGroupConfigSpec,
-		clusterComponentInfo,
-	)
-
-	// DataNodeConfigMapBuilder implements ConfigMapComponentBuilder
-	cmReconciler := common.NewConfigMapReconciler(
 		ctx,
 		client,
-		constant.DataNode,
+		hdfsCluster,
 		roleGroupInfo,
 		overrides,
-		r.configSpec.RoleGroupConfigSpec,
-		hdfsCluster,
-		cmBuilder, // DataNodeConfigMapBuilder implements ConfigMapComponentBuilder
-		common.GetVectorConfigMapName(hdfsCluster),
+		config,
+		clusterComponentInfo,
+		r.ClusterConfig.VectorAggregatorConfigMapName,
 	)
 
-	return cmReconciler, nil
+	return reconciler.NewGenericResourceReconciler(
+		client,
+		cmBuilder,
+	), nil
 }
 
 // CreateServiceReconcilers implements HdfsComponentResourceBuilder interface
@@ -129,7 +122,6 @@ func (r *DataNodeReconciler) CreateServiceReconcilers(
 		client,
 		r.HdfsCluster,
 		roleGroupInfo,
-		r.configSpec.RoleGroupConfigSpec,
 	)
 
 	// Since DataNodeServiceBuilder implements both ServicePortProvider and ServiceBuilder,
@@ -163,10 +155,9 @@ func (r *DataNodeReconciler) CreateStatefulSetReconciler(
 		roleGroupInfo,
 		image,
 		replicas,
-		r.configSpec.RoleGroupConfigSpec,
+		config,
 		overrides,
 		hdfsCluster,
-		r.mergedConfig,
 	)
 	dnStsReconciler := reconciler.NewStatefulSet(client, dnStsBuilder, r.ClusterStopped())
 	return dnStsReconciler, nil

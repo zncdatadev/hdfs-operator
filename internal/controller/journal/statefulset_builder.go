@@ -9,7 +9,6 @@ import (
 	"github.com/zncdatadev/hdfs-operator/internal/controller/journal/container"
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	opClient "github.com/zncdatadev/operator-go/pkg/client"
-	"github.com/zncdatadev/operator-go/pkg/constants"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	"github.com/zncdatadev/operator-go/pkg/util"
 	corev1 "k8s.io/api/core/v1"
@@ -25,10 +24,9 @@ var _ common.StatefulSetComponentBuilder = (*JournalnodeStatefulSetBuilder)(nil)
 type JournalnodeStatefulSetBuilder struct {
 	*common.StatefulSetBuilder
 	// journalnode-specific fields
-	mergedCfg       *hdfsv1alpha1.RoleGroupSpec
-	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec
-	image           *util.Image
-	roleGroupInfo   *reconciler.RoleGroupInfo
+	config        *hdfsv1alpha1.ConfigSpec
+	image         *util.Image
+	roleGroupInfo *reconciler.RoleGroupInfo
 }
 
 // NewJournalnodeStatefulSetBuilder creates a new JournalnodeStatefulSetBuilder that inherits from common StatefulSetBuilder
@@ -38,12 +36,15 @@ func NewJournalnodeStatefulSetBuilder(
 	roleGroupInfo *reconciler.RoleGroupInfo,
 	image *util.Image,
 	replicas *int32,
-	roleConfig *commonsv1alpha1.RoleGroupConfigSpec,
+	config *hdfsv1alpha1.ConfigSpec,
 	overrides *commonsv1alpha1.OverridesSpec,
 	instance *hdfsv1alpha1.HdfsCluster,
-	mergedCfg *hdfsv1alpha1.RoleGroupSpec,
 ) *JournalnodeStatefulSetBuilder {
-	jnStsBuiler := &JournalnodeStatefulSetBuilder{}
+	jnStsBuiler := &JournalnodeStatefulSetBuilder{
+		config:        config,
+		image:         image,
+		roleGroupInfo: roleGroupInfo,
+	}
 	// Create the common StatefulSetBuilder
 	commonBuilder := common.NewStatefulSetBuilder(
 		ctx,
@@ -51,19 +52,16 @@ func NewJournalnodeStatefulSetBuilder(
 		roleGroupInfo,
 		image,
 		replicas,
-		roleConfig,
+		config.RoleGroupConfigSpec,
 		overrides,
 		instance,
 		constant.JournalNode,
 		jnStsBuiler,
 	)
+	jnStsBuiler.StatefulSetBuilder = commonBuilder
+	// Set the component to self
+	return jnStsBuiler
 
-	return &JournalnodeStatefulSetBuilder{
-		StatefulSetBuilder: commonBuilder,
-		mergedCfg:          mergedCfg,
-		roleGroupConfig:    roleConfig,
-		image:              image,
-	}
 }
 
 // Build constructs the StatefulSet using the inherited common builder and journalnode-specific component
@@ -113,7 +111,6 @@ func (b *JournalnodeStatefulSetBuilder) GetVolumes() []corev1.Volume {
 func (b *JournalnodeStatefulSetBuilder) GetVolumeClaimTemplates() []corev1.PersistentVolumeClaim {
 	return []corev1.PersistentVolumeClaim{
 		b.createDataPvcTemplate(),
-		b.createListenPvcTemplate(),
 	}
 }
 
@@ -136,7 +133,7 @@ func (b *JournalnodeStatefulSetBuilder) makeJournalNodeContainer() corev1.Contai
 	journalNodeBuilder := container.NewJournalNodeContainerBuilder(
 		b.GetInstance(),
 		b.roleGroupInfo,
-		b.roleGroupConfig,
+		b.config.RoleGroupConfigSpec,
 		b.image,
 	)
 	return *journalNodeBuilder.Build()
@@ -145,8 +142,11 @@ func (b *JournalnodeStatefulSetBuilder) makeJournalNodeContainer() corev1.Contai
 func (b *JournalnodeStatefulSetBuilder) createDataPvcTemplate() corev1.PersistentVolumeClaim {
 	// Default storage size
 	storageSize := resource.MustParse("10Gi")
-	if b.roleGroupConfig != nil && b.roleGroupConfig.Resources != nil && b.roleGroupConfig.Resources.Storage != nil {
-		storageSize = b.roleGroupConfig.Resources.Storage.Capacity
+	// if b.config != nil && b.config.Resources != nil && b.config.Resources.Storage != nil {
+	// 	storageSize = b.config.Resources.Storage.Capacity
+	// }
+	if b.config != nil && b.config.Resources != nil && b.config.Resources.Storage != nil {
+		storageSize = b.config.Resources.Storage.Capacity
 	}
 	return corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
@@ -165,28 +165,6 @@ func (b *JournalnodeStatefulSetBuilder) createDataPvcTemplate() corev1.Persisten
 }
 func (b *JournalnodeStatefulSetBuilder) GetHttpPort() int32 {
 	return common.HttpPort(b.GetInstance().Spec.ClusterConfig, hdfsv1alpha1.JournalNodeHttpsPort, hdfsv1alpha1.JournalNodeHttpPort).ContainerPort
-}
-func (b *JournalnodeStatefulSetBuilder) createListenPvcTemplate() corev1.PersistentVolumeClaim {
-	listenerClass := constants.ClusterInternal
-	if b.mergedCfg.Config != nil && b.mergedCfg.Config.ListenerClass != nil {
-		listenerClass = constants.ListenerClass(*b.mergedCfg.Config.ListenerClass)
-	}
-	return corev1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        hdfsv1alpha1.ListenerVolumeName,
-			Annotations: common.GetListenerLabels(listenerClass),
-		},
-		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-			VolumeMode:  func() *corev1.PersistentVolumeMode { v := corev1.PersistentVolumeFilesystem; return &v }(),
-			Resources: corev1.VolumeResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: resource.MustParse(common.ListenerPvcStorage),
-				},
-			},
-			StorageClassName: constants.ListenerStorageClassPtr(),
-		},
-	}
 }
 
 func (b *JournalnodeStatefulSetBuilder) getJournalNodeConfigMapSource() *corev1.ConfigMapVolumeSource {

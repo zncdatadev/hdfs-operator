@@ -2,6 +2,7 @@ package container
 
 import (
 	"maps"
+	"path"
 	"strings"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
@@ -129,11 +130,11 @@ func (c *WaitForNameNodesComponent) GetVolumeMounts() []corev1.VolumeMount {
 	waitNameNodeMounts := []corev1.VolumeMount{
 		{
 			Name:      hdfsv1alpha1.WaitForNamenodesConfigVolumeMountName,
-			MountPath: constants.KubedoopConfigDirMount + "/" + c.GetContainerName(),
+			MountPath: path.Join(constants.KubedoopConfigDirMount, c.GetContainerName()),
 		},
 		{
 			Name:      hdfsv1alpha1.WaitForNamenodesLogVolumeMountName,
-			MountPath: constants.KubedoopLogDirMount + "/" + c.GetContainerName(),
+			MountPath: path.Join(constants.KubedoopLogDirMount, c.GetContainerName()),
 		},
 	}
 	return append(mounts, waitNameNodeMounts...)

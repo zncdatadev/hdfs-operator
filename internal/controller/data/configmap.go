@@ -1,17 +1,23 @@
 package data
 
 import (
+	"context"
+
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/builder"
+	"github.com/zncdatadev/operator-go/pkg/client"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
 )
 
 // DataNodeConfigMapBuilder builds ConfigMap for DataNode
 type DataNodeConfigMapBuilder struct {
+	*common.ConfigMapBuilder
 	instance             *hdfsv1alpha1.HdfsCluster
 	roleGroupInfo        *reconciler.RoleGroupInfo
-	roleGroupConfig      *commonsv1alpha1.RoleGroupConfigSpec
+	roleGroupConfig      *hdfsv1alpha1.ConfigSpec
 	clusterComponentInfo *common.ClusterComponentsInfo
 }
 
@@ -20,17 +26,32 @@ var _ common.ConfigMapComponentBuilder = &DataNodeConfigMapBuilder{}
 
 // NewDataNodeConfigMapBuilder creates a new DataNode ConfigMap builder
 func NewDataNodeConfigMapBuilder(
+	ctx context.Context,
+	client *client.Client,
 	instance *hdfsv1alpha1.HdfsCluster,
 	roleGroupInfo *reconciler.RoleGroupInfo,
-	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec,
+	overrides *commonsv1alpha1.OverridesSpec,
+	config *hdfsv1alpha1.ConfigSpec,
 	clusterComponentInfo *common.ClusterComponentsInfo,
-) *DataNodeConfigMapBuilder {
-	return &DataNodeConfigMapBuilder{
+	vectorConfigName string,
+) builder.ConfigBuilder {
+	dnBuilder := &DataNodeConfigMapBuilder{
 		instance:             instance,
 		roleGroupInfo:        roleGroupInfo,
-		roleGroupConfig:      roleGroupConfig,
+		roleGroupConfig:      config,
 		clusterComponentInfo: clusterComponentInfo,
 	}
+	dnBuilder.ConfigMapBuilder = common.NewConfigMapBuilder(
+		ctx,
+		client,
+		constant.DataNode,
+		roleGroupInfo,
+		overrides,
+		config,
+		instance,
+		dnBuilder, // Pass itself as the component
+	)
+	return dnBuilder
 }
 
 // BuildConfig builds the DataNode configuration

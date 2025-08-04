@@ -74,9 +74,11 @@ func (c *HdfsContainerBuilder) BuildWithComponent(component ContainerComponentIn
 	if component != nil {
 		// Set required properties
 		c.envs = component.GetEnvVars()
-		c.volumeMounts = append(c.volumeMounts, component.GetVolumeMounts()...)
+		// c.volumeMounts = append(c.volumeMounts, component.GetVolumeMounts()...)
 		c.args = component.GetArgs()
 		c.argsScript = strings.Join(c.args, "\n")
+		c.volumeMounts = component.GetVolumeMounts()
+		c.Name = component.GetContainerName()
 
 		// Set optional properties using type assertions
 		if portProvider, ok := component.(ContainerPortsProvider); ok {
@@ -117,18 +119,9 @@ func (c *HdfsContainerBuilder) BuildWithComponent(component ContainerComponentIn
 func (c *HdfsContainerBuilder) commonVolumeMounts() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
-			Name:      constant.ListenerVolumeName,
-			MountPath: constant.KubedoopListenerDir,
-		},
-		{
 			Name:      constant.KubedoopLogVolumeMountName,
 			MountPath: constant.KubedoopLogDirMount,
 		},
 		// Add other common volume mounts as needed
 	}
 }
-
-// RoleGroupEnvsConfigMapName generates the role group environment config map name
-// func RoleGroupEnvsConfigMapName(clusterName string) string {
-// 	return clusterName + "-env"
-// }

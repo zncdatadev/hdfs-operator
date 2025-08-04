@@ -25,7 +25,7 @@ var _ common.StatefulSetComponentBuilder = &NamenodeStatefulSetBuilder{}
 type NamenodeStatefulSetBuilder struct {
 	*common.StatefulSetBuilder
 	// namenode-specific fields
-	mergedCfg       *hdfsv1alpha1.RoleGroupSpec
+	config          *hdfsv1alpha1.ConfigSpec
 	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec
 	image           *util.Image
 	roleGroupInfo   *reconciler.RoleGroupInfo
@@ -41,9 +41,14 @@ func NewNamenodeStatefulSetBuilder(
 	roleConfig *commonsv1alpha1.RoleGroupConfigSpec,
 	overrides *commonsv1alpha1.OverridesSpec,
 	instance *hdfsv1alpha1.HdfsCluster,
-	mergedCfg *hdfsv1alpha1.RoleGroupSpec,
+	mergedCfg *hdfsv1alpha1.ConfigSpec,
 ) *NamenodeStatefulSetBuilder {
-	nnStsBuilder := &NamenodeStatefulSetBuilder{}
+	nnStsBuilder := &NamenodeStatefulSetBuilder{
+		config:          mergedCfg,
+		roleGroupConfig: roleConfig,
+		image:           image,
+		roleGroupInfo:   roleGroupInfo,
+	}
 	// Create the common StatefulSetBuilder
 	commonBuilder := common.NewStatefulSetBuilder(
 		ctx,
@@ -57,13 +62,9 @@ func NewNamenodeStatefulSetBuilder(
 		constant.NameNode,
 		nnStsBuilder,
 	)
+	nnStsBuilder.StatefulSetBuilder = commonBuilder
 
-	return &NamenodeStatefulSetBuilder{
-		StatefulSetBuilder: commonBuilder,
-		mergedCfg:          mergedCfg,
-		roleGroupConfig:    roleConfig,
-		image:              image,
-	}
+	return nnStsBuilder
 }
 
 // Build constructs the StatefulSet using the inherited common builder and namenode-specific component
@@ -183,7 +184,8 @@ func (b *NamenodeStatefulSetBuilder) makeFormatNameNodeContainer() corev1.Contai
 		b.GetRoleGroupInfo(),
 		b.roleGroupConfig,
 		b.image,
-		*b.mergedCfg.Replicas,
+		*b.GetReplicas(),
+		b.roleGroupInfo.GetFullName(),
 	)
 	return *formatNameNode.Build()
 }
@@ -199,7 +201,10 @@ func (b *NamenodeStatefulSetBuilder) makeFormatZookeeperContainer() corev1.Conta
 }
 
 func (b *NamenodeStatefulSetBuilder) createDataPvcTemplate() corev1.PersistentVolumeClaim {
-	storageSize := b.mergedCfg.Config.Resources.Storage.Capacity
+	storageSize := resource.MustParse("10Gi") // Default size
+	if b.config != nil && b.config.Resources != nil && b.config.Resources.Storage != nil {
+		storageSize = b.config.Resources.Storage.Capacity
+	}
 	return corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: hdfsv1alpha1.DataVolumeMountName,
@@ -218,9 +223,11 @@ func (b *NamenodeStatefulSetBuilder) createDataPvcTemplate() corev1.PersistentVo
 
 func (b *NamenodeStatefulSetBuilder) createListenPvcTemplate() corev1.PersistentVolumeClaim {
 	var listenerClass constants.ListenerClass
-	listenerClassSpec := b.mergedCfg.Config.ListenerClass
+	listenerClassSpec := b.config.ListenerClass
 	if listenerClassSpec == nil || *listenerClassSpec == "" {
 		listenerClass = constants.ClusterInternal
+	} else {
+		listenerClass = constants.ListenerClass(*listenerClassSpec)
 	}
 	// Create a PersistentVolumeClaim for the listener
 	return corev1.PersistentVolumeClaim{

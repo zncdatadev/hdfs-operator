@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/client"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
@@ -52,6 +53,7 @@ type HdfsComponentResourceBuilder interface {
 		client *client.Client,
 		hdfsCluster *hdfsv1alpha1.HdfsCluster,
 		roleGroupInfo *reconciler.RoleGroupInfo,
+		replicas *int32,
 		config *hdfsv1alpha1.ConfigSpec,
 		overrides *commonsv1alpha1.OverridesSpec,
 		clusterComponentInfo *ClusterComponentsInfo,
@@ -65,7 +67,7 @@ type BaseHdfsRoleReconciler struct {
 	ClusterConfig    *hdfsv1alpha1.ClusterConfigSpec
 	ClusterOperation *commonsv1alpha1.ClusterOperationSpec
 	Image            *opgoutil.Image
-	ComponentType    string
+	ComponentType    constant.Role
 	ComponentRec     HdfsComponentReconciler
 }
 
@@ -76,7 +78,7 @@ func NewBaseHdfsRoleReconciler(
 	spec hdfsv1alpha1.RoleSpec,
 	hdfsCluster *hdfsv1alpha1.HdfsCluster,
 	image *opgoutil.Image,
-	componentType string,
+	componentType constant.Role,
 	componentRec HdfsComponentReconciler,
 ) *BaseHdfsRoleReconciler {
 	stopped := false
@@ -118,6 +120,10 @@ func (r *BaseHdfsRoleReconciler) RegisterResources(ctx context.Context) error {
 		if overrides == nil {
 			overrides = &commonsv1alpha1.OverridesSpec{}
 		}
+
+		// merge Default config
+		defaultInstance := DefaultRoleConfig(r.GetClusterName(), r.ComponentType)
+		defaultInstance.MergeDefaultConfig(mergedConfig)
 
 		info := &reconciler.RoleGroupInfo{
 			RoleInfo:      r.RoleInfo,
@@ -186,6 +192,7 @@ func RegisterStandardResources(
 		client,
 		hdfsCluster,
 		roleGroupInfo,
+		replicas,
 		config,
 		overrides,
 		clusterComponentInfo,

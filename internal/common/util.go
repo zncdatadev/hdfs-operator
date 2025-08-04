@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -136,7 +137,7 @@ func GetCommonContainerEnv(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, contai
 	envs := []corev1.EnvVar{
 		{
 			Name:  "HADOOP_CONF_DIR",
-			Value: constants.KubedoopConfigDir + "/" + string(container),
+			Value: path.Join(constants.KubedoopConfigDir, getSubDirByContainerComponent(container)),
 		},
 		{
 			Name:  "HADOOP_HOME",
@@ -171,7 +172,7 @@ func GetCommonContainerEnv(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, contai
 	if envName = getEnvNameByContainerComponent(container); envName != "" {
 		jvmArgs = append(jvmArgs, "-Xmx419430k")
 		securityDir := getSubDirByContainerComponent(container)
-		securityConfigEnValue := fmt.Sprintf("-Djava.security.properties=%s/%s/security.properties", constants.KubedoopConfigDir, securityDir)
+		securityConfigEnValue := fmt.Sprintf("-Djava.security.properties=%s", path.Join(constants.KubedoopConfigDir, securityDir, "security.properties"))
 		jvmArgs = append(jvmArgs, securityConfigEnValue)
 
 	}
@@ -222,16 +223,7 @@ func getEnvNameByContainerComponent(container constant.ContainerComponent) strin
 }
 
 func getSubDirByContainerComponent(container constant.ContainerComponent) string {
-	switch container {
-	case constant.NameNodeComponent:
-		return constant.NameNodeContainer
-	case constant.DataNodeComponent:
-		return constant.DataNodeContainer
-	case constant.JournalNodeComponent:
-		return constant.JournalNodeContainer
-	default:
-		panic(fmt.Sprintf("unsupported container component for get sub dir: %s", container))
-	}
+	return string(container)
 }
 
 func GetCommonCommand() []string {

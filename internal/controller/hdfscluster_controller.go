@@ -91,7 +91,7 @@ func (r *HdfsClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			},
 			ClusterName: instance.Name,
 		},
-		&instance.Spec,
+		instance,
 	)
 	if err := clusterReconciler.RegisterResources(ctx); err != nil {
 		return ctrl.Result{}, err

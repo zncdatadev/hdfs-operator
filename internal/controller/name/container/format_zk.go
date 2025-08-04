@@ -1,6 +1,8 @@
 package container
 
 import (
+	"path"
+
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	"github.com/zncdatadev/hdfs-operator/internal/constant"
@@ -109,11 +111,11 @@ func (c *formatZookeeperComponent) GetVolumeMounts() []corev1.VolumeMount {
 	formatZookeeperMounts := []corev1.VolumeMount{
 		{
 			Name:      hdfsv1alpha1.FormatZookeeperConfigVolumeMountName,
-			MountPath: constants.KubedoopConfigDirMount + "/" + c.GetContainerName(),
+			MountPath: path.Join(constants.KubedoopConfigDirMount, c.GetContainerName()),
 		},
 		{
 			Name:      hdfsv1alpha1.FormatZookeeperLogVolumeMountName,
-			MountPath: constants.KubedoopLogDirMount + "/" + c.GetContainerName(),
+			MountPath: path.Join(constants.KubedoopLogDirMount, c.GetContainerName()),
 		},
 	}
 	return append(mounts, formatZookeeperMounts...)

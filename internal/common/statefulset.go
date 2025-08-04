@@ -104,10 +104,10 @@ func (b *StatefulSetBuilder) Build(ctx context.Context) (ctrlclient.Object, erro
 	b.AddVolumes(commonVolumes)
 
 	// Add component-specific volumes
-	b.AddVolumes(b.GetVolumes())
+	b.AddVolumes(b.component.GetVolumes())
 
 	// Add volume claim templates
-	b.AddVolumeClaimTemplates(b.GetVolumeClaimTemplates())
+	b.AddVolumeClaimTemplates(b.component.GetVolumeClaimTemplates())
 
 	// Create the StatefulSet object using the embedded builder
 	sts, err := b.GetObject()
@@ -143,6 +143,9 @@ func (b *StatefulSetBuilder) Build(ctx context.Context) (ctrlclient.Object, erro
 
 // addVectorContainer adds vector container if logging is enabled
 func (b *StatefulSetBuilder) addVectorContainer(_ *appv1.StatefulSet) error {
+	if b.RoleGroupConfig == nil || b.RoleGroupConfig.Logging == nil {
+		return nil
+	}
 	if vectorEnable, err := IsVectorEnable(b.RoleGroupConfig.Logging); err != nil {
 		return err
 	} else if vectorEnable {

@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"path"
 	"strconv"
 	"strings"
 
@@ -334,7 +335,7 @@ func MakeSslClientData(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) string {
 	if IsTlsEnabled(clusterSpec) {
 		jksPasswd := clusterSpec.Authentication.Tls.JksPassword
 		if xml, err := xml.NewXMLConfigurationFromMap(map[string]string{
-			"ssl.client.truststore.location": fmt.Sprintf("%s/truststore.p12", constants.KubedoopTlsDir),
+			"ssl.client.truststore.location": path.Join(constants.KubedoopTlsDir, "truststore.p12"),
 			"ssl.client.truststore.type":     "pkcs12",
 			"ssl.client.truststore.password": jksPasswd,
 		}).Marshal(); err == nil {
@@ -352,10 +353,10 @@ func MakeSslServerData(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) string {
 	if IsTlsEnabled(clusterSpec) {
 		jksPasswd := clusterSpec.Authentication.Tls.JksPassword
 		if xml, err := xml.NewXMLConfigurationFromMap(map[string]string{
-			"ssl.server.truststore.location": fmt.Sprintf("%s/truststore.p12", constants.KubedoopTlsDir),
+			"ssl.server.truststore.location": path.Join(constants.KubedoopTlsDir, "truststore.p12"),
 			"ssl.server.truststore.type":     "pkcs12",
 			"ssl.server.truststore.password": jksPasswd,
-			"ssl.server.keystore.location":   fmt.Sprintf("%s/keystore.p12", constants.KubedoopTlsDir),
+			"ssl.server.keystore.location":   path.Join(constants.KubedoopTlsDir, "keystore.p12"),
 			"ssl.server.keystore.type":       "pkcs12",
 			"ssl.server.keystore.password":   jksPasswd,
 		}).Marshal(); err == nil {

@@ -31,7 +31,7 @@ func PopulateClusterComponents(
 	// Populate DataNode components
 	if instance.Spec.DataNode != nil && instance.Spec.DataNode.RoleGroups != nil {
 		for groupName, dataNodeGroupSpec := range instance.Spec.DataNode.RoleGroups {
-			roleInfo := reconciler.RoleInfo{ClusterInfo: *clusterInfo, RoleName: string(constant.NameNode)}
+			roleInfo := reconciler.RoleInfo{ClusterInfo: *clusterInfo, RoleName: string(constant.DataNode)}
 			roleGroupInfo := reconciler.RoleGroupInfo{RoleInfo: roleInfo, RoleGroupName: groupName}
 			componentsInfo.DataNode[groupName] = &ComponentInfo{
 				InstanceName:  instance.Name,
@@ -47,7 +47,7 @@ func PopulateClusterComponents(
 	// Populate JournalNode components
 	if instance.Spec.JournalNode != nil && instance.Spec.JournalNode.RoleGroups != nil {
 		for groupName, journalNodeGroupSpec := range instance.Spec.JournalNode.RoleGroups {
-			roleInfo := reconciler.RoleInfo{ClusterInfo: *clusterInfo, RoleName: string(constant.NameNode)}
+			roleInfo := reconciler.RoleInfo{ClusterInfo: *clusterInfo, RoleName: string(constant.JournalNode)}
 			roleGroupInfo := reconciler.RoleGroupInfo{RoleInfo: roleInfo, RoleGroupName: groupName}
 			componentsInfo.JournalNode[groupName] = &ComponentInfo{
 				InstanceName:  instance.Name,

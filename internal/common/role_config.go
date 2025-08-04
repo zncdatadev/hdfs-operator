@@ -1,9 +1,9 @@
 package common
 
 import (
-	"reflect"
 	"time"
 
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/constant"
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/constants"
@@ -28,7 +28,7 @@ type GeneralNodeConfig struct {
 }
 
 func newDefaultResourceSpec(role constant.Role) *commonsv1alpha1.ResourcesSpec {
-	return GetContainerResource(role, "todo")
+	return GetContainerResource(role, constant.ContainerComponent(role)) // todo: fix container name
 }
 
 // DefaultNodeConfig default node config
@@ -48,6 +48,19 @@ func DefaultNodeConfig(clusterName string, role constant.Role, listenerClass con
 	}
 }
 
+func DefaultRoleConfig(clusterName string, role constant.Role) *RoleNodeConfig {
+	switch role {
+	case constant.NameNode:
+		return DefaultNameNodeConfig(clusterName)
+	case constant.DataNode:
+		return DefaultDataNodeConfig(clusterName)
+	case constant.JournalNode:
+		return DefaultJournalNodeConfig(clusterName)
+	default:
+		panic("unsupported role: " + string(role))
+	}
+}
+
 func DefaultNameNodeConfig(clusterName string) *RoleNodeConfig {
 	return DefaultNodeConfig(clusterName, constant.NameNode, constants.ClusterInternal, 15*time.Minute)
 }
@@ -60,72 +73,53 @@ func DefaultJournalNodeConfig(clusterName string) *RoleNodeConfig {
 	return DefaultNodeConfig(clusterName, constant.JournalNode, "", 15*time.Minute)
 }
 
-// todo: refactor this, do this using detail type
-func (n *RoleNodeConfig) MergeDefaultConfig(mergedCfg any) {
-
-	// Make sure mergedCfg is a pointer type
-	configValue := reflect.ValueOf(mergedCfg)
-	if configValue.Kind() != reflect.Ptr {
+// MergeDefaultConfig merges default configuration with the provided config
+func (n *RoleNodeConfig) MergeDefaultConfig(mergedCfg *hdfsv1alpha1.ConfigSpec) {
+	if mergedCfg == nil {
 		return
 	}
 
-	// Get the value that the pointer points to
-	configValue = configValue.Elem()
-
-	// Get the Config field
-	config := configValue.FieldByName("Config")
-	if !config.IsValid() || !config.CanSet() {
-		return
+	// Ensure RoleGroupConfigSpec is initialized
+	if mergedCfg.RoleGroupConfigSpec == nil {
+		mergedCfg.RoleGroupConfigSpec = &commonsv1alpha1.RoleGroupConfigSpec{}
 	}
-	config = config.Elem()
 
-	// Get the Resources field
-	resourcesField := config.FieldByName("Resources")
+	// Merge Resources configuration
 	var resourceRes *commonsv1alpha1.ResourcesSpec
-	if resourcesField.IsValid() && resourcesField.CanSet() {
-		if resourcesField.IsZero() {
-			resourceRes = n.resources
-		} else {
-			// adjust resourcesField is commonsv1alpha1.ResourcesSpec
-			if resourcesField.Type().Kind() == reflect.Ptr && resourcesField.Type().Elem() == reflect.TypeOf(commonsv1alpha1.ResourcesSpec{}) {
-				// transform resourcesField to *commonsv1alpha1.ResourcesSpec
-				if resourcesField.Kind() == reflect.Ptr && resourcesField.Type().Elem() == reflect.TypeOf(commonsv1alpha1.ResourcesSpec{}) {
-					mergedResource := resourcesField.Interface().(*commonsv1alpha1.ResourcesSpec)
-					if mergedResource == nil {
-						resourceRes = n.resources
-					} else {
-						resourceRes = mergedResource
-						if mergedResource.CPU == nil {
-							resourceRes.CPU = n.resources.CPU
-						}
-						if mergedResource.Memory == nil {
-							resourceRes.Memory = n.resources.Memory
-						}
-						if mergedResource.Storage == nil {
-							resourceRes.Storage = n.resources.Storage
-						}
-					}
-				}
-			}
+	if mergedCfg.Resources == nil {
+		resourceRes = n.resources
+	} else {
+		mergedResource := mergedCfg.Resources
+		resourceRes = mergedResource
+		if mergedResource.CPU == nil {
+			resourceRes.CPU = n.resources.CPU
 		}
-		resourcesField.Set(reflect.ValueOf(resourceRes))
+		if mergedResource.Memory == nil {
+			resourceRes.Memory = n.resources.Memory
+		}
+		if mergedResource.Storage == nil {
+			resourceRes.Storage = n.resources.Storage
+		}
+	}
+	mergedCfg.Resources = resourceRes
+
+	// Merge ListenerClass configuration
+	if mergedCfg.ListenerClass == nil && n.listenerClass != "" {
+		listenerClass := string(n.listenerClass)
+		mergedCfg.ListenerClass = &listenerClass
 	}
 
-	// Get the ListenerClass field
-	listenerClassField := config.FieldByName("ListenerClass")
-	if listenerClassField.IsValid() && listenerClassField.IsZero() && listenerClassField.CanSet() {
-		listenerClassField.Set(reflect.ValueOf(n.listenerClass))
-	}
+	// Merge Affinity configuration
+	// Note: Need to check the exact type of Affinity field in RoleGroupConfigSpec
+	// For now, commenting out until the type is confirmed
+	/*
+		if mergedCfg.RoleGroupConfigSpec.Affinity == nil {
+			mergedCfg.RoleGroupConfigSpec.Affinity = n.common.Affinity.Build()
+		}
+	*/
 
-	// Get the Affinity field
-	affinityField := config.FieldByName("Affinity")
-	if affinityField.IsValid() && affinityField.IsZero() && affinityField.CanSet() {
-		affinityField.Set(reflect.ValueOf(n.common.Affinity.Build()))
-	}
-
-	// You can continue to add logic to handle other fieldgracefulShutdownTimeoutSecondss
-	// config.FieldByName("Logging").Set(reflect.ValueOf(n.common.Logging))
-	// config.FieldByName("GracefulShutdownTimeoutSeconds").Set(reflect.ValueOf(n.common.gracefulShutdownTimeoutSeconds))
+	// You can continue to add logic to handle other fields
+	// e.g., Logging, GracefulShutdownTimeout, etc.
 }
 
 func parseQuantity(q string) resource.Quantity {

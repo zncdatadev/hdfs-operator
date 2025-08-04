@@ -34,17 +34,19 @@ type Reconciler struct {
 func NewClusterReconciler(
 	client *resourceClient.Client,
 	clusterInfo reconciler.ClusterInfo,
-	instance *hdfsv1alpha1.HdfsClusterSpec,
+	instance *hdfsv1alpha1.HdfsCluster,
 ) *Reconciler {
+	spec := &instance.Spec
 	return &Reconciler{
 		BaseCluster: *reconciler.NewBaseCluster(
 			client,
 			clusterInfo,
-			instance.ClusterOperationSpec,
-			instance,
+			spec.ClusterOperationSpec,
+			spec,
 		),
-		ClusterConfig:    instance.ClusterConfig,
-		ClusterOperation: instance.ClusterOperationSpec,
+		ClusterConfig:    spec.ClusterConfig,
+		ClusterOperation: spec.ClusterOperationSpec,
+		instance:         instance,
 	}
 }
 
@@ -81,7 +83,14 @@ func (r *Reconciler) RegisterResources(
 		r.AddResource(sa)
 	}
 
-	clusterComponent := &common.ClusterComponentsInfo{}
+	clusterComponent := &common.ClusterComponentsInfo{
+		InstanceName:  r.instance.Name,
+		Namespace:     r.instance.Namespace,
+		ClusterConfig: r.ClusterConfig,
+		NameNode:      make(map[string]*common.ComponentInfo),
+		JournalNode:   make(map[string]*common.ComponentInfo),
+		DataNode:      make(map[string]*common.ComponentInfo),
+	}
 	common.PopulateClusterComponents(r.instance, clusterComponent, &r.ClusterInfo)
 
 	// NameNode role
@@ -99,6 +108,7 @@ func (r *Reconciler) RegisterResources(
 			*r.Spec.NameNode,
 			nameNodeImage,
 			r.instance,
+			clusterComponent,
 		)
 
 		if err := nameNodeReconciler.RegisterResources(ctx); err != nil {

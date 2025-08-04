@@ -2,7 +2,6 @@ package name
 
 import (
 	"context"
-	"errors"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
@@ -20,8 +19,6 @@ type NameNodeReconciler struct {
 	*common.BaseHdfsRoleReconciler
 	client               *client.Client
 	nameNodeSpec         hdfsv1alpha1.RoleSpec
-	configSpec           hdfsv1alpha1.ConfigSpec
-	mergedConfig         *hdfsv1alpha1.RoleGroupSpec
 	clusterComponentInfo *common.ClusterComponentsInfo
 }
 
@@ -35,10 +32,12 @@ func NewNameNodeRole(
 	spec hdfsv1alpha1.RoleSpec,
 	image *opgoutil.Image,
 	instance *hdfsv1alpha1.HdfsCluster,
+	clusterComponentInfo *common.ClusterComponentsInfo,
 ) *NameNodeReconciler {
 	nameNodeReconciler := &NameNodeReconciler{
-		client:       client,
-		nameNodeSpec: spec,
+		client:               client,
+		nameNodeSpec:         spec,
+		clusterComponentInfo: clusterComponentInfo,
 	}
 
 	// Create base role reconciler with NameNode as component type
@@ -48,7 +47,7 @@ func NewNameNodeRole(
 		spec,
 		instance,
 		image,
-		string(constant.NameNode),
+		constant.NameNode,
 		nameNodeReconciler, // Pass itself as the componentRec
 	)
 
@@ -91,40 +90,27 @@ func (r *NameNodeReconciler) CreateConfigMapReconciler(
 	client *client.Client,
 	hdfsCluster *hdfsv1alpha1.HdfsCluster,
 	roleGroupInfo *reconciler.RoleGroupInfo,
+	replicas *int32,
 	config *hdfsv1alpha1.ConfigSpec,
 	overrides *commonsv1alpha1.OverridesSpec,
 	clusterComponentInfo *common.ClusterComponentsInfo,
 ) (reconciler.Reconciler, error) {
-
 	cmBuilder := NewNamenodeConfigMapBuilder(
 		ctx,
 		client,
 		roleGroupInfo,
+		replicas,
 		overrides,
-		r.configSpec.RoleGroupConfigSpec,
+		config,
 		hdfsCluster,
-		r.mergedConfig,
 		clusterComponentInfo,
 	)
 
-	if a, ok := cmBuilder.(common.ConfigMapComponentBuilder); ok {
-		// Ensure the builder implements ConfigMapComponentBuilder
-		cmReconciler := common.NewConfigMapReconciler(
-			ctx,
-			client,
-			constant.NameNode,
-			roleGroupInfo,
-			overrides,
-			r.configSpec.RoleGroupConfigSpec,
-			hdfsCluster,
-			a, // NameNodeReconciler implements ConfigMapComponentBuilder
-			common.GetVectorConfigMapName(hdfsCluster),
-		)
+	return reconciler.NewGenericResourceReconciler(
+		client,
+		cmBuilder,
+	), nil
 
-		return cmReconciler, nil
-	}
-
-	return nil, errors.New("NamenodeConfigMapBuilder does not implement ConfigMapComponentBuilder")
 }
 
 // CreateServiceReconcilers implements HdfsComponentResourceBuilder interface
@@ -169,10 +155,10 @@ func (r *NameNodeReconciler) CreateStatefulSetReconciler(
 		roleGroupInfo,
 		image,
 		replicas,
-		r.configSpec.RoleGroupConfigSpec,
+		config.RoleGroupConfigSpec,
 		overrides,
 		hdfsCluster,
-		r.mergedConfig,
+		config,
 	)
 	nnStsReconciler := reconciler.NewStatefulSet(
 		client,

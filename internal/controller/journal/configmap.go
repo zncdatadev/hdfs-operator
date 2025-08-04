@@ -25,7 +25,8 @@ type JournalnodeConfigMapBuilder struct {
 	*common.ConfigMapBuilder
 	instance             *hdfsv1alpha1.HdfsCluster
 	groupName            string
-	mergedCfg            *hdfsv1alpha1.RoleGroupSpec
+	mergedCfg            *hdfsv1alpha1.ConfigSpec
+	override             *commonsv1alpha1.OverridesSpec
 	clusterComponentInfo *common.ClusterComponentsInfo
 }
 
@@ -35,17 +36,15 @@ func NewJournalnodeConfigMapBuilder(
 	client *client.Client,
 	roleGroupInfo *reconciler.RoleGroupInfo,
 	overrides *commonsv1alpha1.OverridesSpec,
-	roleConfig *commonsv1alpha1.RoleGroupConfigSpec,
+	roleConfig *hdfsv1alpha1.ConfigSpec,
 	instance *hdfsv1alpha1.HdfsCluster,
-	mergedCfg *hdfsv1alpha1.RoleGroupSpec,
 	clusterComponentInfo *common.ClusterComponentsInfo,
 ) builder.ConfigBuilder {
-	vectorConfigMapName := common.GetVectorConfigMapName(instance)
-
 	configMapBuilder := &JournalnodeConfigMapBuilder{
 		instance:             instance,
 		groupName:            roleGroupInfo.GetGroupName(),
-		mergedCfg:            mergedCfg,
+		override:             overrides,
+		mergedCfg:            roleConfig,
 		clusterComponentInfo: clusterComponentInfo,
 	}
 
@@ -58,7 +57,6 @@ func NewJournalnodeConfigMapBuilder(
 		roleConfig,
 		instance,
 		configMapBuilder, // self as component
-		vectorConfigMapName,
 	)
 
 	return jnbuilder
@@ -88,8 +86,8 @@ func (b *JournalnodeConfigMapBuilder) BuildConfig() (map[string]string, error) {
 
 // GetConfigOverrides returns journalnode-specific configuration overrides
 func (b *JournalnodeConfigMapBuilder) GetConfigOverrides() map[string]map[string]string {
-	if b.mergedCfg != nil && b.mergedCfg.ConfigOverrides != nil {
-		return b.mergedCfg.ConfigOverrides
+	if b.override != nil {
+		return b.override.ConfigOverrides
 	}
 	return nil
 }
@@ -104,10 +102,9 @@ func (b *JournalnodeConfigMapBuilder) makeCoreSiteData() string {
 func (b *JournalnodeConfigMapBuilder) makeHdfsSiteData() string {
 	clusterSpec := b.instance.Spec.ClusterConfig
 	// Create ClusterComponentsInfo for the updated generator
-	clusterComponentInfo := common.NewClusterComponentsInfo(b.instance.GetName(), b.instance.GetNamespace(), clusterSpec)
 	generator := common.NewNameNodeHdfsSiteXmlGenerator(
 		b.instance.GetName(), b.groupName, b.getNameNodeReplicas(), b.instance.Namespace,
-		b.instance.Spec.ClusterConfig, clusterSpec.ClusterDomain, clusterSpec.DfsReplication, clusterComponentInfo)
+		b.instance.Spec.ClusterConfig, clusterSpec.ClusterDomain, clusterSpec.DfsReplication, b.clusterComponentInfo)
 	return generator.EnablerKerberos(clusterSpec).EnableHttps().Generate()
 }
 
