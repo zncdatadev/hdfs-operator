@@ -123,6 +123,10 @@ func (r *BaseHdfsRoleReconciler) RegisterResources(ctx context.Context) error {
 
 		// merge Default config
 		defaultInstance := DefaultRoleConfig(r.GetClusterName(), r.ComponentType)
+		if mergedConfig == nil {
+			// must set here
+			mergedConfig = &hdfsv1alpha1.ConfigSpec{}
+		}
 		defaultInstance.MergeDefaultConfig(mergedConfig)
 
 		info := &reconciler.RoleGroupInfo{

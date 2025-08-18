@@ -131,10 +131,6 @@ func (c *DataNodeComponent) GetVolumeMounts() []corev1.VolumeMount {
 			Name:      hdfsv1alpha1.DataVolumeMountName,
 			MountPath: path.Join(hdfsv1alpha1.DataNodeRootDataDirPrefix, hdfsv1alpha1.DataVolumeMountName), // !!! the last "data" is pvc name
 		},
-		{
-			Name:      constant.ListenerVolumeName,
-			MountPath: constant.KubedoopListenerDir,
-		},
 	}
 	return append(mounts, datanodeMounts...)
 }

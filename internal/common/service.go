@@ -1,11 +1,14 @@
 package common
 
 import (
+	"context"
+
 	"github.com/zncdatadev/operator-go/pkg/builder"
 	"github.com/zncdatadev/operator-go/pkg/client"
 	opconstants "github.com/zncdatadev/operator-go/pkg/constants"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	corev1 "k8s.io/api/core/v1"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func NewRoleGroupService(
@@ -34,6 +37,13 @@ type ServicePortProvider interface {
 // HdfsServiceBuilder implements the ServiceBuilder interface for Hdfs services
 type HdfsServiceBuilder struct {
 	*builder.BaseServiceBuilder
+}
+
+func (b *HdfsServiceBuilder) Build(ctx context.Context) (ctrlclient.Object, error) {
+	obj := b.GetObject()
+	// set service publish not ready address
+	obj.Spec.PublishNotReadyAddresses = true
+	return obj, nil
 }
 
 // NewHdfsServiceBuilder creates a new HdfsServiceBuilder

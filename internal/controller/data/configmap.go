@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"fmt"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
@@ -9,6 +10,7 @@ import (
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/builder"
 	"github.com/zncdatadev/operator-go/pkg/client"
+	"github.com/zncdatadev/operator-go/pkg/constants"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
 )
 
@@ -17,7 +19,7 @@ type DataNodeConfigMapBuilder struct {
 	*common.ConfigMapBuilder
 	instance             *hdfsv1alpha1.HdfsCluster
 	roleGroupInfo        *reconciler.RoleGroupInfo
-	roleGroupConfig      *hdfsv1alpha1.ConfigSpec
+	configSpec           *hdfsv1alpha1.ConfigSpec
 	clusterComponentInfo *common.ClusterComponentsInfo
 }
 
@@ -38,7 +40,7 @@ func NewDataNodeConfigMapBuilder(
 	dnBuilder := &DataNodeConfigMapBuilder{
 		instance:             instance,
 		roleGroupInfo:        roleGroupInfo,
-		roleGroupConfig:      config,
+		configSpec:           config,
 		clusterComponentInfo: clusterComponentInfo,
 	}
 	dnBuilder.ConfigMapBuilder = common.NewConfigMapBuilder(
@@ -57,47 +59,46 @@ func NewDataNodeConfigMapBuilder(
 // BuildConfig builds the DataNode configuration
 func (b *DataNodeConfigMapBuilder) BuildConfig() (map[string]string, error) {
 	// Create configuration map with basic HDFS settings
-	config := map[string]string{
-		"core-site.xml": `<?xml version="1.0" encoding="UTF-8"?>
-<configuration>
-  <property>
-    <name>fs.defaultFS</name>
-    <value>hdfs://namenode:9000</value>
-  </property>
-  <property>
-    <name>hadoop.tmp.dir</name>
-    <value>/stackable/data/tmp</value>
-  </property>
-</configuration>`,
-		"hdfs-site.xml": `<?xml version="1.0" encoding="UTF-8"?>
-<configuration>
-  <property>
-    <name>dfs.replication</name>
-    <value>3</value>
-  </property>
-  <property>
-    <name>dfs.datanode.data.dir</name>
-    <value>/stackable/data/datanode</value>
-  </property>
-  <property>
-    <name>dfs.datanode.address</name>
-    <value>0.0.0.0:9866</value>
-  </property>
-  <property>
-    <name>dfs.datanode.http.address</name>
-    <value>0.0.0.0:9864</value>
-  </property>
-  <property>
-    <name>dfs.datanode.ipc.address</name>
-    <value>0.0.0.0:9867</value>
-  </property>
-</configuration>`,
+	data := map[string]string{
+		hdfsv1alpha1.CoreSiteFileName:     b.makeCoreSiteData(),
+		hdfsv1alpha1.HdfsSiteFileName:     b.makeHdfsSiteData(),
+		hdfsv1alpha1.HadoopPolicyFileName: common.MakeHadoopPolicyData(),
+		hdfsv1alpha1.SecurityFileName:     common.MakeSecurityPropertiesData(),
+		hdfsv1alpha1.SslClientFileName:    common.MakeSslClientData(b.instance.Spec.ClusterConfig),
+		hdfsv1alpha1.SslServerFileName:    common.MakeSslServerData(b.instance.Spec.ClusterConfig),
+		// log4j
+		common.CreateComponentLog4jPropertiesName(constant.DataNodeComponent):         common.MakeLog4jPropertiesData(constant.DataNodeComponent),
+		common.CreateComponentLog4jPropertiesName(constant.WaitForNameNodesComponent): common.MakeLog4jPropertiesData(constant.WaitForNameNodesComponent),
 	}
-
-	return config, nil
+	return data, nil
 }
 
 // GetConfigOverrides returns any configuration overrides specific to DataNode
 func (b *DataNodeConfigMapBuilder) GetConfigOverrides() map[string]map[string]string {
 	return map[string]map[string]string{}
+}
+
+// make core-site.xml data
+func (b *DataNodeConfigMapBuilder) makeCoreSiteData() string {
+	generator := &common.CoreSiteXmlGenerator{InstanceName: b.instance.GetName()}
+	return generator.EnableKerberos(b.instance.Spec.ClusterConfig, b.instance.Namespace).HaZookeeperQuorum().Generate()
+}
+
+// make hdfs-site.xml data
+func (b *DataNodeConfigMapBuilder) makeHdfsSiteData() string {
+	clusterSpec := b.instance.Spec.ClusterConfig
+	generator := common.NewDataNodeHdfsSiteXmlGenerator(
+		b.instance,
+		b.roleGroupInfo.GetGroupName(),
+		b.dataNodeConfig(),
+		b.clusterComponentInfo,
+	)
+	return generator.EnablerKerberos(clusterSpec).EnableHttps().Generate()
+}
+
+func (c *DataNodeConfigMapBuilder) dataNodeConfig() map[string]string {
+	dataDir := fmt.Sprintf("[DISK]%s/%s/%s", constants.KubedoopDataDir, hdfsv1alpha1.DataVolumeMountName, string(constant.DataNode))
+	return map[string]string{
+		"dfs.datanode.data.dir": dataDir,
+	}
 }

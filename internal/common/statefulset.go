@@ -10,7 +10,6 @@ import (
 	"github.com/zncdatadev/operator-go/pkg/client"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	"github.com/zncdatadev/operator-go/pkg/util"
-	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -109,6 +108,16 @@ func (b *StatefulSetBuilder) Build(ctx context.Context) (ctrlclient.Object, erro
 	// Add volume claim templates
 	b.AddVolumeClaimTemplates(b.component.GetVolumeClaimTemplates())
 
+	// Add vector container if enabled
+	if err := b.addVectorContainer(); err != nil {
+		return nil, err
+	}
+
+	// Add OIDC container if needed
+	if err := b.addOIDCContainer(b.component); err != nil {
+		return nil, err
+	}
+
 	// Create the StatefulSet object using the embedded builder
 	sts, err := b.GetObject()
 	if err != nil {
@@ -116,7 +125,7 @@ func (b *StatefulSetBuilder) Build(ctx context.Context) (ctrlclient.Object, erro
 	}
 
 	// Set parallel pod management for faster scaling
-	sts.Spec.PodManagementPolicy = appv1.ParallelPodManagement
+	// sts.Spec.PodManagementPolicy = appv1.ParallelPodManagement
 
 	// Set security context if provided
 	if securityContext := b.component.GetSecurityContext(); securityContext != nil {
@@ -128,21 +137,11 @@ func (b *StatefulSetBuilder) Build(ctx context.Context) (ctrlclient.Object, erro
 		sts.Spec.Template.Spec.ServiceAccountName = serviceAccountName
 	}
 
-	// Add vector container if enabled
-	if err := b.addVectorContainer(sts); err != nil {
-		return nil, err
-	}
-
-	// Add OIDC container if needed
-	if err := b.addOIDCContainer(b.component); err != nil {
-		return nil, err
-	}
-
 	return sts, nil
 }
 
 // addVectorContainer adds vector container if logging is enabled
-func (b *StatefulSetBuilder) addVectorContainer(_ *appv1.StatefulSet) error {
+func (b *StatefulSetBuilder) addVectorContainer() error {
 	if b.RoleGroupConfig == nil || b.RoleGroupConfig.Logging == nil {
 		return nil
 	}

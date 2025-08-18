@@ -2,7 +2,6 @@ package common
 
 import (
 	"context"
-	"fmt"
 
 	"emperror.dev/errors"
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
@@ -19,7 +18,8 @@ var vectorLogger = ctrl.Log.WithName("vector")
 
 func IsVectorEnable(roleLoggingConfig *commonsv1alpha1.LoggingSpec) (bool, error) {
 	if roleLoggingConfig == nil {
-		return false, fmt.Errorf("role logging config is nil")
+		vectorLogger.Info("role logging config is nil, vector agent is not enabled")
+		return false, nil
 	}
 
 	return *roleLoggingConfig.EnableVectorAgent, nil

@@ -21,43 +21,12 @@ spec:
     roleGroups:
       default:
         replicas: 2
-        config:
-          logging:
-            namenode:
-              loggers:
-                test:
-                  level: DEBUG
-              console:
-                level: WARN
-              file:
-                level: ERROR
-            formatNameNode:
-              loggers:
-                test-format:
-                  level: DEBUG
   journalNode:
     roleGroups:
       default:
         replicas: 1
-        config:
-          logging:
-            journalNode:
-              loggers:
-                test:
-                  level: DEBUG
-              console:
-                level: WARN
-              file:
-                level: ERROR
+
   dataNode:
     roleGroups:
       default:
         replicas: 1
-        config:
-          logging:
-            datanode:
-              loggers:
-                test:
-                  level: DEBUG
-              console:
-                level: WARN

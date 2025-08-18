@@ -94,7 +94,11 @@ func (b *DataNodeStatefulSetBuilder) GetInitContainers() []corev1.Container {
 }
 
 func (b *DataNodeStatefulSetBuilder) GetHttpPort() int32 {
-	return common.HttpPort(b.GetInstance().Spec.ClusterConfig, hdfsv1alpha1.DataNodeHttpsPort, hdfsv1alpha1.DataNodeHttpPort).ContainerPort
+	return common.HttpPort(
+		b.GetInstance().Spec.ClusterConfig,
+		hdfsv1alpha1.DataNodeHttpsPort,
+		hdfsv1alpha1.DataNodeHttpPort,
+	).ContainerPort
 }
 
 // GetVolumes returns datanode-specific volumes

@@ -47,6 +47,7 @@ type HdfsContainerBuilder struct {
 	readiness     *corev1.Probe
 	liveness      *corev1.Probe
 	volumeMounts  []corev1.VolumeMount
+	command       []string
 	args          []string
 	argsScript    string
 }
@@ -75,6 +76,10 @@ func (c *HdfsContainerBuilder) BuildWithComponent(component ContainerComponentIn
 		// Set required properties
 		c.envs = component.GetEnvVars()
 		// c.volumeMounts = append(c.volumeMounts, component.GetVolumeMounts()...)
+		c.command = []string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}
+		if component.GetCommand() != nil {
+			c.command = component.GetCommand()
+		}
 		c.args = component.GetArgs()
 		c.argsScript = strings.Join(c.args, "\n")
 		c.volumeMounts = component.GetVolumeMounts()
@@ -100,7 +105,7 @@ func (c *HdfsContainerBuilder) BuildWithComponent(component ContainerComponentIn
 		AddEnvVars(c.envs).
 		// AddEnvFromConfigMap(RoleGroupEnvsConfigMapName(c.RoleGroupInfo.GetClusterName())).
 		AddPorts(c.ports).
-		SetCommand([]string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}).
+		SetCommand(c.command).
 		AddVolumeMounts(c.volumeMounts).
 		SetArgs([]string{c.argsScript})
 

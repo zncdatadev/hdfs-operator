@@ -107,13 +107,14 @@ func (c *oidcComponent) GetCommand() []string {
 	return []string{
 		"sh",
 		"-c",
-		"/kubedoop/oauth2-proxy/oauth2-proxy --upstream=${UPSTREAM}",
 	}
 }
 
 func (c *oidcComponent) GetArgs() []string {
 	// OIDC proxy doesn't need complex args, command handles everything
-	return []string{}
+	return []string{
+		"/kubedoop/oauth2-proxy/oauth2-proxy --upstream=${UPSTREAM}",
+	}
 }
 
 func (c *oidcComponent) GetEnvVars() []corev1.EnvVar {

@@ -116,7 +116,7 @@ do
 done
 `
 	data := common.CreateExportKrbRealmEnvData(c.instance.Spec.ClusterConfig)
-	principal := common.CreateKerberosPrincipal(c.instance.Name, c.instance.Namespace, constant.NameNode)
+	principal := common.CreateKerberosPrincipal(c.instance.Name, c.instance.Namespace, constant.DataNode)
 	maps.Copy(data, common.CreateGetKerberosTicketData(principal))
 	return common.ParseTemplate(tmpl, data)
 }

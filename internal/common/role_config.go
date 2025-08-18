@@ -75,10 +75,6 @@ func DefaultJournalNodeConfig(clusterName string) *RoleNodeConfig {
 
 // MergeDefaultConfig merges default configuration with the provided config
 func (n *RoleNodeConfig) MergeDefaultConfig(mergedCfg *hdfsv1alpha1.ConfigSpec) {
-	if mergedCfg == nil {
-		return
-	}
-
 	// Ensure RoleGroupConfigSpec is initialized
 	if mergedCfg.RoleGroupConfigSpec == nil {
 		mergedCfg.RoleGroupConfigSpec = &commonsv1alpha1.RoleGroupConfigSpec{}

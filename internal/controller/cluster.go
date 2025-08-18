@@ -163,9 +163,16 @@ func (r *Reconciler) RegisterResources(
 		}
 		r.AddResource(dataNodeReconciler)
 		clusterLogger.Info("Registered DataNode role")
-
 	}
-	// TODO: discovery
+
+	// Discovery
+	discoveryReconciler := NewHdfsDiscovery(
+		r.Client,
+		r.instance,
+		r.ClusterInfo,
+	)
+	r.AddResource(discoveryReconciler)
+	clusterLogger.Info("Registered Discovery role")
 
 	return nil
 }

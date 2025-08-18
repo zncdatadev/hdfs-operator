@@ -443,10 +443,9 @@ type DataNodeHdfsSiteXmlGenerator struct {
 func NewDataNodeHdfsSiteXmlGenerator(
 	instance *hdfsv1alpha1.HdfsCluster,
 	groupName string,
-	nameNodeReplicas int32,
 	dataNodeConfig map[string]string,
 	clusterComponentInfo *ClusterComponentsInfo) *DataNodeHdfsSiteXmlGenerator {
-
+	nameNodeReplicas := clusterComponentInfo.GetNameNodeReplicas(groupName)
 	clusterSpec := instance.Spec.ClusterConfig
 	return &DataNodeHdfsSiteXmlGenerator{
 		NameNodeHdfsSiteXmlGenerator: *NewNameNodeHdfsSiteXmlGenerator(

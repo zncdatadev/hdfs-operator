@@ -10,7 +10,9 @@ import (
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	"github.com/zncdatadev/hdfs-operator/internal/util"
 	listenerv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/listeners/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/builder"
 	pkgclient "github.com/zncdatadev/operator-go/pkg/client"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -24,23 +26,38 @@ var (
 	ErrListenerAddressesNotFound = errors.New("listener addresses not found")
 )
 
+func NewHdfsDiscovery(
+	client *pkgclient.Client,
+	instance *hdfsv1alpha1.HdfsCluster,
+	clusterInfo reconciler.ClusterInfo) reconciler.ResourceReconciler[builder.ConfigBuilder] {
+	discoveryBuilder := NewDiscoveryConfigMapBuilder(client, instance, clusterInfo)
+	return reconciler.NewGenericResourceReconciler(client, discoveryBuilder)
+}
+
 // DiscoveryConfigMapBuilder implements discovery-specific ConfigMap logic
 type DiscoveryConfigMapBuilder struct {
+	builder.ConfigMapBuilder
 	instance *hdfsv1alpha1.HdfsCluster
 	client   *pkgclient.Client
-	ctx      context.Context
 }
 
 // NewDiscoveryConfigMapBuilder creates a new DiscoveryConfigMapBuilder
 func NewDiscoveryConfigMapBuilder(
-	ctx context.Context,
 	client *pkgclient.Client,
 	instance *hdfsv1alpha1.HdfsCluster,
-) *DiscoveryConfigMapBuilder {
+	clusterInfo reconciler.ClusterInfo,
+) builder.ConfigBuilder {
 	return &DiscoveryConfigMapBuilder{
+		ConfigMapBuilder: *builder.NewConfigMapBuilder(
+			client,
+			clusterInfo.GetFullName(),
+			func(o *builder.Options) {
+				o.Annotations = clusterInfo.GetAnnotations()
+				o.Labels = clusterInfo.GetLabels()
+			},
+		),
 		instance: instance,
 		client:   client,
-		ctx:      ctx,
 	}
 }
 

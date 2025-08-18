@@ -23,10 +23,10 @@ spec:
     args:
       - -c
       - "bash /kubedoop/test/hdfs-access-assert.sh"
-    resources:
-      limits:
-        memory: "256Mi"
-        cpu: "200m"
+    # resources:
+    #   limits:
+    #     memory: "256Mi"
+    #     cpu: "200m"
     volumeMounts:
       - name: krb5-hdfs-access
         mountPath: /kubedoop/test
