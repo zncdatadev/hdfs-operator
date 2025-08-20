@@ -5,113 +5,110 @@ import (
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
-	"github.com/zncdatadev/hdfs-operator/internal/controller/name/container"
-	"github.com/zncdatadev/hdfs-operator/internal/util"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/builder"
+	"github.com/zncdatadev/operator-go/pkg/client"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type ConfigMapReconciler struct {
-	common.ConfigurationStyleReconciler[*hdfsv1alpha1.HdfsCluster, *hdfsv1alpha1.NameNodeRoleGroupSpec]
+// Compile-time check to ensure NamenodeConfigMapBuilder implements ConfigMapComponentBuilder
+var _ common.ConfigMapComponentBuilder = &NamenodeConfigMapBuilder{}
+
+// NamenodeConfigMapBuilder implements namenode-specific ConfigMap logic
+type NamenodeConfigMapBuilder struct {
+	*common.ConfigMapBuilder
+	instance             *hdfsv1alpha1.HdfsCluster
+	groupName            string
+	replicas             *int32
+	configSpec           hdfsv1alpha1.ConfigSpec
+	overrides            *commonsv1alpha1.OverridesSpec
+	clusterComponentInfo *common.ClusterComponentsInfo
 }
 
-// NewConfigMap new a ConfigMapReconciler
-func NewConfigMap(
-	scheme *runtime.Scheme,
+// NewNamenodeConfigMapBuilder creates a new NamenodeConfigMapBuilder
+func NewNamenodeConfigMapBuilder(
+	ctx context.Context,
+	client *client.Client,
+	roleGroupInfo *reconciler.RoleGroupInfo,
+	replicas *int32,
+	overrides *commonsv1alpha1.OverridesSpec,
+	configSpec *hdfsv1alpha1.ConfigSpec,
 	instance *hdfsv1alpha1.HdfsCluster,
-	client client.Client,
-	groupName string,
-	labels map[string]string,
-	mergedCfg *hdfsv1alpha1.NameNodeRoleGroupSpec,
-) *ConfigMapReconciler {
-	return &ConfigMapReconciler{
-		ConfigurationStyleReconciler: *common.NewConfigurationStyleReconciler(
-			scheme,
-			instance,
-			client,
-			groupName,
-			labels,
-			mergedCfg,
-		),
+	clusterComponentInfo *common.ClusterComponentsInfo,
+) builder.ConfigBuilder {
+	configMapBuilder := &NamenodeConfigMapBuilder{
+		instance:             instance,
+		groupName:            roleGroupInfo.GetGroupName(),
+		replicas:             replicas,
+		configSpec:           *configSpec,
+		overrides:            overrides,
+		clusterComponentInfo: clusterComponentInfo,
 	}
-}
-func (c *ConfigMapReconciler) ConfigurationOverride(resource client.Object) {
-	cm := resource.(*corev1.ConfigMap)
-	overrides := c.MergedCfg.ConfigOverrides
-	// override cfgs
-	if overrides != nil {
-		common.OverrideConfigurations(cm, overrides)
-		// only name node log4j,other component log4j not override, I think it is not necessary
-		if override := overrides.Log4j; override != nil {
-			origin := cm.Data[common.CreateComponentLog4jPropertiesName(container.NameNode)]
-			overrideContent := util.MakePropertiesFileContent(override)
-			cm.Data[common.CreateComponentLog4jPropertiesName(container.NameNode)] = util.OverrideConfigFileContent(origin,
-				overrideContent)
-		}
-	}
-	// logging override
-	c.LoggingOverride(cm)
+
+	nnbuilder := common.NewConfigMapBuilder(
+		ctx,
+		client,
+		constant.NameNode,
+		roleGroupInfo,
+		overrides,
+		configSpec,
+		instance,
+		configMapBuilder, // self as component
+	)
+
+	return nnbuilder
 }
 
-func (c *ConfigMapReconciler) Build(ctx context.Context) (client.Object, error) {
+// Build constructs the ConfigMap using the inherited common builder
+func (b *NamenodeConfigMapBuilder) Build(ctx context.Context) (ctrlclient.Object, error) {
+	return b.ConfigMapBuilder.Build(ctx)
+}
+
+// ConfigMapComponentBuilder interface implementation
+
+// BuildConfig returns namenode-specific configuration content
+func (b *NamenodeConfigMapBuilder) BuildConfig() (map[string]string, error) {
 	data := map[string]string{
-		hdfsv1alpha1.CoreSiteFileName:     c.makeCoreSiteData(),
-		hdfsv1alpha1.HdfsSiteFileName:     c.makeHdfsSiteData(),
+		hdfsv1alpha1.CoreSiteFileName:     b.makeCoreSiteData(),
+		hdfsv1alpha1.HdfsSiteFileName:     b.makeHdfsSiteData(),
 		hdfsv1alpha1.HadoopPolicyFileName: common.MakeHadoopPolicyData(),
 		hdfsv1alpha1.SecurityFileName:     common.MakeSecurityPropertiesData(),
-		hdfsv1alpha1.SslClientFileName:    common.MakeSslClientData(c.Instance.Spec.ClusterConfig),
-		hdfsv1alpha1.SslServerFileName:    common.MakeSslServerData(c.Instance.Spec.ClusterConfig),
+		hdfsv1alpha1.SslClientFileName:    common.MakeSslClientData(b.instance.Spec.ClusterConfig),
+		hdfsv1alpha1.SslServerFileName:    common.MakeSslServerData(b.instance.Spec.ClusterConfig),
 		// log4j
-		common.CreateComponentLog4jPropertiesName(container.NameNode):        common.MakeLog4jPropertiesData(container.NameNode),
-		common.CreateComponentLog4jPropertiesName(container.Zkfc):            common.MakeLog4jPropertiesData(container.Zkfc),
-		common.CreateComponentLog4jPropertiesName(container.FormatNameNode):  common.MakeLog4jPropertiesData(container.FormatNameNode),
-		common.CreateComponentLog4jPropertiesName(container.FormatZookeeper): common.MakeLog4jPropertiesData(container.FormatZookeeper),
+		common.CreateComponentLog4jPropertiesName(constant.NameNodeComponent):        common.MakeLog4jPropertiesData(constant.NameNodeComponent),
+		common.CreateComponentLog4jPropertiesName(constant.ZkfcComponent):            common.MakeLog4jPropertiesData(constant.ZkfcComponent),
+		common.CreateComponentLog4jPropertiesName(constant.FormatNameNodeComponent):  common.MakeLog4jPropertiesData(constant.FormatNameNodeComponent),
+		common.CreateComponentLog4jPropertiesName(constant.FormatZookeeperComponent): common.MakeLog4jPropertiesData(constant.FormatZookeeperComponent),
 	}
 
-	if isVectorEnabled, err := common.IsVectorEnable(c.MergedCfg.Config.Logging); err != nil {
-		return nil, err
-	} else if isVectorEnabled {
-		common.ExtendConfigMapByVector(
-			ctx,
-			common.VectorConfigParams{
-				Client:        c.Client,
-				ClusterConfig: c.Instance.Spec.ClusterConfig,
-				Namespace:     c.Instance.GetNamespace(),
-				InstanceName:  c.Instance.GetName(),
-				Role:          string(common.NameNode),
-				GroupName:     c.GroupName,
-			},
-			data)
-	}
-
-	return &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      createConfigName(c.Instance.GetName(), c.GroupName),
-			Namespace: c.Instance.GetNamespace(),
-			Labels:    c.MergedLabels,
-		},
-		Data: data,
-	}, nil
+	return data, nil
 }
 
+// GetConfigOverrides returns namenode-specific configuration overrides
+func (b *NamenodeConfigMapBuilder) GetConfigOverrides() map[string]map[string]string {
+	if b.overrides != nil {
+		return b.overrides.ConfigOverrides
+	}
+	return nil
+}
+
+// Helper methods for configuration generation
+
 // make core-site.xml data
-func (c *ConfigMapReconciler) makeCoreSiteData() string {
-	generator := &common.CoreSiteXmlGenerator{InstanceName: c.Instance.GetName()}
-	return generator.EnableKerberos(c.Instance.Spec.ClusterConfig, c.Instance.Namespace).HaZookeeperQuorum().Generate()
+func (b *NamenodeConfigMapBuilder) makeCoreSiteData() string {
+	generator := &common.CoreSiteXmlGenerator{InstanceName: b.instance.GetName()}
+	return generator.EnableKerberos(b.instance.Spec.ClusterConfig, b.instance.Namespace).HaZookeeperQuorum().Generate()
 }
 
 // make hdfs-site.xml data
-func (c *ConfigMapReconciler) makeHdfsSiteData() string {
-	clusterSpec := c.Instance.Spec.ClusterConfig
-	generator := common.NewNameNodeHdfsSiteXmlGenerator(c.Instance.GetName(), c.GroupName,
-		c.MergedCfg.Replicas, c.Instance.Namespace, c.Instance.Spec.ClusterConfig, clusterSpec.ClusterDomain,
-		clusterSpec.DfsReplication)
+func (b *NamenodeConfigMapBuilder) makeHdfsSiteData() string {
+	clusterSpec := b.instance.Spec.ClusterConfig
+	// Create ClusterComponentsInfo for the updated generator
+	generator := common.NewNameNodeHdfsSiteXmlGenerator(b.instance.GetName(), b.groupName,
+		*b.replicas, b.instance.Namespace, b.instance.Spec.ClusterConfig, clusterSpec.ClusterDomain,
+		clusterSpec.DfsReplication, b.clusterComponentInfo)
 	return generator.EnablerKerberos(clusterSpec).EnableHttps().Generate()
-}
-
-func (c *ConfigMapReconciler) LoggingOverride(current *corev1.ConfigMap) {
-	logging := NewNameNodeLogging(c.Scheme, c.Instance, c.Client, c.GroupName, c.MergedLabels, c.MergedCfg, current)
-	logging.OverrideExist(current)
 }

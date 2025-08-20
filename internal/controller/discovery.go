@@ -10,11 +10,13 @@ import (
 	"github.com/zncdatadev/hdfs-operator/internal/common"
 	"github.com/zncdatadev/hdfs-operator/internal/util"
 	listenerv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/listeners/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/builder"
+	pkgclient "github.com/zncdatadev/operator-go/pkg/client"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var discoveryLog = ctrl.Log.WithName("discovery")
@@ -24,93 +26,109 @@ var (
 	ErrListenerAddressesNotFound = errors.New("listener addresses not found")
 )
 
-type Discovery struct {
-	common.GeneralResourceStyleReconciler[*hdfsv1alpha1.HdfsCluster, any]
-}
-
-func NewDiscovery(
-	scheme *runtime.Scheme,
+func NewHdfsDiscovery(
+	client *pkgclient.Client,
 	instance *hdfsv1alpha1.HdfsCluster,
-	client client.Client,
-) *Discovery {
-	var mergedCfg any
-	d := &Discovery{
-		GeneralResourceStyleReconciler: *common.NewGeneraResourceStyleReconciler(
-			scheme,
-			instance,
+	clusterInfo reconciler.ClusterInfo) reconciler.ResourceReconciler[builder.ConfigBuilder] {
+	discoveryBuilder := NewDiscoveryConfigMapBuilder(client, instance, clusterInfo)
+	return reconciler.NewGenericResourceReconciler(client, discoveryBuilder)
+}
+
+// DiscoveryConfigMapBuilder implements discovery-specific ConfigMap logic
+type DiscoveryConfigMapBuilder struct {
+	builder.ConfigMapBuilder
+	instance *hdfsv1alpha1.HdfsCluster
+	client   *pkgclient.Client
+}
+
+// NewDiscoveryConfigMapBuilder creates a new DiscoveryConfigMapBuilder
+func NewDiscoveryConfigMapBuilder(
+	client *pkgclient.Client,
+	instance *hdfsv1alpha1.HdfsCluster,
+	clusterInfo reconciler.ClusterInfo,
+) builder.ConfigBuilder {
+	return &DiscoveryConfigMapBuilder{
+		ConfigMapBuilder: *builder.NewConfigMapBuilder(
 			client,
-			"",
-			nil,
-			mergedCfg,
+			clusterInfo.GetFullName(),
+			func(o *builder.Options) {
+				o.Annotations = clusterInfo.GetAnnotations()
+				o.Labels = clusterInfo.GetLabels()
+			},
 		),
+		instance: instance,
+		client:   client,
 	}
-	return d
 }
 
-// Build implements the ResourceBuilder interface
-func (d *Discovery) Build(ctx context.Context) (client.Object, error) {
-	if hdfsSiteXml, err := d.makeHdfsSiteXmlData(ctx); err != nil {
+// Build constructs the ConfigMap directly without using the common builder infrastructure
+func (b *DiscoveryConfigMapBuilder) Build(ctx context.Context) (ctrlclient.Object, error) {
+	hdfsSiteXml, err := b.makeHdfsSiteXmlData(ctx)
+	if err != nil {
 		return nil, err
-	} else {
-
-		return &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      d.Instance.GetName(),
-				Namespace: d.Instance.Namespace,
-				Labels:    d.MergedLabels,
-			},
-			Data: map[string]string{
-				"core-site.xml": d.makeCoreSiteXmlData(),
-				"hdfs-site.xml": hdfsSiteXml,
-			},
-		}, nil
 	}
+
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      b.instance.GetName(),
+			Namespace: b.instance.Namespace,
+			Labels: map[string]string{
+				common.LabelCrName:    b.instance.GetName(),
+				common.LabelManagedBy: "hdfs-operator",
+				common.LabelComponent: "discovery",
+			},
+		},
+		Data: map[string]string{
+			"core-site.xml": b.makeCoreSiteXmlData(),
+			"hdfs-site.xml": hdfsSiteXml,
+		},
+	}, nil
 }
 
-func (d *Discovery) makeCoreSiteXmlData() string {
-	generator := common.CoreSiteXmlGenerator{InstanceName: d.Instance.Name, IsDiscovery: true}
-	return generator.EnableKerberos(d.Instance.Spec.ClusterConfig, d.Instance.Namespace).Generate()
+func (b *DiscoveryConfigMapBuilder) makeCoreSiteXmlData() string {
+	generator := common.CoreSiteXmlGenerator{InstanceName: b.instance.Name, IsDiscovery: true}
+	return generator.EnableKerberos(b.instance.Spec.ClusterConfig, b.instance.Namespace).Generate()
 }
 
-func (d *Discovery) makeHdfsSiteXmlData(ctx context.Context) (string, error) {
-	xml := util.NewXmlConfiguration(d.commonHdfsSiteXml())
-	properties, err := d.makeDynamicHdfsSiteXml(ctx)
+func (b *DiscoveryConfigMapBuilder) makeHdfsSiteXmlData(ctx context.Context) (string, error) {
+	xml := util.NewXmlConfiguration(b.commonHdfsSiteXml())
+	properties, err := b.makeDynamicHdfsSiteXml(ctx)
 	if err != nil {
 		return "", err
 	}
-	if common.IsKerberosEnabled(d.Instance.Spec.ClusterConfig) {
+	if common.IsKerberosEnabled(b.instance.Spec.ClusterConfig) {
 		properties = append(properties, common.SecurityDiscoveryHdfsSiteXml()...)
 	}
 	return xml.String(properties), nil
 }
 
 // make hdfs-site.xml data
-func (d *Discovery) commonHdfsSiteXml() []util.XmlNameValuePair {
+func (b *DiscoveryConfigMapBuilder) commonHdfsSiteXml() []util.XmlNameValuePair {
 	return []util.XmlNameValuePair{
 		{
 			Name:  "dfs.nameservices",
-			Value: d.Instance.GetName(),
+			Value: b.instance.GetName(),
 		},
 		{
-			Name:  "dfs.client.failover.proxy.provider." + d.Instance.GetName(),
+			Name:  "dfs.client.failover.proxy.provider." + b.instance.GetName(),
 			Value: "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider",
 		},
 	}
 }
 
-func (d *Discovery) makeDynamicHdfsSiteXml(ctx context.Context) ([]util.XmlNameValuePair, error) {
+func (b *DiscoveryConfigMapBuilder) makeDynamicHdfsSiteXml(ctx context.Context) ([]util.XmlNameValuePair, error) {
 	var hosts util.XmlNameValuePair
 	var podNames []string
 	var connections []util.XmlNameValuePair
 	var err error
-	nameNodeGroups := d.Instance.Spec.NameNode.RoleGroups
+	nameNodeGroups := b.instance.Spec.NameNode.RoleGroups
 
 	// get pod names
-	podNames = d.getPodNames(nameNodeGroups)
+	podNames = b.getPodNames(nameNodeGroups)
 	// make discovery hosts
-	hosts = d.makeDiscoveryHosts(podNames)
+	hosts = b.makeDiscoveryHosts(podNames)
 	// make connections
-	if connections, err = d.createConnections(ctx, podNames); err != nil {
+	if connections, err = b.createConnections(ctx, podNames); err != nil {
 		return nil, err
 	}
 
@@ -122,25 +140,29 @@ func (d *Discovery) makeDynamicHdfsSiteXml(ctx context.Context) ([]util.XmlNameV
 
 // get pod names
 // Note: pod name generated by group name and replicas
-func (d *Discovery) getPodNames(nameNodeGroups map[string]*hdfsv1alpha1.NameNodeRoleGroupSpec) []string {
+func (b *DiscoveryConfigMapBuilder) getPodNames(nameNodeGroups map[string]hdfsv1alpha1.RoleGroupSpec) []string {
 	var podNames []string
 	for groupName := range nameNodeGroups {
-		cacheKey := common.CreateRoleCfgCacheKey(d.Instance.Name, common.NameNode, groupName)
-		nameNodeStatefulSetName := common.CreateNameNodeStatefulSetName(d.Instance.Name, groupName)
-		if cfg, ok := common.MergedCache.Get(cacheKey); ok {
-			roleGroupCfg := cfg.(*hdfsv1alpha1.NameNodeRoleGroupSpec)
-			replicates := roleGroupCfg.Replicas
-			groupPodNames := common.CreatePodNamesByReplicas(replicates, nameNodeStatefulSetName)
-			podNames = append(podNames, groupPodNames...)
+		// We need to get pod names from namenode role groups based on replicas
+		// Since discovery doesn't have access to the cache, we'll need to calculate from the spec directly
+		if roleGroup, ok := nameNodeGroups[groupName]; ok {
+			nameNodeStatefulSetName := fmt.Sprintf("%s-namenode-%s", b.instance.Name, groupName)
+			if roleGroup.Replicas != nil {
+				replicas := *roleGroup.Replicas
+				for i := int32(0); i < replicas; i++ {
+					podName := fmt.Sprintf("%s-%d", nameNodeStatefulSetName, i)
+					podNames = append(podNames, podName)
+				}
+			}
 		}
 	}
 	return podNames
 }
 
 // make discovery hosts
-func (d *Discovery) makeDiscoveryHosts(podNames []string) util.XmlNameValuePair {
+func (b *DiscoveryConfigMapBuilder) makeDiscoveryHosts(podNames []string) util.XmlNameValuePair {
 	return util.XmlNameValuePair{
-		Name:  "dfs.ha.namenodes." + d.Instance.GetName(),
+		Name:  "dfs.ha.namenodes." + b.instance.GetName(),
 		Value: strings.Join(podNames, ","),
 	}
 }
@@ -162,7 +184,7 @@ func (d *Discovery) makeDiscoveryHosts(podNames []string) util.XmlNameValuePair 
 // value example:
 //
 //	0.0.0.0:9870
-func (d *Discovery) createPortNameAddress(
+func (b *DiscoveryConfigMapBuilder) createPortNameAddress(
 	ctx context.Context,
 	podNames []string,
 	portName string,
@@ -171,17 +193,17 @@ func (d *Discovery) createPortNameAddress(
 	for _, podName := range podNames {
 		var address *listenerv1alpha1.IngressAddressSpec
 		var err error
-		if address, err = d.getListenerAddress(cache, ctx, podName); err != nil {
+		if address, err = b.getListenerAddress(cache, ctx, podName); err != nil {
 			return nil, err
 		}
-		port, err := d.getPort(address, portName)
+		port, err := b.getPort(address, portName)
 		if err != nil {
 			discoveryLog.Error(err, "failed to get port from address by port name", "address",
 				address, "portName", portName)
 			return nil, err
 		}
 
-		name := fmt.Sprintf("dfs.namenode.%s-address.%s.%s", portName, d.Instance.GetName(), podName)
+		name := fmt.Sprintf("dfs.namenode.%s-address.%s.%s", portName, b.instance.GetName(), podName)
 		value := fmt.Sprintf("%s:%d", address.Address, port)
 		connections = append(connections, util.XmlNameValuePair{Name: name, Value: value})
 	}
@@ -189,17 +211,17 @@ func (d *Discovery) createPortNameAddress(
 }
 
 // create discovery connections
-func (d *Discovery) createConnections(ctx context.Context, podNames []string) ([]util.XmlNameValuePair, error) {
+func (b *DiscoveryConfigMapBuilder) createConnections(ctx context.Context, podNames []string) ([]util.XmlNameValuePair, error) {
 	cache := make(map[string]*listenerv1alpha1.IngressAddressSpec)
 	var httpConnections, rpcConnections []util.XmlNameValuePair
 	var err error
 	var connections []util.XmlNameValuePair
 	// create http address
 	schema := "http"
-	if common.IsTlsEnabled(d.Instance.Spec.ClusterConfig) {
+	if common.IsTlsEnabled(b.instance.Spec.ClusterConfig) {
 		schema = "https"
 	}
-	httpConnections, err = d.createPortNameAddress(ctx, podNames, schema, &cache)
+	httpConnections, err = b.createPortNameAddress(ctx, podNames, schema, &cache)
 	if err != nil {
 		discoveryLog.Info("failed to create http connections")
 		return nil, err
@@ -208,7 +230,7 @@ func (d *Discovery) createConnections(ctx context.Context, podNames []string) ([
 	}
 
 	// create rpc address
-	rpcConnections, err = d.createPortNameAddress(ctx, podNames, hdfsv1alpha1.RpcName, &cache)
+	rpcConnections, err = b.createPortNameAddress(ctx, podNames, hdfsv1alpha1.RpcName, &cache)
 	if err != nil {
 		discoveryLog.Info("failed to create rpc connections")
 	} else {
@@ -218,7 +240,7 @@ func (d *Discovery) createConnections(ctx context.Context, podNames []string) ([
 }
 
 // get port from address by port name
-func (d *Discovery) getPort(address *listenerv1alpha1.IngressAddressSpec, portName string) (int32, error) {
+func (b *DiscoveryConfigMapBuilder) getPort(address *listenerv1alpha1.IngressAddressSpec, portName string) (int32, error) {
 	for name, port := range address.Ports {
 		if name == portName {
 			return port, nil
@@ -226,14 +248,14 @@ func (d *Discovery) getPort(address *listenerv1alpha1.IngressAddressSpec, portNa
 	}
 	return 0, errors.Errorf("not found port in address %s by port name", portName)
 }
-func (d *Discovery) getListenerAddress(
+func (b *DiscoveryConfigMapBuilder) getListenerAddress(
 	cache *map[string]*listenerv1alpha1.IngressAddressSpec,
 	ctx context.Context,
 	podName string) (*listenerv1alpha1.IngressAddressSpec, error) {
 
-	listenerName, err := d.getListenerNameByPodName(ctx, podName)
+	listenerName, err := b.getListenerNameByPodName(ctx, podName)
 	if err != nil {
-		discoveryLog.Info("failed to get listener name by pod name", "podName", podName, "namespace", d.Instance.Namespace)
+		discoveryLog.Info("failed to get listener name by pod name", "podName", podName, "namespace", b.instance.Namespace)
 		return nil, err
 	}
 	cacheKey := listenerName
@@ -246,11 +268,10 @@ func (d *Discovery) getListenerAddress(
 	listener := &listenerv1alpha1.Listener{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cacheKey,
-			Namespace: d.Instance.Namespace,
+			Namespace: b.instance.Namespace,
 		},
 	}
-	resourceClient := common.NewResourceClient(ctx, d.Client, d.Instance.Namespace)
-	err = resourceClient.Get(listener)
+	err = b.client.Get(ctx, ctrlclient.ObjectKey{Name: cacheKey, Namespace: b.instance.Namespace}, listener)
 	if err != nil {
 		discoveryLog.Info("failed to get listener", "cacheKey", cacheKey)
 		return nil, ErrListenerNotFound
@@ -258,8 +279,8 @@ func (d *Discovery) getListenerAddress(
 
 	listenerAddresses := listener.Status.IngressAddresses
 	if len(listenerAddresses) == 0 {
-		discoveryLog.Info("not found listener address", "namespace", d.Instance.Namespace,
-			"name", d.Instance.Name, "listener.status", listener.Status)
+		discoveryLog.Info("not found listener address", "namespace", b.instance.Namespace,
+			"name", b.instance.Name, "listener.status", listener.Status)
 		return nil, ErrListenerAddressesNotFound
 	}
 	address := &listener.Status.IngressAddresses[0]
@@ -270,15 +291,14 @@ func (d *Discovery) getListenerAddress(
 // get listener name from pod's lable
 // label pattern: "listeners.kubedoop.dev/mnt.{listener_uid}: {listener_name}"
 // the pod can be fetched by pod name,namespaces
-func (d *Discovery) getListenerNameByPodName(ctx context.Context, podName string) (string, error) {
+func (b *DiscoveryConfigMapBuilder) getListenerNameByPodName(ctx context.Context, podName string) (string, error) {
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
-			Namespace: d.Instance.Namespace,
+			Namespace: b.instance.Namespace,
 		},
 	}
-	resourceClient := common.NewResourceClient(ctx, d.Client, d.Instance.Namespace)
-	err := resourceClient.Get(pod)
+	err := b.client.Get(ctx, ctrlclient.ObjectKey{Name: podName, Namespace: b.instance.Namespace}, pod)
 	if err != nil {
 		discoveryLog.Info("failed to get pod", "podName", podName)
 		return "", err

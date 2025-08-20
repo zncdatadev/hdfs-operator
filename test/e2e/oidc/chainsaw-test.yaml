@@ -3,6 +3,7 @@ kind: Test
 metadata:
   name: oidc
 spec:
+  # skip: true
   bindings:
     - name: KEYCLOAK_REALM
       value: kubedoop

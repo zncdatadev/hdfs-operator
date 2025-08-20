@@ -1,9 +1,10 @@
 package common
 
 import (
-	"reflect"
 	"time"
 
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/constants"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -26,12 +27,12 @@ type GeneralNodeConfig struct {
 	gracefulShutdownTimeout time.Duration
 }
 
-func newDefaultResourceSpec(role Role) *commonsv1alpha1.ResourcesSpec {
-	return GetContainerResource(role, string(role))
+func newDefaultResourceSpec(role constant.Role) *commonsv1alpha1.ResourcesSpec {
+	return GetContainerResource(role, constant.ContainerComponent(role)) // todo: fix container name
 }
 
 // DefaultNodeConfig default node config
-func DefaultNodeConfig(clusterName string, role Role, listenerClass constants.ListenerClass, gracefulShutdownTimeout time.Duration) *RoleNodeConfig {
+func DefaultNodeConfig(clusterName string, role constant.Role, listenerClass constants.ListenerClass, gracefulShutdownTimeout time.Duration) *RoleNodeConfig {
 	return &RoleNodeConfig{
 		resources:     newDefaultResourceSpec(role),
 		listenerClass: listenerClass,
@@ -47,84 +48,74 @@ func DefaultNodeConfig(clusterName string, role Role, listenerClass constants.Li
 	}
 }
 
+func DefaultRoleConfig(clusterName string, role constant.Role) *RoleNodeConfig {
+	switch role {
+	case constant.NameNode:
+		return DefaultNameNodeConfig(clusterName)
+	case constant.DataNode:
+		return DefaultDataNodeConfig(clusterName)
+	case constant.JournalNode:
+		return DefaultJournalNodeConfig(clusterName)
+	default:
+		panic("unsupported role: " + string(role))
+	}
+}
+
 func DefaultNameNodeConfig(clusterName string) *RoleNodeConfig {
-	return DefaultNodeConfig(clusterName, NameNode, constants.ClusterInternal, 15*time.Minute)
+	return DefaultNodeConfig(clusterName, constant.NameNode, constants.ClusterInternal, 15*time.Minute)
 }
 
 func DefaultDataNodeConfig(clusterName string) *RoleNodeConfig {
-	return DefaultNodeConfig(clusterName, DataNode, constants.ClusterInternal, 30*time.Minute)
+	return DefaultNodeConfig(clusterName, constant.DataNode, constants.ClusterInternal, 30*time.Minute)
 }
 
 func DefaultJournalNodeConfig(clusterName string) *RoleNodeConfig {
-	return DefaultNodeConfig(clusterName, JournalNode, "", 15*time.Minute)
+	return DefaultNodeConfig(clusterName, constant.JournalNode, "", 15*time.Minute)
 }
 
-// todo: refactor this, do this using detail type
-func (n *RoleNodeConfig) MergeDefaultConfig(mergedCfg any) {
-
-	// Make sure mergedCfg is a pointer type
-	configValue := reflect.ValueOf(mergedCfg)
-	if configValue.Kind() != reflect.Ptr {
-		return
+// MergeDefaultConfig merges default configuration with the provided config
+func (n *RoleNodeConfig) MergeDefaultConfig(mergedCfg *hdfsv1alpha1.ConfigSpec) {
+	// Ensure RoleGroupConfigSpec is initialized
+	if mergedCfg.RoleGroupConfigSpec == nil {
+		mergedCfg.RoleGroupConfigSpec = &commonsv1alpha1.RoleGroupConfigSpec{}
 	}
 
-	// Get the value that the pointer points to
-	configValue = configValue.Elem()
-
-	// Get the Config field
-	config := configValue.FieldByName("Config")
-	if !config.IsValid() || !config.CanSet() {
-		return
-	}
-	config = config.Elem()
-
-	// Get the Resources field
-	resourcesField := config.FieldByName("Resources")
+	// Merge Resources configuration
 	var resourceRes *commonsv1alpha1.ResourcesSpec
-	if resourcesField.IsValid() && resourcesField.CanSet() {
-		if resourcesField.IsZero() {
-			resourceRes = n.resources
-		} else {
-			// adjust resourcesField is commonsv1alpha1.ResourcesSpec
-			if resourcesField.Type().Kind() == reflect.Ptr && resourcesField.Type().Elem() == reflect.TypeOf(commonsv1alpha1.ResourcesSpec{}) {
-				// transform resourcesField to *commonsv1alpha1.ResourcesSpec
-				if resourcesField.Kind() == reflect.Ptr && resourcesField.Type().Elem() == reflect.TypeOf(commonsv1alpha1.ResourcesSpec{}) {
-					mergedResource := resourcesField.Interface().(*commonsv1alpha1.ResourcesSpec)
-					if mergedResource == nil {
-						resourceRes = n.resources
-					} else {
-						resourceRes = mergedResource
-						if mergedResource.CPU == nil {
-							resourceRes.CPU = n.resources.CPU
-						}
-						if mergedResource.Memory == nil {
-							resourceRes.Memory = n.resources.Memory
-						}
-						if mergedResource.Storage == nil {
-							resourceRes.Storage = n.resources.Storage
-						}
-					}
-				}
-			}
+	if mergedCfg.Resources == nil {
+		resourceRes = n.resources
+	} else {
+		mergedResource := mergedCfg.Resources
+		resourceRes = mergedResource
+		if mergedResource.CPU == nil {
+			resourceRes.CPU = n.resources.CPU
 		}
-		resourcesField.Set(reflect.ValueOf(resourceRes))
+		if mergedResource.Memory == nil {
+			resourceRes.Memory = n.resources.Memory
+		}
+		if mergedResource.Storage == nil {
+			resourceRes.Storage = n.resources.Storage
+		}
+	}
+	mergedCfg.Resources = resourceRes
+
+	// Merge ListenerClass configuration
+	if mergedCfg.ListenerClass == nil && n.listenerClass != "" {
+		listenerClass := string(n.listenerClass)
+		mergedCfg.ListenerClass = &listenerClass
 	}
 
-	// Get the ListenerClass field
-	listenerClassField := config.FieldByName("ListenerClass")
-	if listenerClassField.IsValid() && listenerClassField.IsZero() && listenerClassField.CanSet() {
-		listenerClassField.Set(reflect.ValueOf(n.listenerClass))
-	}
+	// Merge Affinity configuration
+	// Note: Need to check the exact type of Affinity field in RoleGroupConfigSpec
+	// For now, commenting out until the type is confirmed
+	/*
+		if mergedCfg.RoleGroupConfigSpec.Affinity == nil {
+			mergedCfg.RoleGroupConfigSpec.Affinity = n.common.Affinity.Build()
+		}
+	*/
 
-	// Get the Affinity field
-	affinityField := config.FieldByName("Affinity")
-	if affinityField.IsValid() && affinityField.IsZero() && affinityField.CanSet() {
-		affinityField.Set(reflect.ValueOf(n.common.Affinity.Build()))
-	}
-
-	// You can continue to add logic to handle other fieldgracefulShutdownTimeoutSecondss
-	// config.FieldByName("Logging").Set(reflect.ValueOf(n.common.Logging))
-	// config.FieldByName("GracefulShutdownTimeoutSeconds").Set(reflect.ValueOf(n.common.gracefulShutdownTimeoutSeconds))
+	// You can continue to add logic to handle other fields
+	// e.g., Logging, GracefulShutdownTimeout, etc.
 }
 
 func parseQuantity(q string) resource.Quantity {
@@ -132,24 +123,24 @@ func parseQuantity(q string) resource.Quantity {
 	return r
 }
 
-func GetContainerResource(role Role, containerName string) *commonsv1alpha1.ResourcesSpec {
+func GetContainerResource(role constant.Role, containerName constant.ContainerComponent) *commonsv1alpha1.ResourcesSpec {
 	var cpuMin, cpuMax, memoryLimit, storage resource.Quantity
 	switch role {
-	case NameNode:
+	case constant.NameNode:
 		switch containerName {
-		case "format-namenodes":
+		case constant.FormatNameNodeComponent:
 			cpuMin = parseQuantity("100m")
 			cpuMax = parseQuantity("200m")
 			memoryLimit = parseQuantity("512Mi")
-		case "format-zookeeper":
+		case constant.FormatZookeeperComponent:
 			cpuMin = parseQuantity("100m")
 			cpuMax = parseQuantity("200m")
 			memoryLimit = parseQuantity("512Mi")
-		case "zkfc":
+		case constant.ZkfcComponent:
 			cpuMin = parseQuantity("100m")
 			cpuMax = parseQuantity("200m")
 			memoryLimit = parseQuantity("512Mi")
-		case "namenode":
+		case constant.NameNodeComponent:
 			cpuMin = parseQuantity("300m")
 			cpuMax = parseQuantity("600m")
 			memoryLimit = parseQuantity("1024Mi")
@@ -157,7 +148,7 @@ func GetContainerResource(role Role, containerName string) *commonsv1alpha1.Reso
 		default:
 			panic("invalid container name in NameNode role:" + containerName)
 		}
-	case DataNode:
+	case constant.DataNode:
 		switch containerName {
 		case "datanode":
 			cpuMin = parseQuantity("100m")
@@ -171,7 +162,7 @@ func GetContainerResource(role Role, containerName string) *commonsv1alpha1.Reso
 		default:
 			panic("invalid container name in DataNode role" + containerName)
 		}
-	case JournalNode:
+	case constant.JournalNode:
 		cpuMin = parseQuantity("100m")
 		cpuMax = parseQuantity("300m")
 		memoryLimit = parseQuantity("512Mi")

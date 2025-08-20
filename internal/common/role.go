@@ -3,154 +3,208 @@ package common
 import (
 	"context"
 	"fmt"
-	"reflect"
-	"strings"
 
-	"github.com/go-logr/logr"
-	operatorutil "github.com/zncdatadev/operator-go/pkg/util"
-	"k8s.io/apimachinery/pkg/runtime"
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/client"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
+	opgoutil "github.com/zncdatadev/operator-go/pkg/util"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/zncdatadev/hdfs-operator/internal/util"
 )
 
-type Role string
+var logger = ctrl.Log.WithName("role-reconciler")
 
-const (
-	NameNode    Role = "namenode"
-	DataNode    Role = "datanode"
-	JournalNode Role = "journalnode"
-)
-
-type RoleReconciler interface {
-	RoleName() Role
-	ReconcileRole(ctx context.Context) (ctrl.Result, error)
-	CacheRoleGroupConfig()
+// HdfsComponentReconciler is the interface that all component reconcilers must implement
+type HdfsComponentReconciler interface {
+	// RegisterResourceWithRoleGroup registers resources for a specific role group
+	RegisterResourceWithRoleGroup(
+		ctx context.Context,
+		replicas *int32,
+		roleGroupInfo *reconciler.RoleGroupInfo,
+		overrides *commonsv1alpha1.OverridesSpec,
+		config *hdfsv1alpha1.ConfigSpec,
+	) ([]reconciler.Reconciler, error)
 }
 
-// RoleGroupRecociler RoleReconcile role reconciler interface
-// all role reconciler should implement this interface
-type RoleGroupRecociler interface {
-	ReconcileGroup(ctx context.Context) (ctrl.Result, error)
-	MergeLabels(mergedGroupCfg any) map[string]string
-	RegisterResource()
+// HdfsComponentResourceBuilder defines methods that component implementations should provide
+type HdfsComponentResourceBuilder interface {
+	// CreateServiceReconcilers returns internal and access service reconcilers
+	CreateServiceReconcilers(
+		client *client.Client,
+		roleGroupInfo *reconciler.RoleGroupInfo,
+	) []reconciler.Reconciler
+
+	// CreateStatefulSetReconciler returns statefulset reconciler
+	CreateStatefulSetReconciler(
+		ctx context.Context,
+		client *client.Client,
+		image *opgoutil.Image,
+		replicas *int32,
+		hdfsCluster *hdfsv1alpha1.HdfsCluster,
+		clusterOperation *commonsv1alpha1.ClusterOperationSpec,
+		roleGroupInfo *reconciler.RoleGroupInfo,
+		config *hdfsv1alpha1.ConfigSpec,
+		overrides *commonsv1alpha1.OverridesSpec,
+	) (reconciler.Reconciler, error)
+
+	CreateConfigMapReconciler(
+		ctx context.Context,
+		client *client.Client,
+		hdfsCluster *hdfsv1alpha1.HdfsCluster,
+		roleGroupInfo *reconciler.RoleGroupInfo,
+		replicas *int32,
+		config *hdfsv1alpha1.ConfigSpec,
+		overrides *commonsv1alpha1.OverridesSpec,
+		clusterComponentInfo *ClusterComponentsInfo,
+	) (reconciler.Reconciler, error)
 }
 
-type RoleConfigSpec interface {
-	GetRoleConfigSpec(role Role) (any, error)
+// BaseHdfsRoleReconciler is the common base for NameNode, DataNode and JournalNode role reconcilers
+type BaseHdfsRoleReconciler struct {
+	reconciler.BaseRoleReconciler[hdfsv1alpha1.RoleSpec]
+	HdfsCluster      *hdfsv1alpha1.HdfsCluster
+	ClusterConfig    *hdfsv1alpha1.ClusterConfigSpec
+	ClusterOperation *commonsv1alpha1.ClusterOperationSpec
+	Image            *opgoutil.Image
+	ComponentType    constant.Role
+	ComponentRec     HdfsComponentReconciler
 }
 
-type BaseRoleReconciler[T client.Object] struct {
-	Scheme   *runtime.Scheme
-	Instance T
-	Client   client.Client
-	Log      logr.Logger
-	Labels   map[string]string
-	Image    *operatorutil.Image
+// NewBaseHdfsRoleReconciler creates a new base role reconciler for HDFS components
+func NewBaseHdfsRoleReconciler(
+	client *client.Client,
+	roleInfo reconciler.RoleInfo,
+	spec hdfsv1alpha1.RoleSpec,
+	hdfsCluster *hdfsv1alpha1.HdfsCluster,
+	image *opgoutil.Image,
+	componentType constant.Role,
+	componentRec HdfsComponentReconciler,
+) *BaseHdfsRoleReconciler {
+	stopped := false
+	if hdfsCluster.Spec.ClusterOperationSpec != nil {
+		stopped = hdfsCluster.Spec.ClusterOperationSpec.Stopped
+	}
 
-	Role Role
+	return &BaseHdfsRoleReconciler{
+		BaseRoleReconciler: *reconciler.NewBaseRoleReconciler(
+			client,
+			stopped,
+			roleInfo,
+			spec,
+		),
+		HdfsCluster:      hdfsCluster,
+		ClusterConfig:    hdfsCluster.Spec.ClusterConfig,
+		ClusterOperation: hdfsCluster.Spec.ClusterOperationSpec,
+		Image:            image,
+		ComponentType:    componentType,
+		ComponentRec:     componentRec,
+	}
 }
 
-func (r *BaseRoleReconciler[T]) GetLabels() map[string]string {
-	roleLables := RoleLabels{InstanceName: r.Instance.GetName(), Name: string(r.Role)}
-	mergeLabels := roleLables.GetLabels()
-	return mergeLabels
-}
+// RegisterResources registers all resources for all role groups
+func (r *BaseHdfsRoleReconciler) RegisterResources(ctx context.Context) error {
+	for name, roleGroup := range r.Spec.RoleGroups {
+		// Merge configurations
+		mergedConfig, err := opgoutil.MergeObject(r.Spec.Config, roleGroup.Config)
+		if err != nil {
+			return err
+		}
 
-type BaseRoleGroupReconciler[T client.Object] struct {
-	Scheme     *runtime.Scheme
-	Instance   T
-	Client     client.Client
-	GroupName  string
-	RoleLabels map[string]string
-	Log        logr.Logger
-	Image      *operatorutil.Image
+		// Merge override configurations
+		overrides, err := opgoutil.MergeObject(r.Spec.OverridesSpec, roleGroup.OverridesSpec)
+		if err != nil {
+			return err
+		}
 
-	Reconcilers []ResourceReconciler
-}
+		if overrides == nil {
+			overrides = &commonsv1alpha1.OverridesSpec{}
+		}
 
-func ReconcilerDoHandler(ctx context.Context, reconcilers []ResourceReconciler) (ctrl.Result, error) {
-	for _, r := range reconcilers {
-		if single, ok := r.(ResourceBuilder); ok {
-			res, err := r.ReconcileResource(ctx, NewSingleResourceBuilder(single))
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			if res.RequeueAfter > 0 {
-				return res, nil
-			}
-		} else if multi, ok := r.(MultiResourceReconcilerBuilder); ok {
-			res, err := r.ReconcileResource(ctx, NewMultiResourceBuilder(multi))
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			if res.RequeueAfter > 0 {
-				return res, nil
-			}
-		} else {
-			panic(fmt.Sprintf("unknown resource reconciler builder, actual type: %T", r))
+		// merge Default config
+		defaultInstance := DefaultRoleConfig(r.GetClusterName(), r.ComponentType)
+		if mergedConfig == nil {
+			// must set here
+			mergedConfig = &hdfsv1alpha1.ConfigSpec{}
+		}
+		defaultInstance.MergeDefaultConfig(mergedConfig)
+
+		info := &reconciler.RoleGroupInfo{
+			RoleInfo:      r.RoleInfo,
+			RoleGroupName: name,
+		}
+
+		reconcilers, err := r.ComponentRec.RegisterResourceWithRoleGroup(
+			ctx,
+			roleGroup.Replicas,
+			info,
+			overrides,
+			mergedConfig,
+		)
+		if err != nil {
+			return err
+		}
+
+		for _, reconciler := range reconcilers {
+			r.AddResource(reconciler)
+			logger.Info("registered resource", "role", r.GetName(), "roleGroup", name, "reconciler", reconciler.GetName())
 		}
 	}
-	return ctrl.Result{}, nil
+	return nil
 }
 
-// ReconcileGroup ReconcileRole implements the Role interface
-func (m *BaseRoleGroupReconciler[T]) ReconcileGroup(ctx context.Context) (ctrl.Result, error) {
-	return ReconcilerDoHandler(ctx, m.Reconcilers)
-}
+// RegisterStandardResources registers common resources for an HDFS component
+func RegisterStandardResources(
+	ctx context.Context,
+	client *client.Client,
+	builder HdfsComponentResourceBuilder,
+	replicas *int32,
+	image *opgoutil.Image,
+	hdfsCluster *hdfsv1alpha1.HdfsCluster,
+	clusterOperation *commonsv1alpha1.ClusterOperationSpec,
+	roleGroupInfo *reconciler.RoleGroupInfo,
+	config *hdfsv1alpha1.ConfigSpec,
+	overrides *commonsv1alpha1.OverridesSpec,
+	clusterComponentInfo *ClusterComponentsInfo,
+) ([]reconciler.Reconciler, error) {
+	var reconcilers = make([]reconciler.Reconciler, 0)
 
-// AppendLabels  merge role labels and additional labels
-func (m *BaseRoleGroupReconciler[T]) AppendLabels(additionalLabels map[string]string) map[string]string {
-	roleLabels := m.RoleLabels
-	mergeLabels := make(util.Map)
-	mergeLabels.MapMerge(roleLabels, true)
-	mergeLabels.MapMerge(additionalLabels, true)
-	mergeLabels["app.kubernetes.io/instance"] = strings.ToLower(m.GroupName)
-	return mergeLabels
-}
+	// Create services
+	serviceReconcilers := builder.CreateServiceReconcilers(client, roleGroupInfo)
+	reconcilers = append(reconcilers, serviceReconcilers...)
 
-// MergeObjects merge right to left, if field not in left, it will be added from right,
-// else skip.
-// Node: If variable is a pointer, it will be modified directly.
-func MergeObjects(left interface{}, right interface{}, exclude []string) {
-
-	leftValues := reflect.ValueOf(left)
-	rightValues := reflect.ValueOf(right)
-
-	if leftValues.Kind() == reflect.Ptr {
-		leftValues = leftValues.Elem()
+	// Create StatefulSet
+	statefulSetReconciler, err := builder.CreateStatefulSetReconciler(
+		ctx,
+		client,
+		image,
+		replicas,
+		hdfsCluster,
+		clusterOperation,
+		roleGroupInfo,
+		config,
+		overrides,
+	)
+	if err != nil {
+		return nil, err
 	}
+	reconcilers = append(reconcilers, statefulSetReconciler)
 
-	if rightValues.Kind() == reflect.Ptr {
-		rightValues = rightValues.Elem()
+	// create ConfigMap reconciler
+	configMapReconciler, err := builder.CreateConfigMapReconciler(
+		ctx,
+		client,
+		hdfsCluster,
+		roleGroupInfo,
+		replicas,
+		config,
+		overrides,
+		clusterComponentInfo,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ConfigMap reconciler: %w", err)
 	}
+	reconcilers = append(reconcilers, configMapReconciler)
 
-	for i := 0; i < rightValues.NumField(); i++ {
-		rightField := rightValues.Field(i)
-		rightFieldName := rightValues.Type().Field(i).Name
-		if !contains(exclude, rightFieldName) {
-			// if right field is zero value, skip
-			if reflect.DeepEqual(rightField.Interface(), reflect.Zero(rightField.Type()).Interface()) {
-				continue
-			}
-			leftField := leftValues.FieldByName(rightFieldName)
-
-			// if left field is zero value, set it use right field, else skip
-			if !reflect.DeepEqual(leftField.Interface(), reflect.Zero(leftField.Type()).Interface()) {
-				continue
-			}
-
-			leftField.Set(rightField)
-		}
-	}
-}
-
-func contains(slice []string, str string) bool {
-	for _, v := range slice {
-		if v == str {
-			return true
-		}
-	}
-	return false
+	return reconcilers, nil
 }

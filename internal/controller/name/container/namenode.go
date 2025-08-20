@@ -1,58 +1,131 @@
 package container
 
 import (
+	"path"
 	"strings"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/constants"
-	"github.com/zncdatadev/operator-go/pkg/util"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
+	oputil "github.com/zncdatadev/operator-go/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// NameNodeContainerBuilder builds namenode containers
 type NameNodeContainerBuilder struct {
-	common.ContainerBuilder
-	zookeeperConfigMapName string
-	clusterConfig          *hdfsv1alpha1.ClusterConfigSpec
+	instance        *hdfsv1alpha1.HdfsCluster
+	roleGroupInfo   *reconciler.RoleGroupInfo
+	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec
+	image           *oputil.Image
 }
 
+// NewNameNodeContainerBuilder creates a new namenode container builder
 func NewNameNodeContainerBuilder(
 	instance *hdfsv1alpha1.HdfsCluster,
-	resource corev1.ResourceRequirements,
-	image *util.Image,
+	roleGroupInfo *reconciler.RoleGroupInfo,
+	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec,
+	image *oputil.Image,
 ) *NameNodeContainerBuilder {
-	zookeeperConfigMapName := instance.Spec.ClusterConfig.ZookeeperConfigMapName
 	return &NameNodeContainerBuilder{
-		ContainerBuilder:       *common.NewContainerBuilder(image.String(), image.GetPullPolicy(), resource),
-		zookeeperConfigMapName: zookeeperConfigMapName,
-		clusterConfig:          instance.Spec.ClusterConfig,
+		instance:        instance,
+		roleGroupInfo:   roleGroupInfo,
+		roleGroupConfig: roleGroupConfig,
+		image:           image,
 	}
 }
 
-func (n *NameNodeContainerBuilder) ContainerName() string {
-	return string(NameNode)
+// Build builds the namenode container
+func (b *NameNodeContainerBuilder) Build() *corev1.Container {
+	// Create the common container builder
+	builder := common.NewHdfsContainerBuilder(
+		constant.NameNodeComponent,
+		b.image,
+		b.instance.Spec.ClusterConfig.ZookeeperConfigMapName,
+		b.roleGroupInfo,
+		b.roleGroupConfig,
+	)
+
+	// Create namenode component and build container
+	component := newNameNodeComponent(b.instance.Name, b.instance.Spec.ClusterConfig)
+
+	return builder.BuildWithComponent(component)
 }
 
-func (n *NameNodeContainerBuilder) Command() []string {
-	return common.GetCommonCommand()
+// nameNodeComponent implements ContainerComponentInterface for NameNode
+type nameNodeComponent struct {
+	clusterName   string
+	clusterConfig *hdfsv1alpha1.ClusterConfigSpec
 }
 
-func (n *NameNodeContainerBuilder) ContainerEnv() []corev1.EnvVar {
-	envs := common.GetCommonContainerEnv(n.clusterConfig, NameNode)
-	return envs
+// Ensure nameNodeComponent implements all required interfaces
+var _ common.ContainerComponentInterface = &nameNodeComponent{}
+var _ common.ContainerPortsProvider = &nameNodeComponent{}
+var _ common.ContainerHealthCheckProvider = &nameNodeComponent{}
+
+func newNameNodeComponent(clusterName string, clusterConfig *hdfsv1alpha1.ClusterConfigSpec) *nameNodeComponent {
+	return &nameNodeComponent{
+		clusterName:   clusterName,
+		clusterConfig: clusterConfig,
+	}
 }
 
-func (n *NameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
-	mounts := common.GetCommonVolumeMounts(n.clusterConfig)
-	nnMounts := []corev1.VolumeMount{
+func (c *nameNodeComponent) GetContainerName() string {
+	return constant.NameNodeContainer
+}
+
+func (c *nameNodeComponent) GetCommand() []string {
+	return []string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}
+}
+
+func (c *nameNodeComponent) GetArgs() []string {
+	args := []string{
+		`mkdir -p /kubedoop/config/namenode
+cp /kubedoop/mount/config/namenode/*.xml /kubedoop/config/namenode
+cp /kubedoop/mount/config/namenode/namenode.log4j.properties /kubedoop/config/namenode/log4j.properties`,
+	}
+
+	// Add Kerberos configuration if enabled
+	if common.IsKerberosEnabled(c.clusterConfig) {
+		args = append(args, `{{ if .kerberosEnabled}}
+{{- .kerberosEnv}}
+{{- end}}`)
+	}
+
+	// Add common bash functions and namenode startup
+	args = append(args,
+		oputil.CommonBashTrapFunctions,
+		oputil.RemoveVectorShutdownFileCommand(),
+		oputil.InvokePrepareSignalHandlers,
+		oputil.ExportPodAddress(),
+		"/kubedoop/hadoop/bin/hdfs namenode &",
+		oputil.InvokeWaitForTermination,
+		oputil.CreateVectorShutdownFileCommand(),
+	)
+
+	// Process template and return
+	tmpl := strings.Join(args, "\n")
+	krbData := common.CreateExportKrbRealmEnvData(c.clusterConfig)
+	return common.ParseTemplate(tmpl, krbData)
+}
+
+func (c *nameNodeComponent) GetEnvVars() []corev1.EnvVar {
+	return common.GetCommonContainerEnv(c.clusterConfig, constant.NameNodeComponent)
+}
+
+func (c *nameNodeComponent) GetVolumeMounts() []corev1.VolumeMount {
+	mounts := common.GetCommonVolumeMounts(c.clusterConfig)
+	nameNodeMounts := []corev1.VolumeMount{
 		{
 			Name:      hdfsv1alpha1.HdfsConfigVolumeMountName,
-			MountPath: constants.KubedoopConfigDirMount + "/" + n.ContainerName(),
+			MountPath: path.Join(constants.KubedoopConfigDirMount, c.GetContainerName()),
 		},
 		{
 			Name:      hdfsv1alpha1.HdfsLogVolumeMountName,
-			MountPath: constants.KubedoopLogDirMount + "/" + n.ContainerName(),
+			MountPath: path.Join(constants.KubedoopLogDirMount, c.GetContainerName()),
 		},
 		{
 			Name:      hdfsv1alpha1.ListenerVolumeName,
@@ -63,38 +136,11 @@ func (n *NameNodeContainerBuilder) VolumeMount() []corev1.VolumeMount {
 			MountPath: constants.KubedoopDataDir,
 		},
 	}
-	return append(mounts, nnMounts...)
+	return append(mounts, nameNodeMounts...)
 }
 
-func (n *NameNodeContainerBuilder) LivenessProbe() *corev1.Probe {
-	return &corev1.Probe{
-		FailureThreshold:    5,
-		InitialDelaySeconds: 10,
-		PeriodSeconds:       10,
-		SuccessThreshold:    1,
-		TimeoutSeconds:      1,
-		ProbeHandler: corev1.ProbeHandler{
-			HTTPGet: common.TlsHttpGetAction(n.clusterConfig, "dfshealth.html"),
-		},
-	}
-}
-
-func (n *NameNodeContainerBuilder) ReadinessProbe() *corev1.Probe {
-	return &corev1.Probe{
-		FailureThreshold:    3,
-		InitialDelaySeconds: 10,
-		PeriodSeconds:       10,
-		SuccessThreshold:    1,
-		TimeoutSeconds:      1,
-		ProbeHandler: corev1.ProbeHandler{
-			TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromString(hdfsv1alpha1.RpcName)},
-		},
-	}
-
-}
-
-// ContainerPorts  make container ports of name node
-func (n *NameNodeContainerBuilder) ContainerPorts() []corev1.ContainerPort {
+// ContainerPortsProvider interface implementation
+func (c *nameNodeComponent) GetPorts() []corev1.ContainerPort {
 	ports := []corev1.ContainerPort{
 		{
 			Name:          hdfsv1alpha1.RpcName,
@@ -107,31 +153,32 @@ func (n *NameNodeContainerBuilder) ContainerPorts() []corev1.ContainerPort {
 			Protocol:      corev1.ProtocolTCP,
 		},
 	}
-	return append(ports, common.HttpPort(n.clusterConfig, hdfsv1alpha1.NameNodeHttpsPort, hdfsv1alpha1.NameNodeHttpPort))
+	return append(ports, common.HttpPort(c.clusterConfig, hdfsv1alpha1.NameNodeHttpsPort, hdfsv1alpha1.NameNodeHttpPort))
 }
 
-func (n *NameNodeContainerBuilder) CommandArgs() []string {
-	var args []string
-	args = append(args, `mkdir -p /kubedoop/config/namenode
-cp /kubedoop/mount/config/namenode/*.xml /kubedoop/config/namenode
-cp /kubedoop/mount/config/namenode/namenode.log4j.properties /kubedoop/config/namenode/log4j.properties`)
-
-	// args = append(args, "while true; do sleep 1; done")
-
-	if common.IsKerberosEnabled(n.clusterConfig) {
-		args = append(args, `{{ if .kerberosEnabled}}
-{{- .kerberosEnv}}
-{{- end}}`)
+// ContainerHealthCheckProvider interface implementation
+func (c *nameNodeComponent) GetLivenessProbe() *corev1.Probe {
+	return &corev1.Probe{
+		FailureThreshold:    5,
+		InitialDelaySeconds: 10,
+		PeriodSeconds:       10,
+		SuccessThreshold:    1,
+		TimeoutSeconds:      1,
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: common.TlsHttpGetAction(c.clusterConfig, "dfshealth.html"),
+		},
 	}
-	args = append(args, util.CommonBashTrapFunctions)
-	args = append(args, util.RemoveVectorShutdownFileCommand())
-	args = append(args, util.InvokePrepareSignalHandlers)
-	args = append(args, util.ExportPodAddress())
-	args = append(args, "/kubedoop/hadoop/bin/hdfs namenode &")
-	args = append(args, util.InvokeWaitForTermination)
-	args = append(args, util.CreateVectorShutdownFileCommand())
+}
 
-	tmpl := strings.Join(args, "\n")
-	krbData := common.CreateExportKrbRealmEnvData(n.clusterConfig)
-	return common.ParseTemplate(tmpl, krbData)
+func (c *nameNodeComponent) GetReadinessProbe() *corev1.Probe {
+	return &corev1.Probe{
+		FailureThreshold:    3,
+		InitialDelaySeconds: 10,
+		PeriodSeconds:       10,
+		SuccessThreshold:    1,
+		TimeoutSeconds:      1,
+		ProbeHandler: corev1.ProbeHandler{
+			TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromString(hdfsv1alpha1.RpcName)},
+		},
+	}
 }

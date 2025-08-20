@@ -1,94 +1,132 @@
 package common
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	"strings"
 
-// ContainerBuilder container builder
-// contains: image, imagePullPolicy, resource, ports should be required
-// optional: name, command, commandArgs, containerEnv, volumeMount, livenessProbe, readinessProbe should be optional,
-// optional fields should be implemented by the struct that embeds ContainerBuilder
-// optional fields name usually should not be set, because container name can generate by deployment, statefulSet, daemonSet..
-type ContainerBuilder struct {
-	Image           string
-	ImagePullPolicy corev1.PullPolicy
-	Resources       corev1.ResourceRequirements
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/builder"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
+	opgoutil "github.com/zncdatadev/operator-go/pkg/util"
+	corev1 "k8s.io/api/core/v1"
+)
+
+// Core interface that all container components must implement
+type ContainerComponentInterface interface {
+	GetContainerName() string
+	GetCommand() []string
+	GetArgs() []string
+	GetEnvVars() []corev1.EnvVar
+	GetVolumeMounts() []corev1.VolumeMount
 }
 
-func NewContainerBuilder(
-	Image string,
-	ImagePullPolicy corev1.PullPolicy,
-	Resource corev1.ResourceRequirements,
-) *ContainerBuilder {
-	return &ContainerBuilder{
-		Image:           Image,
-		ImagePullPolicy: ImagePullPolicy,
-		Resources:       Resource,
+// Optional interfaces that components can implement as needed
+type ContainerPortsProvider interface {
+	GetPorts() []corev1.ContainerPort
+}
+
+type ContainerHealthCheckProvider interface {
+	GetLivenessProbe() *corev1.Probe
+	GetReadinessProbe() *corev1.Probe
+}
+
+type ContainerSecretProvider interface {
+	GetSecretEnvFrom() string
+}
+
+// HdfsContainerBuilder represents the new HDFS container builder
+type HdfsContainerBuilder struct {
+	*builder.Container
+	ZookeeperConfigMapName string
+	RoleGroupInfo          *reconciler.RoleGroupInfo
+	RoleGroupConfig        *commonsv1alpha1.RoleGroupConfigSpec
+
+	secretEnvfrom string
+	envs          []corev1.EnvVar
+	ports         []corev1.ContainerPort
+	readiness     *corev1.Probe
+	liveness      *corev1.Probe
+	volumeMounts  []corev1.VolumeMount
+	command       []string
+	args          []string
+	argsScript    string
+}
+
+func NewHdfsContainerBuilder(
+	container constant.ContainerComponent,
+	image *opgoutil.Image,
+	zookeeperConfigMapName string,
+	roleGroupInfo *reconciler.RoleGroupInfo,
+	roleGroupConfig *commonsv1alpha1.RoleGroupConfigSpec,
+) *HdfsContainerBuilder {
+	b := &HdfsContainerBuilder{
+		Container:              builder.NewContainer(string(container), image),
+		ZookeeperConfigMapName: zookeeperConfigMapName,
+		RoleGroupInfo:          roleGroupInfo,
+		RoleGroupConfig:        roleGroupConfig,
+	}
+	b.volumeMounts = b.commonVolumeMounts()
+
+	return b
+}
+
+// BuildWithComponent builds container with specific component interface
+func (c *HdfsContainerBuilder) BuildWithComponent(component ContainerComponentInterface) *corev1.Container {
+	if component != nil {
+		// Set required properties
+		c.envs = component.GetEnvVars()
+		// c.volumeMounts = append(c.volumeMounts, component.GetVolumeMounts()...)
+		c.command = []string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}
+		if component.GetCommand() != nil {
+			c.command = component.GetCommand()
+		}
+		c.args = component.GetArgs()
+		c.argsScript = strings.Join(c.args, "\n")
+		c.volumeMounts = component.GetVolumeMounts()
+		c.Name = component.GetContainerName()
+
+		// Set optional properties using type assertions
+		if portProvider, ok := component.(ContainerPortsProvider); ok {
+			c.ports = portProvider.GetPorts()
+		}
+
+		if healthProvider, ok := component.(ContainerHealthCheckProvider); ok {
+			c.liveness = healthProvider.GetLivenessProbe()
+			c.readiness = healthProvider.GetReadinessProbe()
+		}
+
+		if secretProvider, ok := component.(ContainerSecretProvider); ok {
+			c.secretEnvfrom = secretProvider.GetSecretEnvFrom()
+		}
+	}
+
+	c.SetLivenessProbe(c.liveness).
+		SetReadinessProbe(c.readiness).
+		AddEnvVars(c.envs).
+		// AddEnvFromConfigMap(RoleGroupEnvsConfigMapName(c.RoleGroupInfo.GetClusterName())).
+		AddPorts(c.ports).
+		SetCommand(c.command).
+		AddVolumeMounts(c.volumeMounts).
+		SetArgs([]string{c.argsScript})
+
+	if c.secretEnvfrom != "" {
+		c.AddEnvFromSecret(c.secretEnvfrom)
+	}
+
+	if c.RoleGroupConfig != nil {
+		c.SetResources(c.RoleGroupConfig.Resources)
+	}
+
+	return c.Build()
+}
+
+// commonVolumeMounts returns the common volume mounts for all containers
+func (c *HdfsContainerBuilder) commonVolumeMounts() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		{
+			Name:      constant.KubedoopLogVolumeMountName,
+			MountPath: constant.KubedoopLogDirMount,
+		},
+		// Add other common volume mounts as needed
 	}
 }
-
-func (b *ContainerBuilder) Build(handler interface{}) corev1.Container {
-	container := corev1.Container{
-		Image:           b.Image,
-		Resources:       b.Resources,
-		ImagePullPolicy: b.ImagePullPolicy,
-	}
-	if containerName, ok := handler.(ContainerName); ok {
-		container.Name = containerName.ContainerName()
-	}
-	if command, ok := handler.(Command); ok {
-		container.Command = command.Command()
-	}
-	if containerPorts, ok := handler.(ContainerPorts); ok {
-		container.Ports = containerPorts.ContainerPorts()
-	}
-	if commandArgs, ok := handler.(CommandArgs); ok {
-		container.Args = commandArgs.CommandArgs()
-	}
-	if containerEnv, ok := handler.(ContainerEnv); ok {
-		container.Env = containerEnv.ContainerEnv()
-	}
-	if volumeMount, ok := handler.(VolumeMount); ok {
-		container.VolumeMounts = volumeMount.VolumeMount()
-	}
-	if livenessProbe, ok := handler.(LivenessProbe); ok {
-		container.LivenessProbe = livenessProbe.LivenessProbe()
-	}
-	if readinessProbe, ok := handler.(ReadinessProbe); ok {
-		container.ReadinessProbe = readinessProbe.ReadinessProbe()
-	}
-	return container
-}
-
-type ContainerName interface {
-	ContainerName() string
-}
-
-type Command interface {
-	Command() []string
-}
-
-type CommandArgs interface {
-	CommandArgs() []string
-}
-
-type ContainerPorts interface {
-	ContainerPorts() []corev1.ContainerPort
-}
-
-type ContainerEnv interface {
-	ContainerEnv() []corev1.EnvVar
-}
-
-type VolumeMount interface {
-	VolumeMount() []corev1.VolumeMount
-}
-
-type LivenessProbe interface {
-	LivenessProbe() *corev1.Probe
-}
-
-type ReadinessProbe interface {
-	ReadinessProbe() *corev1.Probe
-}
-
-// ContainerComponent use for define container name
-type ContainerComponent string

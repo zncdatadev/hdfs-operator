@@ -22,7 +22,7 @@ data:
 
     # Click on "Sign In with keycloak" in Hdfs
     logging.info("Opening the hdfs login page")
-    login_page = session.get("http://hdfscluster-sample-default-namenode:4180/oauth2/start?rd=%2F")
+    login_page = session.get("http://hdfscluster-sample-namenode-default:4180/oauth2/start?rd=%2F")
 
     assert login_page.ok, "Redirection from HDFS to Keycloak failed"
     assert login_page.url.startswith("http://keycloak.$NAMESPACE.svc.cluster.local:8080/realms/kubedoop/protocol/openid-connect/auth?approval_prompt=force&client_id=auth2-proxy"), \
@@ -38,7 +38,7 @@ data:
     })
 
     assert welcome_page.ok, "Login failed"
-    assert welcome_page.url.rstrip("/") == "http://hdfscluster-sample-default-namenode:4180/index.html", \
+    assert welcome_page.url.rstrip("/") == "http://hdfscluster-sample-namenode-default:4180/index.html", \
         f"Redirection to the HDFS welcome page expected, actual URL: {welcome_page.url}"
 
     # TODO: sign out from the oauth2-proxy, but sign out from the Keycloak is not possible
