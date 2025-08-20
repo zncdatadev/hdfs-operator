@@ -9,7 +9,7 @@ import (
 // Example: go build -ldflags "-X 'github.com/yourusername/yourapp/internal/util/version.BuildVersion=1.0.0' -X 'github.com/yourusername/yourapp/internal/util/version.GitCommit=abc123' -X 'github.com/yourusername/yourapp/internal/util/version.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
 // to set the version information dynamically.
 var (
-	BuildVersion = "N/A"
+	BuildVersion = "0.0.0-dev"
 	BuildTime    = "N/A"
 	GitCommit    = "N/A"
 )

@@ -62,10 +62,10 @@ const (
 
 // directory
 const (
-	NameNodeRootDataDir    = constants.KubedoopDataDir + "/namenode"
-	JournalNodeRootDataDir = constants.KubedoopDataDir + "/journalnode"
+	NameNodeRootDataDir    = constants.KubedoopDataDir + "namenode"
+	JournalNodeRootDataDir = constants.KubedoopDataDir + "journalnode"
 
-	DataNodeRootDataDirPrefix = constants.KubedoopDataDir + "/"
+	DataNodeRootDataDirPrefix = constants.KubedoopDataDir
 	DataNodeRootDataDirSuffix = "/datanode"
 
 	HadoopHome = constants.KubedoopRoot + "/hadoop"
@@ -130,73 +130,41 @@ type HdfsClusterSpec struct {
 
 	// roles defined: nameNode, dataNode, journalNode
 	// +kubebuilder:validation:Required
-	NameNode *NameNodeSpec `json:"nameNode,omitempty"`
+	NameNode *RoleSpec `json:"nameNode,omitempty"`
 
 	// +kubebuilder:validation:Required
-	DataNode *DataNodeSpec `json:"dataNode,omitempty"`
+	DataNode *RoleSpec `json:"dataNode,omitempty"`
 
 	// +kubebuilder:validation:Required
-	JournalNode *JournalNodeSpec `json:"journalNode,omitempty"`
+	JournalNode *RoleSpec `json:"journalNode,omitempty"`
 }
 
-type NameNodeSpec struct {
+type RoleSpec struct {
 	// +kubebuilder:validation:Optional
-	Config *NameNodeConfigSpec `json:"config,omitempty"`
+	Config *ConfigSpec `json:"config,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	RoleGroups map[string]*NameNodeRoleGroupSpec `json:"roleGroups,omitempty"`
+	RoleGroups map[string]RoleGroupSpec `json:"roleGroups,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	PodDisruptionBudget *PodDisruptionBudgetSpec `json:"podDisruptionBudget,omitempty"`
+	RoleConfig *commonsv1alpha1.RoleConfigSpec `json:"roleConfig,omitempty"`
 
-	// +kubebuilder:validation:Optional
-	CliOverrides []string `json:"cliOverrides,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	ConfigOverrides *ConfigOverridesSpec `json:"configOverrides,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	EnvOverrides map[string]string `json:"envOverrides,omitempty"`
+	*commonsv1alpha1.OverridesSpec `json:",inline"`
 }
 
-type DataNodeSpec struct {
+type RoleGroupSpec struct {
 	// +kubebuilder:validation:Optional
-	Config *DataNodeConfigSpec `json:"config,omitempty"`
+	// +kubebuilder:default=1
+	Replicas *int32 `json:"replicas,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	RoleGroups map[string]*DataNodeRoleGroupSpec `json:"roleGroups,omitempty"`
+	Config *ConfigSpec `json:"config,omitempty"`
 
-	// +kubebuilder:validation:Optional
-	PodDisruptionBudget *PodDisruptionBudgetSpec `json:"podDisruptionBudget,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	CliOverrides []string `json:"cliOverrides,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	ConfigOverrides *ConfigOverridesSpec `json:"configOverrides,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	EnvOverrides map[string]string `json:"envOverrides,omitempty"`
+	*commonsv1alpha1.OverridesSpec `json:",inline"`
 }
-
-type JournalNodeSpec struct {
-	// +kubebuilder:validation:Optional
-	Config *JournalNodeConfigSpec `json:"config,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	RoleGroups map[string]*JournalNodeRoleGroupSpec `json:"roleGroups,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	PodDisruptionBudget *PodDisruptionBudgetSpec `json:"podDisruptionBudget,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	CliOverrides []string `json:"cliOverrides,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	ConfigOverrides *ConfigOverridesSpec `json:"configOverrides,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	EnvOverrides map[string]string `json:"envOverrides,omitempty"`
+type ConfigSpec struct {
+	*commonsv1alpha1.RoleGroupConfigSpec `json:",inline"`
+	ListenerClass                        *string `json:"listenerClass,omitempty"`
 }
 
 type ClusterConfigSpec struct {

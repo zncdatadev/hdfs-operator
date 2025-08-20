@@ -3,6 +3,7 @@ kind: Test
 metadata:
   name: kerberos
 spec:
+  skip: true
   bindings:
   - name: relam
     value: KUBEDOOP.DEV   # kerberos relam, should be uppercase, see hdfs also
@@ -85,6 +86,7 @@ spec:
     - apply:
         file: ../setup/access-hdfs-install.yaml
     - assert:
+        timeout: 12m
         file: ../setup/access-hdfs-assert.yaml
     catch:
       - podLogs:

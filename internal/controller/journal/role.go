@@ -2,160 +2,166 @@ package journal
 
 import (
 	"context"
-	"fmt"
-
-	"github.com/go-logr/logr"
-	"github.com/zncdatadev/operator-go/pkg/util"
-	"k8s.io/apimachinery/pkg/runtime"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/common"
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/client"
+	opconstants "github.com/zncdatadev/operator-go/pkg/constants"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
+	opgoutil "github.com/zncdatadev/operator-go/pkg/util"
 )
 
-// role server reconciler
-
-type Role struct {
-	common.BaseRoleReconciler[*hdfsv1alpha1.HdfsCluster]
+// JournalNodeReconciler is the unified reconciler for JournalNode
+// It implements both HdfsComponentReconciler and HdfsComponentResourceBuilder interfaces
+type JournalNodeReconciler struct {
+	*common.BaseHdfsRoleReconciler
+	client               *client.Client
+	journalNodeSpec      *hdfsv1alpha1.RoleSpec
+	clusterComponentInfo *common.ClusterComponentsInfo
 }
 
-func NewRoleJournalNode(
-	scheme *runtime.Scheme,
+var _ common.HdfsComponentReconciler = &JournalNodeReconciler{}
+var _ common.HdfsComponentResourceBuilder = &JournalNodeReconciler{}
+
+// NewJournalNodeRole creates a new JournalNode role reconciler
+func NewJournalNodeRole(
+	client *client.Client,
+	roleInfo reconciler.RoleInfo,
+	spec *hdfsv1alpha1.RoleSpec,
+	image *opgoutil.Image,
 	instance *hdfsv1alpha1.HdfsCluster,
-	client client.Client,
-	log logr.Logger,
-	image *util.Image,
-) *Role {
-	r := &Role{
-		BaseRoleReconciler: common.BaseRoleReconciler[*hdfsv1alpha1.HdfsCluster]{
-			Scheme:   scheme,
-			Instance: instance,
-			Client:   client,
-			Log:      log,
-			Image:    image,
-		},
+	clusterComponentInfo *common.ClusterComponentsInfo,
+) *JournalNodeReconciler {
+	journalNodeReconciler := &JournalNodeReconciler{
+		client:               client,
+		journalNodeSpec:      spec,
+		clusterComponentInfo: clusterComponentInfo,
 	}
-	r.Labels = r.GetLabels()
-	r.Role = r.RoleName()
-	return r
+
+	// Create base role reconciler with JournalNode as component type
+	baseReconciler := common.NewBaseHdfsRoleReconciler(
+		client,
+		roleInfo,
+		*spec,
+		instance,
+		image,
+		constant.JournalNode,
+		journalNodeReconciler, // Pass itself as the componentRec
+	)
+
+	journalNodeReconciler.BaseHdfsRoleReconciler = baseReconciler
+	return journalNodeReconciler
 }
 
-func (r *Role) RoleName() common.Role {
-	return common.JournalNode
-}
-
-func (r *Role) CacheRoleGroupConfig() {
-	roleSpec := r.Instance.Spec.JournalNode
-	groups := roleSpec.RoleGroups
-	// merge all the role-group cfg
-	// and cache it
-	for groupName, groupSpec := range groups {
-		mergedCfg := MergeConfig(roleSpec, groupSpec)
-		cacheKey := common.CreateRoleCfgCacheKey(r.Instance.GetName(), r.Role, groupName)
-		common.MergedCache.Set(cacheKey, mergedCfg)
+// RegisterResourceWithRoleGroup implements HdfsComponentReconciler interface
+func (r *JournalNodeReconciler) RegisterResourceWithRoleGroup(
+	ctx context.Context,
+	replicas *int32,
+	roleGroupInfo *reconciler.RoleGroupInfo,
+	overrides *commonsv1alpha1.OverridesSpec,
+	config *hdfsv1alpha1.ConfigSpec,
+) ([]reconciler.Reconciler, error) {
+	// Use common resource registration logic
+	reconcilers, err := common.RegisterStandardResources(
+		ctx,
+		r.client,
+		r, // JournalNodeReconciler implements HdfsComponentResourceBuilder interface
+		replicas,
+		r.Image,
+		r.HdfsCluster,
+		r.ClusterOperation,
+		roleGroupInfo,
+		config,
+		overrides,
+		r.clusterComponentInfo,
+	)
+	if err != nil {
+		return nil, err
 	}
+
+	return reconcilers, nil
 }
 
-func (r *Role) ReconcileRole(ctx context.Context) (ctrl.Result, error) {
-	roleCfg := r.Instance.Spec.JournalNode
-	// role pdb
-	if roleCfg.Config != nil && roleCfg.Config.PodDisruptionBudget != nil {
-		pdb := common.NewReconcilePDB(r.Client, r.Scheme, r.Instance, r.GetLabels(), string(r.RoleName()),
-			roleCfg.PodDisruptionBudget)
-		res, err := pdb.ReconcileResource(ctx, common.NewSingleResourceBuilder(pdb))
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		if res.RequeueAfter > 0 {
-			return res, nil
-		}
-	}
-	// reconciler groups
-	for name := range roleCfg.RoleGroups {
-		groupReconciler := NewRoleGroupReconciler(r.Scheme, r.Instance, r.Client, name, r.GetLabels(), r.Log, r.Image)
-		res, err := groupReconciler.ReconcileGroup(ctx)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		if res.RequeueAfter > 0 {
-			return res, nil
-		}
-	}
-	return ctrl.Result{}, nil
+// CreateConfigMapReconciler implements common.HdfsComponentResourceBuilder.
+func (r *JournalNodeReconciler) CreateConfigMapReconciler(
+	ctx context.Context,
+	client *client.Client,
+	hdfsCluster *hdfsv1alpha1.HdfsCluster,
+	roleGroupInfo *reconciler.RoleGroupInfo,
+	replicas *int32,
+	config *hdfsv1alpha1.ConfigSpec,
+	overrides *commonsv1alpha1.OverridesSpec,
+	clusterComponentInfo *common.ClusterComponentsInfo,
+) (reconciler.Reconciler, error) {
+
+	cmBuilder := NewJournalnodeConfigMapBuilder(
+		ctx,
+		client,
+		roleGroupInfo,
+		overrides,
+		config,
+		hdfsCluster,
+		clusterComponentInfo,
+	)
+
+	return reconciler.NewGenericResourceReconciler(
+		client,
+		cmBuilder,
+	), nil
 }
 
-// RoleGroup master role group reconcile
-type RoleGroup struct {
-	common.BaseRoleGroupReconciler[*hdfsv1alpha1.HdfsCluster]
+// CreateServiceReconcilers implements HdfsComponentResourceBuilder interface
+func (r *JournalNodeReconciler) CreateServiceReconcilers(
+	client *client.Client,
+	roleGroupInfo *reconciler.RoleGroupInfo,
+) []reconciler.Reconciler {
+	svcBuilder := NewJournalNodeServiceBuilder(
+		client,
+		roleGroupInfo,
+		r.HdfsCluster.Spec.ClusterConfig,
+	)
+
+	// Since JournalNodeServiceBuilder implements both ServicePortProvider and ServiceBuilder,
+	// we can pass it directly as ServicePortProvider
+	serviceReconciler := common.NewRoleGroupService(
+		client,
+		roleGroupInfo,
+		opconstants.ClusterInternal,
+		true,
+		svcBuilder, // Type assertion to get the concrete type
+	)
+
+	return []reconciler.Reconciler{serviceReconciler}
 }
 
-func NewRoleGroupReconciler(
-	scheme *runtime.Scheme,
-	instance *hdfsv1alpha1.HdfsCluster,
-	client client.Client,
-	groupName string,
-	roleLabels map[string]string,
-	log logr.Logger,
-	image *util.Image,
-) *RoleGroup {
-	r := &RoleGroup{
-		BaseRoleGroupReconciler: common.BaseRoleGroupReconciler[*hdfsv1alpha1.HdfsCluster]{
-			Scheme:     scheme,
-			Instance:   instance,
-			Client:     client,
-			GroupName:  groupName,
-			RoleLabels: roleLabels,
-			Log:        log,
-			Image:      image,
-		},
-	}
-	r.RegisterResource()
-	return r
-}
-
-func (m *RoleGroup) RegisterResource() {
-	cfg := m.MergeGroupConfigSpec()
-	lables := m.MergeLabels(cfg)
-	mergedCfg := cfg.(*hdfsv1alpha1.JournalNodeRoleGroupSpec)
-	// merge default and merged config
-	journalNodeDefaultConfig := common.DefaultJournalNodeConfig(m.Instance.GetName())
-	journalNodeDefaultConfig.MergeDefaultConfig(mergedCfg)
-
-	pdbSpec := mergedCfg.Config.PodDisruptionBudget
-	pdb := common.NewReconcilePDB(m.Client, m.Scheme, m.Instance, lables, m.GroupName, pdbSpec)
-	cm := NewConfigMap(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg)
-	// logging := NewJournalNodeLogging(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, common.JournalNode)
-	statefulSet := NewStatefulSet(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg, mergedCfg.Replicas, m.Image)
-	svc := NewServiceHeadless(m.Scheme, m.Instance, m.Client, m.GroupName, lables, mergedCfg)
-	m.Reconcilers = []common.ResourceReconciler{cm /* logging,*/, pdb, svc, statefulSet}
-}
-
-func (m *RoleGroup) MergeGroupConfigSpec() any {
-	cacheKey := common.CreateRoleCfgCacheKey(m.Instance.GetName(), common.JournalNode, m.GroupName)
-	if cfg, ok := common.MergedCache.Get(cacheKey); ok {
-		return cfg
-	}
-	panic(fmt.Sprintf("role group config not found: %s, key: %s", m.GroupName, cacheKey))
-}
-
-func (m *RoleGroup) MergeLabels(mergedCfg any) map[string]string {
-	mergedMasterCfg := mergedCfg.(*hdfsv1alpha1.JournalNodeRoleGroupSpec)
-	return m.AppendLabels(mergedMasterCfg.Config.NodeSelector)
-}
-
-// MergeConfig merge the role's config into the role group's config
-func MergeConfig(masterRole *hdfsv1alpha1.JournalNodeSpec,
-	group *hdfsv1alpha1.JournalNodeRoleGroupSpec) *hdfsv1alpha1.JournalNodeRoleGroupSpec {
-	copiedRoleGroup := group.DeepCopy()
-	// Merge the role into the role group.
-	// if the role group has a config, and role group not has a config, will
-	// merge the role's config into the role group's config.
-	common.MergeObjects(copiedRoleGroup, masterRole, []string{"RoleGroups"})
-
-	// merge the role's config into the role group's config
-	if masterRole.Config != nil && copiedRoleGroup.Config != nil {
-		common.MergeObjects(copiedRoleGroup.Config, masterRole.Config, []string{})
-	}
-	return copiedRoleGroup
+// CreateStatefulSetReconciler implements HdfsComponentResourceBuilder interface
+func (r *JournalNodeReconciler) CreateStatefulSetReconciler(
+	ctx context.Context,
+	client *client.Client,
+	image *opgoutil.Image,
+	replicas *int32,
+	hdfsCluster *hdfsv1alpha1.HdfsCluster,
+	clusterOperation *commonsv1alpha1.ClusterOperationSpec,
+	roleGroupInfo *reconciler.RoleGroupInfo,
+	config *hdfsv1alpha1.ConfigSpec,
+	overrides *commonsv1alpha1.OverridesSpec,
+) (reconciler.Reconciler, error) {
+	jnStsBuilder := NewJournalnodeStatefulSetBuilder(
+		ctx,
+		client,
+		roleGroupInfo,
+		image,
+		replicas,
+		config,
+		overrides,
+		hdfsCluster,
+	)
+	jnStsReconciler := reconciler.NewStatefulSet(
+		client,
+		jnStsBuilder,
+		r.ClusterStopped(),
+	)
+	return jnStsReconciler, nil
 }
