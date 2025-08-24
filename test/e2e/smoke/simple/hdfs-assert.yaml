@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hdfscluster-sample-journalnode-default
+status:
+  availableReplicas: 1
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hdfscluster-sample-namenode-default
+status:
+  availableReplicas: 2
+  replicas: 2
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hdfscluster-sample-datanode-default
+status:
+  availableReplicas: 1
+  replicas: 1
