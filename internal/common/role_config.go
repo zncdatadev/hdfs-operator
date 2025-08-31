@@ -87,11 +87,28 @@ func (n *RoleNodeConfig) MergeDefaultConfig(mergedCfg *hdfsv1alpha1.ConfigSpec) 
 	} else {
 		mergedResource := mergedCfg.Resources
 		resourceRes = mergedResource
-		if mergedResource.CPU == nil {
-			resourceRes.CPU = n.resources.CPU
-		}
-		if mergedResource.Memory == nil {
-			resourceRes.Memory = n.resources.Memory
+		// if cpu and memory both null, then not set resources
+		if mergedResource.CPU == nil && mergedResource.Memory == nil {
+			resourceRes = &commonsv1alpha1.ResourcesSpec{
+				CPU:    nil,
+				Memory: nil,
+			}
+		} else {
+			if mergedResource.CPU == nil {
+				resourceRes.CPU = n.resources.CPU
+			} else {
+				// if cpu is not nil and max and min both zero, then not set resources
+				if mergedResource.CPU.Max.IsZero() && mergedResource.CPU.Min.IsZero() {
+					resourceRes.CPU = nil
+				}
+			}
+			if mergedResource.Memory == nil {
+				resourceRes.Memory = n.resources.Memory
+			} else {
+				if mergedResource.Memory.Limit.IsZero() {
+					resourceRes.Memory = nil
+				}
+			}
 		}
 		if mergedResource.Storage == nil {
 			resourceRes.Storage = n.resources.Storage
