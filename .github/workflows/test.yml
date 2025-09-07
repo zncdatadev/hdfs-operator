@@ -41,7 +41,7 @@ jobs:
           # '1.31.4',
           '1.32.0'
         ]
-        product-version: ['3.3.6','3.4.0']
+        product-version: ['3.3.6','3.4.1']
       # max-parallel: 1
     steps:
       - name: Clone the code
