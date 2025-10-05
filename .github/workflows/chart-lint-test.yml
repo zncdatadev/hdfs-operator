@@ -113,7 +113,7 @@ jobs:
 
           # Install dependencies
           for dep in "${HELM_DEPENDENCIES[@]}"; do
-            helm upgrade --install --create-namespace --namespace kubedoop-operators --wait  $dep oci://quay.io/kubedoopcharts/$dep --version $VERSION
+            helm upgrade --install --create-namespace --namespace kubedoop-operators --wait $dep oci://quay.io/kubedoopcharts/$dep --version $VERSION
           done
 
           # Install hdfs-operator chart
