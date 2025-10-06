@@ -17,12 +17,20 @@ spec:
     roleGroups:
       default:
         replicas: 2
-
+        config:
+          resources:
+            cpu: {}
   journalNode:
     roleGroups:
       default:
         replicas: 1
+        config:
+          resources:
+            cpu: {}
   dataNode:
     roleGroups:
       default:
         replicas: 1
+        config:
+          resources:
+            cpu: {}

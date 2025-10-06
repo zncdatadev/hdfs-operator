@@ -28,6 +28,13 @@ spec:
           value: admin
         - name: JAVA_TOOL_OPTIONS
           value: '-XX:+UseContainerSupport -XX:MaxRAMPercentage=90.0 -XX:InitialRAMPercentage=90.0'
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
         ports:
         - containerPort: 8080
           name: http
