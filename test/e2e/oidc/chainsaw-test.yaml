@@ -24,7 +24,7 @@ spec:
             file: ../setup/zookeeper-assert.yaml
       cleanup:
         - sleep:
-            duration: 30s
+            duration: 5s
     - name: install keycloak
       try:
         - apply:
@@ -60,7 +60,7 @@ spec:
             file: hdfs-assert.yaml
       cleanup:
         - sleep:
-            duration: 30s
+            duration: 10s
       catch:
         - sleep:
             duration: 5s

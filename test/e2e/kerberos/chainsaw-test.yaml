@@ -69,7 +69,7 @@ spec:
         file: ../setup/zookeeper-assert.yaml
     cleanup:
     - sleep:
-        duration: 30s
+        duration: 5s
   - name: install hdfs
     try:
     - apply:
