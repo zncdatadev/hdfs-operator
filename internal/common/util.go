@@ -15,6 +15,7 @@ import (
 	"github.com/zncdatadev/hdfs-operator/internal/util"
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/constants"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
 )
 
 func OverrideEnvVars(origin *[]corev1.EnvVar, override map[string]string) {
@@ -197,7 +198,7 @@ func GetCommonContainerEnv(
 	return envs
 }
 
-func GetCommonVolumes(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, instanceName string, role constant.Role) []corev1.Volume {
+func GetCommonVolumes(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, instanceName string, roleGroupInfo *reconciler.RoleGroupInfo) []corev1.Volume {
 	limit := resource.MustParse("150Mi")
 	volumes := []corev1.Volume{
 		{
@@ -211,11 +212,12 @@ func GetCommonVolumes(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, instanceNam
 	}
 	if IsKerberosEnabled(clusterConfig) {
 		secretClass := clusterConfig.Authentication.Kerberos.SecretClass
+		role := constant.Role(roleGroupInfo.GetRoleName())
 		volumes = append(volumes, CreateKerberosSecretPvc(secretClass, instanceName, role))
 	}
 	if IsTlsEnabled(clusterConfig) {
 		tlsSecretClass := clusterConfig.Authentication.Tls.SecretClass
-		volumes = append(volumes, CreateTlsSecretPvc(tlsSecretClass, clusterConfig.Authentication.Tls.JksPassword))
+		volumes = append(volumes, CreateTlsSecretPvc(tlsSecretClass, clusterConfig.Authentication.Tls.JksPassword, roleGroupInfo))
 	}
 	return volumes
 
@@ -359,4 +361,9 @@ func AffinityDefault(role constant.Role, crName string) *corev1.Affinity {
 			},
 		},
 	}
+}
+
+// Create service metrics Name
+func CreateServiceMetricsName(roleGroupInfo *reconciler.RoleGroupInfo) string {
+	return roleGroupInfo.GetFullName() + "-metrics"
 }
