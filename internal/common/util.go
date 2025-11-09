@@ -133,7 +133,11 @@ func CreateXmlContentByReplicas(replicas int32, keyTemplate string, valueTemplat
 	return res
 }
 
-func GetCommonContainerEnv(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, container constant.ContainerComponent) []corev1.EnvVar {
+func GetCommonContainerEnv(
+	clusterConfig *hdfsv1alpha1.ClusterConfigSpec,
+	container constant.ContainerComponent,
+	role *constant.Role,
+) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
 			Name:  "HADOOP_CONF_DIR",
@@ -172,7 +176,15 @@ func GetCommonContainerEnv(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, contai
 	if envName = getEnvNameByContainerComponent(container); envName != "" {
 		jvmArgs = append(jvmArgs, "-Xmx419430k")
 		securityDir := getSubDirByContainerComponent(container)
+
 		securityConfigEnValue := fmt.Sprintf("-Djava.security.properties=%s", path.Join(constants.KubedoopConfigDir, securityDir, "security.properties"))
+		if role != nil {
+			if metricPort, err := GetMetricsPort(*role); err == nil {
+				jvmArgs = append(jvmArgs, "-javaagent:"+path.Join(constants.KubedoopJmxDir, "jmx_prometheus_javaagent.jar")+"="+fmt.Sprintf("%d", metricPort)+":"+path.Join(constants.KubedoopConfigDir, fmt.Sprintf("%s.yaml", strings.ToLower(string(container)))))
+			} else {
+				panic(err) // TODO: handle error
+			}
+		}
 		jvmArgs = append(jvmArgs, securityConfigEnValue)
 
 	}
@@ -207,6 +219,22 @@ func GetCommonVolumes(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, instanceNam
 	}
 	return volumes
 
+}
+
+// Get metrics Port
+func GetMetricsPort(role constant.Role) (int32, error) {
+	var metricsPort int32
+	switch role {
+	case constant.NameNode:
+		metricsPort = hdfsv1alpha1.NameNodeMetricPort
+	case constant.DataNode:
+		metricsPort = hdfsv1alpha1.DataNodeMetricPort
+	case constant.JournalNode:
+		metricsPort = hdfsv1alpha1.JournalNodeMetricPort
+	default:
+		return 0, fmt.Errorf("unknown role: %s", role)
+	}
+	return metricsPort, nil
 }
 
 func getEnvNameByContainerComponent(container constant.ContainerComponent) string {
