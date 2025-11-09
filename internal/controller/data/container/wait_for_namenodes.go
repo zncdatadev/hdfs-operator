@@ -122,7 +122,7 @@ done
 }
 
 func (c *WaitForNameNodesComponent) GetEnvVars() []corev1.EnvVar {
-	return common.GetCommonContainerEnv(c.instance.Spec.ClusterConfig, constant.WaitForNameNodesComponent)
+	return common.GetCommonContainerEnv(c.instance.Spec.ClusterConfig, constant.WaitForNameNodesComponent, nil)
 }
 
 func (c *WaitForNameNodesComponent) GetVolumeMounts() []corev1.VolumeMount {

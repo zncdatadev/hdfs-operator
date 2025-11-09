@@ -13,6 +13,7 @@ import (
 	oputil "github.com/zncdatadev/operator-go/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 // DataNodeContainerBuilder builds datanode containers
@@ -109,7 +110,7 @@ cp /kubedoop/mount/config/datanode/datanode.log4j.properties /kubedoop/config/da
 }
 
 func (c *DataNodeComponent) GetEnvVars() []corev1.EnvVar {
-	return common.GetCommonContainerEnv(c.clusterConfig, constant.DataNodeComponent)
+	return common.GetCommonContainerEnv(c.clusterConfig, constant.DataNodeComponent, ptr.To(constant.DataNode))
 }
 
 func (c *DataNodeComponent) GetVolumeMounts() []corev1.VolumeMount {
