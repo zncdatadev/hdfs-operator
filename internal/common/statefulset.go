@@ -97,7 +97,7 @@ func (b *StatefulSetBuilder) Build(ctx context.Context) (ctrlclient.Object, erro
 	}
 
 	// Get common volumes
-	commonVolumes := GetCommonVolumes(b.instance.Spec.ClusterConfig, b.instance.GetName(), b.roleType)
+	commonVolumes := GetCommonVolumes(b.instance.Spec.ClusterConfig, b.instance.GetName(), b.roleGroupInfo)
 
 	// Add common volumes
 	b.AddVolumes(commonVolumes)

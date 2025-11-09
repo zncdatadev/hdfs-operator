@@ -6,6 +6,7 @@ import (
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/util"
 	"github.com/zncdatadev/operator-go/pkg/constants"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -119,7 +120,7 @@ func TlsHdfsSiteXml(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) []util.XmlNameV
 	}
 }
 
-func CreateTlsSecretPvc(secretClass string, jksPassword string) corev1.Volume {
+func CreateTlsSecretPvc(secretClass string, jksPassword string, roleGroupInfo *reconciler.RoleGroupInfo) corev1.Volume {
 	return corev1.Volume{
 		Name: TlsVolumeName,
 		VolumeSource: corev1.VolumeSource{
@@ -128,7 +129,7 @@ func CreateTlsSecretPvc(secretClass string, jksPassword string) corev1.Volume {
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{
 							constants.AnnotationSecretsClass:          secretClass,
-							constants.AnnotationSecretsScope:          "pod,node",
+							constants.AnnotationSecretsScope:          "pod,node,service=" + CreateServiceMetricsName(roleGroupInfo),
 							constants.AnnotationSecretsFormat:         "tls-p12",
 							constants.AnnotationSecretsPKCS12Password: jksPassword,
 						},

@@ -2,7 +2,10 @@ package common
 
 import (
 	"context"
+	"strconv"
 
+	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/constant"
 	"github.com/zncdatadev/operator-go/pkg/builder"
 	"github.com/zncdatadev/operator-go/pkg/client"
 	opconstants "github.com/zncdatadev/operator-go/pkg/constants"
@@ -71,4 +74,80 @@ func NewHdfsServiceBuilder(
 	return &HdfsServiceBuilder{
 		BaseServiceBuilder: baseBuilder,
 	}
+}
+
+// NewRoleGroupMetricsService creates a metrics service reconciler using a simple function approach
+// This creates a headless service for metrics with Prometheus labels and annotations
+func NewRoleGroupMetricsService(
+	client *client.Client,
+	roleGroupInfo *reconciler.RoleGroupInfo,
+	hdfs *hdfsv1alpha1.HdfsCluster,
+) reconciler.Reconciler {
+	roleName := roleGroupInfo.GetRoleName()
+	role := constant.Role(roleName)
+	// Get metrics port
+	metricsPort, err := GetMetricsPort(role)
+	if err != nil {
+		// Return empty reconciler on error - should not happen
+		panic("failed to get metrics port: " + err.Error())
+	}
+
+	// Create service ports
+	servicePorts := []corev1.ContainerPort{
+		{
+			Name:          hdfsv1alpha1.MetricName,
+			ContainerPort: metricsPort,
+			Protocol:      corev1.ProtocolTCP,
+		},
+	}
+
+	// Create service name with -metrics suffix
+	serviceName := CreateServiceMetricsName(roleGroupInfo)
+
+	// Determine scheme based on TLS configuration
+	scheme := "http"
+	if IsTlsEnabled(hdfs.Spec.ClusterConfig) {
+		scheme = "https"
+	}
+
+	// Prepare labels (copy from roleGroupInfo and add metrics labels)
+	labels := make(map[string]string)
+	for k, v := range roleGroupInfo.GetLabels() {
+		labels[k] = v
+	}
+	labels["prometheus.io/scrape"] = "true"
+
+	// Prepare annotations (copy from roleGroupInfo and add Prometheus annotations)
+	annotations := make(map[string]string)
+	for k, v := range roleGroupInfo.GetAnnotations() {
+		annotations[k] = v
+	}
+	annotations["prometheus.io/scrape"] = "true"
+	annotations["prometheus.io/path"] = "/prom"
+	annotations["prometheus.io/port"] = strconv.Itoa(int(metricsPort))
+	annotations["prometheus.io/scheme"] = scheme
+
+	// Create base service builder
+	baseBuilder := builder.NewServiceBuilder(
+		client,
+		serviceName,
+		servicePorts,
+		func(sbo *builder.ServiceBuilderOptions) {
+			sbo.Headless = true
+			sbo.ListenerClass = opconstants.ClusterInternal
+			sbo.Labels = labels
+			sbo.MatchingLabels = roleGroupInfo.GetLabels() // Use original labels for matching
+			sbo.Annotations = annotations
+		},
+	)
+
+	// Create HdfsServiceBuilder to set PublishNotReadyAddresses
+	hdfsServiceBuilder := &HdfsServiceBuilder{
+		BaseServiceBuilder: baseBuilder,
+	}
+
+	return reconciler.NewGenericResourceReconciler(
+		client,
+		hdfsServiceBuilder,
+	)
 }
