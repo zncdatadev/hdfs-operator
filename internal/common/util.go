@@ -221,6 +221,7 @@ func GetCommonVolumes(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, instanceNam
 	if IsTlsEnabled(clusterConfig) {
 		tlsSecretClass := clusterConfig.Authentication.Tls.SecretClass
 		volumes = append(volumes, CreateTlsSecretPvc(tlsSecretClass, clusterConfig.Authentication.Tls.JksPassword, roleGroupInfo))
+		volumes = append(volumes, CreateTlsSecretPvc(tlsSecretClass, clusterConfig.Authentication.Tls.JksPassword, roleGroupInfo))
 	}
 	return volumes
 
