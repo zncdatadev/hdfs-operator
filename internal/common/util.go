@@ -181,9 +181,12 @@ func GetCommonContainerEnv(
 		securityConfigEnValue := fmt.Sprintf("-Djava.security.properties=%s", path.Join(constants.KubedoopConfigDir, securityDir, "security.properties"))
 		if role != nil {
 			if metricPort, err := GetMetricsPort(*role); err == nil {
-				jvmArgs = append(jvmArgs, "-javaagent:"+path.Join(constants.KubedoopJmxDir, "jmx_prometheus_javaagent.jar")+"="+fmt.Sprintf("%d", metricPort)+":"+path.Join(constants.KubedoopConfigDir, fmt.Sprintf("%s.yaml", strings.ToLower(string(container)))))
+				jarPath := path.Join(constants.KubedoopJmxDir, "jmx_prometheus_javaagent.jar")
+				configPath := path.Join(constants.KubedoopConfigDir, fmt.Sprintf("%s.yaml", strings.ToLower(string(container))))
+				javaAgentArg := fmt.Sprintf("-javaagent:%s=%d:%s", jarPath, metricPort, configPath)
+				jvmArgs = append(jvmArgs, javaAgentArg)
 			} else {
-				panic(err) // TODO: handle error
+				fmt.Printf("GetMetricsPort error for role %v: %v. Skipping JMX configuration.\n", role, err)
 			}
 		}
 		jvmArgs = append(jvmArgs, securityConfigEnValue)
@@ -223,7 +226,7 @@ func GetCommonVolumes(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, instanceNam
 
 }
 
-// Get metrics Port
+// Get metrics port
 func GetMetricsPort(role constant.Role) (int32, error) {
 	var metricsPort int32
 	switch role {
@@ -363,7 +366,7 @@ func AffinityDefault(role constant.Role, crName string) *corev1.Affinity {
 	}
 }
 
-// Create service metrics Name
+// Create service metrics name
 func CreateServiceMetricsName(roleGroupInfo *reconciler.RoleGroupInfo) string {
 	return roleGroupInfo.GetFullName() + "-metrics"
 }
