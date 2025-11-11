@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
@@ -89,7 +90,7 @@ func NewRoleGroupMetricsService(
 	metricsPort, err := GetMetricsPort(role)
 	if err != nil {
 		// Return empty reconciler on error - should not happen
-		panic("failed to get metrics port: " + err.Error())
+		fmt.Printf("GetMetricsPort error for role %v: %v. Skipping JMX configuration.\n", roleName, err)
 	}
 
 	// Create service ports
