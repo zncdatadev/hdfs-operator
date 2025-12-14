@@ -186,7 +186,7 @@ func GetCommonContainerEnv(
 				javaAgentArg := fmt.Sprintf("-javaagent:%s=%d:%s", jarPath, metricPort, configPath)
 				jvmArgs = append(jvmArgs, javaAgentArg)
 			} else {
-				fmt.Printf("GetMetricsPort error for role %v: %v. Skipping JMX configuration.\n", role, err)
+				fmt.Printf("GetMetricsPort error for role %v: %v. Cannot configure JMX agent.\\n", role, err)
 			}
 		}
 		jvmArgs = append(jvmArgs, securityConfigEnValue)
@@ -226,7 +226,7 @@ func GetCommonVolumes(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, instanceNam
 
 }
 
-// Get metrics port
+// GetMetricsPort returns the metrics port for the specified HDFS role.
 func GetMetricsPort(role constant.Role) (int32, error) {
 	var metricsPort int32
 	switch role {
@@ -392,7 +392,7 @@ func AffinityDefault(role constant.Role, crName string) *corev1.Affinity {
 	}
 }
 
-// Create service metrics name
+// CreateServiceMetricsName returns the metrics service name for the specified role group by appending "-metrics" suffix.
 func CreateServiceMetricsName(roleGroupInfo *reconciler.RoleGroupInfo) string {
 	return roleGroupInfo.GetFullName() + "-metrics"
 }

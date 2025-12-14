@@ -89,8 +89,9 @@ func NewRoleGroupMetricsService(
 	// Get metrics port
 	metricsPort, err := GetNativeMetricsPort(role, hdfs.Spec.ClusterConfig)
 	if err != nil {
-		// Return empty reconciler on error - should not happen
-		fmt.Printf("GetMetricsPort error for role %v: %v. Skipping JMX configuration.\n", roleName, err)
+		// Log the error and return nil to avoid misconfiguration
+		fmt.Printf("GetMetricsPort error for role %v: %v. Skipping metrics service creation.\n", roleName, err)
+		return nil
 	}
 
 	// Create service ports
@@ -111,11 +112,12 @@ func NewRoleGroupMetricsService(
 		scheme = "https"
 	}
 
-	// Prepare labels (copy from roleGroupInfo and add metrics labels)
+	// Prepare labels (copy from roleGroupInfo)
 	labels := make(map[string]string)
 	for k, v := range roleGroupInfo.GetLabels() {
 		labels[k] = v
 	}
+	labels["prometheus.io/scrape"] = "true"
 	labels["prometheus.io/scrape"] = "true"
 
 	// Prepare annotations (copy from roleGroupInfo and add Prometheus annotations)
