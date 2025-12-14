@@ -25,11 +25,14 @@ Dockerfile.cross
 *.swo
 *~
 
-**/__debug_*
+# Ignore kubeconfig files
+.kubeconfig*
 
-kind-kubeconfig*
+# Ignore docker digest files
+docker-digests.json
 
 *-local.yaml
+*-local.*
 
 # test
 ginkgo.report
@@ -40,7 +43,6 @@ cover.out
 # ai code local
 .codiumai.toml
 
-docker-digests.json
 # helm charts
 # helm package directory
 target
