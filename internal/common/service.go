@@ -87,7 +87,7 @@ func NewRoleGroupMetricsService(
 	roleName := roleGroupInfo.GetRoleName()
 	role := constant.Role(roleName)
 	// Get metrics port
-	metricsPort, err := GetMetricsPort(role)
+	metricsPort, err := GetNativeMetricsPort(role, hdfs.Spec.ClusterConfig)
 	if err != nil {
 		// Return empty reconciler on error - should not happen
 		fmt.Printf("GetMetricsPort error for role %v: %v. Skipping JMX configuration.\n", roleName, err)

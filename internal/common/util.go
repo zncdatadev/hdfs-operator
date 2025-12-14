@@ -182,7 +182,7 @@ func GetCommonContainerEnv(
 		if role != nil {
 			if metricPort, err := GetMetricsPort(*role); err == nil {
 				jarPath := path.Join(constants.KubedoopJmxDir, "jmx_prometheus_javaagent.jar")
-				configPath := path.Join(constants.KubedoopConfigDir, fmt.Sprintf("%s.yaml", strings.ToLower(string(container))))
+				configPath := path.Join(constants.KubedoopJmxDir, fmt.Sprintf("%s.yaml", strings.ToLower(string(container))))
 				javaAgentArg := fmt.Sprintf("-javaagent:%s=%d:%s", jarPath, metricPort, configPath)
 				jvmArgs = append(jvmArgs, javaAgentArg)
 			} else {
@@ -240,6 +240,32 @@ func GetMetricsPort(role constant.Role) (int32, error) {
 		return 0, fmt.Errorf("unknown role: %s", role)
 	}
 	return metricsPort, nil
+}
+
+// Get native metrics port
+func GetNativeMetricsPort(role constant.Role, clusterConfig *hdfsv1alpha1.ClusterConfigSpec) (int32, error) {
+	switch role {
+	case constant.NameNode:
+		if IsTlsEnabled(clusterConfig) {
+			return hdfsv1alpha1.NameNodeNativeMetricsHttpsPort, nil
+		} else {
+			return hdfsv1alpha1.NameNodeNativeMetricsHttpPort, nil
+		}
+	case constant.DataNode:
+		if IsTlsEnabled(clusterConfig) {
+			return hdfsv1alpha1.DataNodeNativeMetricsHttpsPort, nil
+		} else {
+			return hdfsv1alpha1.DataNodeNativeMetricsHttpPort, nil
+		}
+	case constant.JournalNode:
+		if IsTlsEnabled(clusterConfig) {
+			return hdfsv1alpha1.JournalNodeNativeMetricsHttpsPort, nil
+		} else {
+			return hdfsv1alpha1.JournalNodeNativeMetricsHttpPort, nil
+		}
+	default:
+		return 0, fmt.Errorf("unknown role for get native metrics port: %s", role)
+	}
 }
 
 func getEnvNameByContainerComponent(container constant.ContainerComponent) string {
