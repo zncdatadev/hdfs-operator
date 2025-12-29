@@ -118,7 +118,6 @@ func NewRoleGroupMetricsService(
 		labels[k] = v
 	}
 	labels["prometheus.io/scrape"] = "true"
-	labels["prometheus.io/scrape"] = "true"
 
 	// Prepare annotations (copy from roleGroupInfo and add Prometheus annotations)
 	annotations := make(map[string]string)
