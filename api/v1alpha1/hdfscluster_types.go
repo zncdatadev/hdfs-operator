@@ -79,20 +79,20 @@ const (
 	RpcName    = "rpc"
 	IpcName    = "ipc"
 	DataName   = "data"
-	)
+)
 
-	// native metrics port
-	const (
-		NameNodeNativeMetricsHttpPort      = 9870
-		NameNodeNativeMetricsHttpsPort     = 9871
-		DataNodeNativeMetricsHttpPort      = 9864
-		DataNodeNativeMetricsHttpsPort     = 9865
-		JournalNodeNativeMetricsHttpPort   = 8480
-		JournalNodeNativeMetricsHttpsPort  = 8481
-	)
+// native metrics port
+const (
+	NameNodeNativeMetricsHttpPort     = 9870
+	NameNodeNativeMetricsHttpsPort    = 9871
+	DataNodeNativeMetricsHttpPort     = 9864
+	DataNodeNativeMetricsHttpsPort    = 9865
+	JournalNodeNativeMetricsHttpPort  = 8480
+	JournalNodeNativeMetricsHttpsPort = 8481
+)
 
-	// service port
-	const (
+// service port
+const (
 	NameNodeHttpPort      = 9870
 	NameNodeHttpsPort     = 9871
 	NameNodeRpcPort       = 8020
