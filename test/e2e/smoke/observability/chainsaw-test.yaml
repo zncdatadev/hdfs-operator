@@ -8,9 +8,9 @@ spec:
   - name: install zookeeper
     try:
       - apply:
-          file: ../setup/zookeeper.yaml
+          file: ../../setup/zookeeper.yaml
       - assert:
-          file: ../setup/zookeeper-assert.yaml
+          file: ../../setup/zookeeper-assert.yaml
     cleanup:
       - sleep:
           duration: 10s
