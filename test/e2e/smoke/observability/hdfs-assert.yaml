@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: hdfscluster-sample-namenode-default
+  name: hdfscluster-sample-namenode-default-metrics
   labels:
     app.kubernetes.io/component: namenode
     app.kubernetes.io/instance: hdfscluster-sample
@@ -22,7 +22,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: hdfscluster-sample-datanode-default
+  name: hdfscluster-sample-datanode-default-metrics
   labels:
     app.kubernetes.io/component: datanode
     app.kubernetes.io/instance: hdfscluster-sample
@@ -41,7 +41,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: hdfscluster-sample-journalnode-default
+  name: hdfscluster-sample-journalnode-default-metrics
   labels:
     app.kubernetes.io/component: journalnode
     app.kubernetes.io/instance: hdfscluster-sample
