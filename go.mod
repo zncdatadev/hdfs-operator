@@ -1,6 +1,6 @@
 module github.com/zncdatadev/hdfs-operator
 
-go 1.25.0
+go 1.25.5
 
 require (
 	emperror.dev/errors v0.8.1
