@@ -56,3 +56,49 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+
+# Metrics service configuration
+metrics:
+  # Enable metrics service
+  enabled: true
+  # Use HTTPS for metrics (if false, will use HTTP)
+  # When secure is true, the default port is 8443 (HTTPS)
+  # When secure is false, the default port is 8080 (HTTP)
+  secure: false
+  # Service configuration
+  service:
+    # Service port (will default to 8443 for HTTPS, 8080 for HTTP if not specified)
+    # port: # Auto-select based on secure setting
+    # Service type
+    type: ClusterIP
+    # Service annotations
+    annotations: {}
+
+# Health probe configuration
+healthProbe:
+  # Health probe bind address
+  bindAddress: ":8081"
+
+# ServiceMonitor configuration for Prometheus Operator
+serviceMonitor:
+  # Enable ServiceMonitor (requires Prometheus Operator CRDs to be installed in the cluster)
+  # WARNING: If Prometheus Operator is not installed, enabling this will cause chart installation to fail.
+  # Set to true only if you have Prometheus Operator installed.
+  enabled: false
+  # Additional labels for ServiceMonitor
+  # Example: to make it discoverable by a specific Prometheus instance
+  # additionalLabels:
+  #   prometheus: kube-prometheus
+  additionalLabels: {}
+  # Scrape interval
+  interval: 30s
+  # Scrape timeout
+  scrapeTimeout: 10s
+  # Metrics path
+  path: /metrics
+  # TLS configuration (only used when metrics.secure is true)
+  tlsConfig:
+    # Skip TLS verification (set to true only in non-production environments)
+    # For production, use cert-manager to manage certificates and set this to false
+    insecureSkipVerify: false
