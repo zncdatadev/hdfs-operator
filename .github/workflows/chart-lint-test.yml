@@ -129,6 +129,6 @@ jobs:
           # Install packaged operator chart
           helm install --create-namespace --namespace hdfs-operator --wait hdfs-operator ./target/charts/hdfs-operator-$VERSION.tgz
 
-          # E2E tests
+          # Install chainsaw and run e2e tests
           make chainsaw
-          ./bin/chainsaw test --test-dir ./test/e2e/
+          ./bin/chainsaw test --config ./test/e2e/.chainsaw.yaml --test-dir ./test/e2e/
