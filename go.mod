@@ -7,7 +7,7 @@ require (
 	github.com/cisco-open/k8s-objectmatcher v1.10.0
 	github.com/go-logr/logr v1.4.3
 	github.com/onsi/ginkgo/v2 v2.27.3
-	github.com/onsi/gomega v1.38.2
+	github.com/onsi/gomega v1.38.3
 	github.com/zncdatadev/operator-go v0.12.4
 	k8s.io/api v0.35.0
 	k8s.io/apimachinery v0.35.0
