@@ -85,7 +85,7 @@ cp /kubedoop/mount/config/zkfc/zkfc.log4j.properties /kubedoop/config/zkfc/log4j
 }
 
 func (c *zkfcComponent) GetEnvVars() []corev1.EnvVar {
-	return common.GetCommonContainerEnv(c.clusterConfig, constant.ZkfcComponent)
+	return common.GetCommonContainerEnv(c.clusterConfig, constant.ZkfcComponent, nil)
 }
 
 func (c *zkfcComponent) GetVolumeMounts() []corev1.VolumeMount {

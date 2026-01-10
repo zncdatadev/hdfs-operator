@@ -15,6 +15,7 @@ import (
 	"github.com/zncdatadev/hdfs-operator/internal/util"
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/constants"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
 )
 
 func OverrideEnvVars(origin *[]corev1.EnvVar, override map[string]string) {
@@ -133,7 +134,11 @@ func CreateXmlContentByReplicas(replicas int32, keyTemplate string, valueTemplat
 	return res
 }
 
-func GetCommonContainerEnv(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, container constant.ContainerComponent) []corev1.EnvVar {
+func GetCommonContainerEnv(
+	clusterConfig *hdfsv1alpha1.ClusterConfigSpec,
+	container constant.ContainerComponent,
+	role *constant.Role,
+) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
 			Name:  "HADOOP_CONF_DIR",
@@ -172,7 +177,18 @@ func GetCommonContainerEnv(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, contai
 	if envName = getEnvNameByContainerComponent(container); envName != "" {
 		jvmArgs = append(jvmArgs, "-Xmx419430k")
 		securityDir := getSubDirByContainerComponent(container)
+
 		securityConfigEnValue := fmt.Sprintf("-Djava.security.properties=%s", path.Join(constants.KubedoopConfigDir, securityDir, "security.properties"))
+		if role != nil {
+			if metricPort, err := GetMetricsPort(*role); err == nil {
+				jarPath := path.Join(constants.KubedoopJmxDir, "jmx_prometheus_javaagent.jar")
+				configPath := path.Join(constants.KubedoopJmxDir, fmt.Sprintf("%s.yaml", strings.ToLower(string(container))))
+				javaAgentArg := fmt.Sprintf("-javaagent:%s=%d:%s", jarPath, metricPort, configPath)
+				jvmArgs = append(jvmArgs, javaAgentArg)
+			} else {
+				fmt.Printf("GetMetricsPort error for role %v: %v. Cannot configure JMX agent.\\n", role, err)
+			}
+		}
 		jvmArgs = append(jvmArgs, securityConfigEnValue)
 
 	}
@@ -185,7 +201,7 @@ func GetCommonContainerEnv(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, contai
 	return envs
 }
 
-func GetCommonVolumes(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, instanceName string, role constant.Role) []corev1.Volume {
+func GetCommonVolumes(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, instanceName string, roleGroupInfo *reconciler.RoleGroupInfo) []corev1.Volume {
 	limit := resource.MustParse("150Mi")
 	volumes := []corev1.Volume{
 		{
@@ -199,14 +215,57 @@ func GetCommonVolumes(clusterConfig *hdfsv1alpha1.ClusterConfigSpec, instanceNam
 	}
 	if IsKerberosEnabled(clusterConfig) {
 		secretClass := clusterConfig.Authentication.Kerberos.SecretClass
+		role := constant.Role(roleGroupInfo.GetRoleName())
 		volumes = append(volumes, CreateKerberosSecretPvc(secretClass, instanceName, role))
 	}
 	if IsTlsEnabled(clusterConfig) {
 		tlsSecretClass := clusterConfig.Authentication.Tls.SecretClass
-		volumes = append(volumes, CreateTlsSecretPvc(tlsSecretClass, clusterConfig.Authentication.Tls.JksPassword))
+		volumes = append(volumes, CreateTlsSecretPvc(tlsSecretClass, clusterConfig.Authentication.Tls.JksPassword, roleGroupInfo))
 	}
 	return volumes
 
+}
+
+// GetMetricsPort returns the metrics port for the specified HDFS role.
+func GetMetricsPort(role constant.Role) (int32, error) {
+	var metricsPort int32
+	switch role {
+	case constant.NameNode:
+		metricsPort = hdfsv1alpha1.NameNodeMetricPort
+	case constant.DataNode:
+		metricsPort = hdfsv1alpha1.DataNodeMetricPort
+	case constant.JournalNode:
+		metricsPort = hdfsv1alpha1.JournalNodeMetricPort
+	default:
+		return 0, fmt.Errorf("unknown role: %s", role)
+	}
+	return metricsPort, nil
+}
+
+// Get native metrics port
+func GetNativeMetricsPort(role constant.Role, clusterConfig *hdfsv1alpha1.ClusterConfigSpec) (int32, error) {
+	switch role {
+	case constant.NameNode:
+		if IsTlsEnabled(clusterConfig) {
+			return hdfsv1alpha1.NameNodeNativeMetricsHttpsPort, nil
+		} else {
+			return hdfsv1alpha1.NameNodeNativeMetricsHttpPort, nil
+		}
+	case constant.DataNode:
+		if IsTlsEnabled(clusterConfig) {
+			return hdfsv1alpha1.DataNodeNativeMetricsHttpsPort, nil
+		} else {
+			return hdfsv1alpha1.DataNodeNativeMetricsHttpPort, nil
+		}
+	case constant.JournalNode:
+		if IsTlsEnabled(clusterConfig) {
+			return hdfsv1alpha1.JournalNodeNativeMetricsHttpsPort, nil
+		} else {
+			return hdfsv1alpha1.JournalNodeNativeMetricsHttpPort, nil
+		}
+	default:
+		return 0, fmt.Errorf("unknown role for get native metrics port: %s", role)
+	}
 }
 
 func getEnvNameByContainerComponent(container constant.ContainerComponent) string {
@@ -331,4 +390,9 @@ func AffinityDefault(role constant.Role, crName string) *corev1.Affinity {
 			},
 		},
 	}
+}
+
+// CreateServiceMetricsName returns the metrics service name for the specified role group by appending "-metrics" suffix.
+func CreateServiceMetricsName(roleGroupInfo *reconciler.RoleGroupInfo) string {
+	return roleGroupInfo.GetFullName() + "-metrics"
 }
