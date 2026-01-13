@@ -272,7 +272,7 @@ func CreateLog4jBuilder(containerLogging *hdfsv1alpha1.LoggingConfigSpec, consol
 	fileAppenderName string) *Log4jLoggingDataBuilder {
 	log4jBuilder := &Log4jLoggingDataBuilder{}
 	if loggers := containerLogging.Loggers; loggers != nil {
-		var builderLoggers []LogBuilderLoggers
+		builderLoggers := make([]LogBuilderLoggers, 0, len(loggers))
 		for logger, level := range loggers {
 			builderLoggers = append(builderLoggers, LogBuilderLoggers{
 				logger: logger,

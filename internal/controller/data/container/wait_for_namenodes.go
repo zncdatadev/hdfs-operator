@@ -143,7 +143,7 @@ func (c *WaitForNameNodesComponent) GetVolumeMounts() []corev1.VolumeMount {
 func (c *WaitForNameNodesComponent) nameNodeIds() string {
 	// Get namenode role group info from the cluster
 	nameNodeRoleGroups := c.instance.Spec.NameNode.RoleGroups
-	var podNames []string
+	podNames := make([]string, 0, len(nameNodeRoleGroups))
 	clusteInfo := c.roleGroupInfo.ClusterInfo
 	for groupName, roleGroupSpec := range nameNodeRoleGroups {
 		nnRoleGroupInfo := reconciler.RoleGroupInfo{
