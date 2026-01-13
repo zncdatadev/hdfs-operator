@@ -146,7 +146,9 @@ func (c *WaitForNameNodesComponent) nameNodeIds() string {
 	// Calculate total capacity needed
 	totalReplicas := 0
 	for _, roleGroupSpec := range nameNodeRoleGroups {
-		totalReplicas += int(*roleGroupSpec.Replicas)
+		if roleGroupSpec.Replicas != nil {
+			totalReplicas += int(*roleGroupSpec.Replicas)
+		}
 	}
 	podNames := make([]string, 0, totalReplicas)
 	clusteInfo := c.roleGroupInfo.ClusterInfo
