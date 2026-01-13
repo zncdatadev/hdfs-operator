@@ -153,6 +153,9 @@ func (c *WaitForNameNodesComponent) nameNodeIds() string {
 	podNames := make([]string, 0, totalReplicas)
 	clusteInfo := c.roleGroupInfo.ClusterInfo
 	for groupName, roleGroupSpec := range nameNodeRoleGroups {
+		if roleGroupSpec.Replicas == nil {
+			continue
+		}
 		nnRoleGroupInfo := reconciler.RoleGroupInfo{
 			RoleInfo: reconciler.RoleInfo{
 				ClusterInfo: clusteInfo,
