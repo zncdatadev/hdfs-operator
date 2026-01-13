@@ -40,7 +40,7 @@ func (c *XmlConfiguration) String(properties []XmlNameValuePair) string {
 
 // DistinctProperties distinct properties by name,
 func (c *XmlConfiguration) DistinctProperties(properties []XmlNameValuePair) []XmlNameValuePair {
-	var collect []XmlNameValuePair
+	collect := make([]XmlNameValuePair, 0, len(c.Properties)+len(properties))
 	collect = append(collect, c.Properties...)
 	collect = append(collect, properties...)
 
