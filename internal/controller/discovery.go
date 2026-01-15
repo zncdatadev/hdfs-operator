@@ -132,7 +132,7 @@ func (b *DiscoveryConfigMapBuilder) makeDynamicHdfsSiteXml(ctx context.Context) 
 		return nil, err
 	}
 
-	var all []util.XmlNameValuePair
+	all := make([]util.XmlNameValuePair, 0, 1+len(connections))
 	all = append(all, hosts)
 	all = append(all, connections...)
 	return all, nil

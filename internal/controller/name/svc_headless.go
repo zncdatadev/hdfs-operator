@@ -43,7 +43,8 @@ func NewNameNodeServiceBuilder(
 
 // GetServicePorts implements ServicePortProvider interface
 func (b *NameNodeServiceBuilder) GetServicePorts() []corev1.ContainerPort {
-	ports := []corev1.ContainerPort{
+	ports := make([]corev1.ContainerPort, 0, 4)
+	ports = append(ports, []corev1.ContainerPort{
 		{
 			Name:          hdfsv1alpha1.RpcName,
 			ContainerPort: hdfsv1alpha1.NameNodeRpcPort,
@@ -59,7 +60,7 @@ func (b *NameNodeServiceBuilder) GetServicePorts() []corev1.ContainerPort {
 			ContainerPort: 4180,
 			Protocol:      corev1.ProtocolTCP,
 		},
-	}
+	}...)
 	// Add HTTP/HTTPS port based on TLS configuration
 	httpPort := common.HttpPort(b.clusterConfig, hdfsv1alpha1.NameNodeHttpsPort, hdfsv1alpha1.NameNodeHttpPort)
 	ports = append(ports, httpPort)
