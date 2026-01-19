@@ -6,7 +6,7 @@ require (
 	emperror.dev/errors v0.8.1
 	github.com/cisco-open/k8s-objectmatcher v1.10.0
 	github.com/go-logr/logr v1.4.3
-	github.com/onsi/ginkgo/v2 v2.27.3
+	github.com/onsi/ginkgo/v2 v2.27.5
 	github.com/onsi/gomega v1.38.2
 	github.com/zncdatadev/operator-go v0.12.5
 	k8s.io/api v0.35.0
