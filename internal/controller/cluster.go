@@ -79,9 +79,7 @@ func (r *Reconciler) RegisterResources(
 		o.Labels = r.ClusterInfo.GetLabels()
 		o.Annotations = r.ClusterInfo.GetAnnotations()
 	})
-	if sa != nil {
-		r.AddResource(sa)
-	}
+	r.AddResource(sa)
 
 	clusterComponent := &common.ClusterComponentsInfo{
 		InstanceName:  r.instance.Name,
