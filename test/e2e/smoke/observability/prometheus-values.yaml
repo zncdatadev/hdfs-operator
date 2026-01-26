@@ -1,0 +1,42 @@
+# Minimal Prometheus configuration for HDFS metrics testing
+server:
+  serverFiles:
+    prometheus.yml:
+      global:
+        scrape_interval: 15s
+        evaluation_interval: 15s
+      scrape_configs:
+        # Discover HDFS services via Kubernetes service endpoints
+        - job_name: 'kubernetes-service-endpoints'
+          kubernetes_sd_configs:
+            - role: endpoints
+          relabel_configs:
+            # Keep only endpoints with prometheus.io/scrape annotation
+            - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+              action: keep
+              regex: 'true'
+            # Use the port from prometheus.io/port annotation or the discovered port
+            - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_port, __meta_kubernetes_pod_ip]
+              action: replace
+              regex: (\d+);(.+)
+              replacement: $2:$1
+              target_label: __address__
+            # Add service name as a label
+            - source_labels: [__meta_kubernetes_service_name]
+              target_label: service
+            # Add namespace as a label
+            - source_labels: [__meta_kubernetes_namespace]
+              target_label: namespace
+            # Add component label from service
+            - source_labels: [__meta_kubernetes_service_label_app_kubernetes_io_component]
+              target_label: component
+
+# Disable all unnecessary components for lightweight testing
+alertmanager:
+  enabled: false
+kube-state-metrics:
+  enabled: false
+prometheus-node-exporter:
+  enabled: false
+prometheus-pushgateway:
+  enabled: false
