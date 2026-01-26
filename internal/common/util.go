@@ -182,11 +182,11 @@ func GetCommonContainerEnv(
 		if role != nil {
 			if metricPort, err := GetMetricsPort(*role); err == nil {
 				jarPath := path.Join(constants.KubedoopJmxDir, "jmx_prometheus_javaagent.jar")
-				configPath := path.Join(constants.KubedoopJmxDir, fmt.Sprintf("%s.yaml", strings.ToLower(string(container))))
+				configPath := path.Join(constants.KubedoopJmxDir, fmt.Sprintf("%s.yaml", strings.ToLower(string(*role))))
 				javaAgentArg := fmt.Sprintf("-javaagent:%s=%d:%s", jarPath, metricPort, configPath)
 				jvmArgs = append(jvmArgs, javaAgentArg)
 			} else {
-				fmt.Printf("GetMetricsPort error for role %v: %v. Cannot configure JMX agent.\\n", role, err)
+				fmt.Printf("GetMetricsPort error for role %v: %v. Cannot configure JMX agent.\n", role, err)
 			}
 		}
 		jvmArgs = append(jvmArgs, securityConfigEnValue)
