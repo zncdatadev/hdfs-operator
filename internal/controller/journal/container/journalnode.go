@@ -13,6 +13,7 @@ import (
 	oputil "github.com/zncdatadev/operator-go/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 // JournalNodeContainerBuilder builds journalnode containers
@@ -114,7 +115,7 @@ cp /kubedoop/mount/config/journalnode/journalnode.log4j.properties /kubedoop/con
 
 // GetEnvVars returns environment variables for journalnode
 func (c *journalNodeComponent) GetEnvVars() []corev1.EnvVar {
-	return common.GetCommonContainerEnv(c.clusterConfig, constant.JournalNodeComponent)
+	return common.GetCommonContainerEnv(c.clusterConfig, constant.JournalNodeComponent, ptr.To(constant.JournalNode))
 }
 
 // GetVolumeMounts returns volume mounts for journalnode

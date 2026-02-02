@@ -13,6 +13,7 @@ import (
 	oputil "github.com/zncdatadev/operator-go/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 // NameNodeContainerBuilder builds namenode containers
@@ -113,7 +114,7 @@ cp /kubedoop/mount/config/namenode/namenode.log4j.properties /kubedoop/config/na
 }
 
 func (c *nameNodeComponent) GetEnvVars() []corev1.EnvVar {
-	return common.GetCommonContainerEnv(c.clusterConfig, constant.NameNodeComponent)
+	return common.GetCommonContainerEnv(c.clusterConfig, constant.NameNodeComponent, ptr.To(constant.NameNode))
 }
 
 func (c *nameNodeComponent) GetVolumeMounts() []corev1.VolumeMount {

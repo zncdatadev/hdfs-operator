@@ -103,7 +103,7 @@ fi
 }
 
 func (c *formatZookeeperComponent) GetEnvVars() []corev1.EnvVar {
-	return common.GetCommonContainerEnv(c.clusterConfig, constant.FormatZookeeperComponent)
+	return common.GetCommonContainerEnv(c.clusterConfig, constant.FormatZookeeperComponent, nil)
 }
 
 func (c *formatZookeeperComponent) GetVolumeMounts() []corev1.VolumeMount {

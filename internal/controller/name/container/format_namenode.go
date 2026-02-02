@@ -187,7 +187,7 @@ fi
 // }
 
 func (c *formatNameNodeComponent) GetEnvVars() []corev1.EnvVar {
-	return common.GetCommonContainerEnv(c.instance.Spec.ClusterConfig, constant.FormatNameNodeComponent)
+	return common.GetCommonContainerEnv(c.instance.Spec.ClusterConfig, constant.FormatNameNodeComponent, nil)
 }
 
 func (c *formatNameNodeComponent) GetVolumeMounts() []corev1.VolumeMount {

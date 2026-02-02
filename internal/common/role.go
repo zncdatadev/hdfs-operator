@@ -173,6 +173,16 @@ func RegisterStandardResources(
 	serviceReconcilers := builder.CreateServiceReconcilers(client, roleGroupInfo)
 	reconcilers = append(reconcilers, serviceReconcilers...)
 
+	// Create metrics service
+	metricsServiceReconciler := NewRoleGroupMetricsService(
+		client,
+		roleGroupInfo,
+		hdfsCluster,
+	)
+	if metricsServiceReconciler != nil {
+		reconcilers = append(reconcilers, metricsServiceReconciler)
+	}
+
 	// Create StatefulSet
 	statefulSetReconciler, err := builder.CreateStatefulSetReconciler(
 		ctx,
