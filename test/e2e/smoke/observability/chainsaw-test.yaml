@@ -1,0 +1,291 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: smoke-observability
+spec:
+  steps:
+  # 1. Install ZooKeeper (dependency for HDFS)
+  - name: install zookeeper
+    try:
+      - apply:
+          file: ../../setup/zookeeper.yaml
+      - assert:
+          file: ../../setup/zookeeper-assert.yaml
+    cleanup:
+      - sleep:
+          duration: 10s
+
+  # 2. Install HDFS cluster
+  - name: install hdfs
+    try:
+      - apply:
+          file: hdfs.yaml
+      - assert:
+          file: hdfs-assert.yaml
+      - assert:
+          timeout: 360s
+          resource:
+            kind: StatefulSet
+            apiVersion: apps/v1
+            metadata:
+              name: hdfscluster-sample-namenode-default
+              namespace: ($namespace)
+            status:
+              readyReplicas: 2
+      - assert:
+          timeout: 240s
+          resource:
+            kind: StatefulSet
+            apiVersion: apps/v1
+            metadata:
+              name: hdfscluster-sample-datanode-default
+              namespace: ($namespace)
+            status:
+              readyReplicas: 1
+      - assert:
+          timeout: 240s
+          resource:
+            kind: StatefulSet
+            apiVersion: apps/v1
+            metadata:
+              name: hdfscluster-sample-journalnode-default
+              namespace: ($namespace)
+            status:
+              readyReplicas: 1
+
+
+  # 3. Verify metrics port connectivity and format
+  - name: verify metrics connectivity
+    try:
+      - script:
+          bindings:
+          - name: NAMESPACE
+            value: ($namespace)
+          content: |
+            #!/bin/bash
+            set -ex
+
+            echo "Namespace: $NAMESPACE"
+
+            # Test NameNode metrics (port 8183)
+            echo "=== Testing NameNode Metrics ==="
+            NAMENODE_PODS=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/component=namenode,app.kubernetes.io/instance=hdfscluster-sample -o jsonpath='{.items[*].metadata.name}')
+            echo "Found NameNode pods: $NAMENODE_PODS"
+
+            for POD in $NAMENODE_PODS; do
+              echo "Testing NameNode Pod: $POD"
+              kubectl port-forward -n "$NAMESPACE" "$POD" 8183:8183 > /dev/null 2>&1 &
+              PF_PID=$!
+              sleep 2
+              trap "kill $PF_PID 2>/dev/null || true" EXIT
+
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8183/metrics)
+              if [[ "$HTTP_CODE" != "200" ]]; then
+                echo "ERROR: Failed to access NameNode metrics endpoint, HTTP code: $HTTP_CODE"
+                kill $PF_PID 2>/dev/null || true
+                exit 1
+              fi
+
+              METRICS=$(curl -s http://localhost:8183/metrics)
+              if ! echo "$METRICS" | grep -q "# TYPE"; then
+                echo "ERROR: Missing Prometheus format (# TYPE)"
+                kill $PF_PID 2>/dev/null || true
+                exit 1
+              fi
+
+              if ! echo "$METRICS" | grep -q "jvm_"; then
+                echo "ERROR: Missing JVM metrics"
+                kill $PF_PID 2>/dev/null || true
+                exit 1
+              fi
+
+              echo "✓ NameNode Pod $POD metrics OK"
+              kill $PF_PID 2>/dev/null || true
+              sleep 1
+            done
+
+            # Test DataNode metrics (port 8082)
+            echo "=== Testing DataNode Metrics ==="
+            DATANODE_PODS=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/component=datanode,app.kubernetes.io/instance=hdfscluster-sample -o jsonpath='{.items[*].metadata.name}')
+            echo "Found DataNode pods: $DATANODE_PODS"
+
+            for POD in $DATANODE_PODS; do
+              echo "Testing DataNode Pod: $POD"
+              kubectl port-forward -n "$NAMESPACE" "$POD" 8082:8082 > /dev/null 2>&1 &
+              PF_PID=$!
+              sleep 2
+              trap "kill $PF_PID 2>/dev/null || true" EXIT
+
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8082/metrics)
+              if [[ "$HTTP_CODE" != "200" ]]; then
+                echo "ERROR: Failed to access DataNode metrics endpoint, HTTP code: $HTTP_CODE"
+                kill $PF_PID 2>/dev/null || true
+                exit 1
+              fi
+
+              METRICS=$(curl -s http://localhost:8082/metrics)
+              if ! echo "$METRICS" | grep -q "# TYPE"; then
+                echo "ERROR: Missing Prometheus format (# TYPE)"
+                kill $PF_PID 2>/dev/null || true
+                exit 1
+              fi
+
+              if ! echo "$METRICS" | grep -q "jvm_"; then
+                echo "ERROR: Missing JVM metrics"
+                kill $PF_PID 2>/dev/null || true
+                exit 1
+              fi
+
+              echo "✓ DataNode Pod $POD metrics OK"
+              kill $PF_PID 2>/dev/null || true
+              sleep 1
+            done
+
+            # Test JournalNode metrics (port 8081)
+            echo "=== Testing JournalNode Metrics ==="
+            JOURNALNODE_PODS=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/component=journalnode,app.kubernetes.io/instance=hdfscluster-sample -o jsonpath='{.items[*].metadata.name}')
+            echo "Found JournalNode pods: $JOURNALNODE_PODS"
+
+            for POD in $JOURNALNODE_PODS; do
+              echo "Testing JournalNode Pod: $POD"
+              kubectl port-forward -n "$NAMESPACE" "$POD" 8081:8081 > /dev/null 2>&1 &
+              PF_PID=$!
+              sleep 2
+              trap "kill $PF_PID 2>/dev/null || true" EXIT
+
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/metrics)
+              if [[ "$HTTP_CODE" != "200" ]]; then
+                echo "ERROR: Failed to access JournalNode metrics endpoint, HTTP code: $HTTP_CODE"
+                kill $PF_PID 2>/dev/null || true
+                exit 1
+              fi
+
+              METRICS=$(curl -s http://localhost:8081/metrics)
+              if ! echo "$METRICS" | grep -q "# TYPE"; then
+                echo "ERROR: Missing Prometheus format (# TYPE)"
+                kill $PF_PID 2>/dev/null || true
+                exit 1
+              fi
+
+              if ! echo "$METRICS" | grep -q "jvm_"; then
+                echo "ERROR: Missing JVM metrics"
+                kill $PF_PID 2>/dev/null || true
+                exit 1
+              fi
+
+              echo "✓ JournalNode Pod $POD metrics OK"
+              kill $PF_PID 2>/dev/null || true
+              sleep 1
+            done
+
+            echo "✓ All HDFS component metrics verified"
+
+
+  # 4. Install Prometheus
+  - name: install prometheus
+    try:
+      - script:
+          bindings:
+            - name: NAMESPACE
+              value: ($namespace)
+          content: |
+            #!/bin/bash
+            set -ex
+
+            echo "=== Environment Check ==="
+            echo "NAMESPACE variable: '$NAMESPACE'"
+            echo "NAMESPACE length: ${#NAMESPACE}"
+            if [ -z "$NAMESPACE" ]; then
+              echo "ERROR: NAMESPACE is empty!"
+              exit 1
+            fi
+
+            helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
+            helm repo update
+
+            echo "=== Installing Prometheus ==="
+            echo "Will install to namespace: $NAMESPACE"
+
+            helm upgrade --install prometheus prometheus-community/prometheus \
+              --version 25.3.1 \
+              --namespace "$NAMESPACE" \
+              --create-namespace \
+              -f prometheus-values.yaml \
+              --wait --timeout 5m
+
+  # 5. Verify Prometheus targets
+  - name: verify prometheus targets
+    try:
+      - script:
+          bindings:
+            - name: NAMESPACE
+              value: ($namespace)
+          content: |
+            #!/bin/bash
+            set -e
+
+            # Wait for Prometheus server pod
+            kubectl wait --for=condition=Ready pod -l app=prometheus,component=server -n "$NAMESPACE" --timeout=300s 2>/dev/null || true
+            sleep 3
+
+            # Port-forward
+            kubectl port-forward -n "$NAMESPACE" svc/prometheus-server 9090:80 > /dev/null 2>&1 &
+            PF_PID=$!
+            sleep 2
+
+            trap "kill $PF_PID 2>/dev/null || true" EXIT
+
+            # Check targets
+            TARGETS=$(curl -s http://localhost:9090/api/v1/targets)
+
+            echo "=== Checking Prometheus Targets ==="
+
+            # Check if we have any active targets
+            ACTIVE=$(echo "$TARGETS" | grep -o '"state":"up"' | wc -l)
+            echo "Total active targets: $ACTIVE"
+
+            if [ "$ACTIVE" -eq 0 ]; then
+              echo "WARNING: No active targets found"
+            fi
+
+            # Check for HDFS targets
+            echo "Looking for HDFS targets..."
+
+            if echo "$TARGETS" | grep -q "hdfscluster-sample"; then
+              echo "✓ Found HDFS cluster targets"
+
+              # Verify targets are UP
+              if echo "$TARGETS" | grep "hdfscluster-sample" | grep -q '"health":"up"'; then
+                echo "✓ HDFS targets are UP"
+              else
+                echo "WARNING: HDFS targets found but not all UP"
+                echo "$TARGETS" | grep "hdfscluster-sample" | head -20
+              fi
+            else
+              echo "ERROR: HDFS targets not found in Prometheus"
+              echo "Available targets:"
+              echo "$TARGETS" | grep -o '"job":"[^"]*"' | sort | uniq
+              exit 1
+            fi
+
+            # Verify we can query metrics from HDFS
+            echo "=== Querying HDFS metrics from Prometheus ==="
+
+            # Query for JVM metrics from any HDFS component
+            QUERY_RESULT=$(curl -s "http://localhost:9090/api/v1/query?query=jvm_memory_used_bytes")
+
+            if echo "$QUERY_RESULT" | grep -q '"status":"success"'; then
+              echo "✓ Successfully queried JVM metrics"
+
+              # Check if we got actual data
+              if echo "$QUERY_RESULT" | grep -q '"result":\['; then
+                RESULT_COUNT=$(echo "$QUERY_RESULT" | grep -o '"metric":{' | wc -l)
+                echo "✓ Found $RESULT_COUNT metric series"
+              else
+                echo "WARNING: Query successful but no data returned yet"
+              fi
+            else
+              echo "WARNING: Failed to query metrics"
+            fi
+
+            echo "✓ Prometheus targets verification complete"

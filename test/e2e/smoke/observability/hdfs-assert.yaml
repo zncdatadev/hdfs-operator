@@ -1,0 +1,81 @@
+---
+# Assert NameNode metrics service exists with proper annotations
+apiVersion: v1
+kind: Service
+metadata:
+  name: hdfscluster-sample-namenode-default-metrics
+  labels:
+    app.kubernetes.io/component: namenode
+    app.kubernetes.io/instance: hdfscluster-sample
+spec:
+  clusterIP: None
+  ports:
+    - name: metric
+      port: 9870
+      protocol: TCP
+      targetPort: metric
+  selector:
+    app.kubernetes.io/instance: hdfscluster-sample
+    app.kubernetes.io/component: namenode
+---
+# Assert DataNode metrics service exists with proper annotations
+apiVersion: v1
+kind: Service
+metadata:
+  name: hdfscluster-sample-datanode-default-metrics
+  labels:
+    app.kubernetes.io/component: datanode
+    app.kubernetes.io/instance: hdfscluster-sample
+spec:
+  clusterIP: None
+  ports:
+    - name: metric
+      port: 9864
+      protocol: TCP
+      targetPort: metric
+  selector:
+    app.kubernetes.io/instance: hdfscluster-sample
+    app.kubernetes.io/component: datanode
+---
+# Assert JournalNode metrics service exists with proper annotations
+apiVersion: v1
+kind: Service
+metadata:
+  name: hdfscluster-sample-journalnode-default-metrics
+  labels:
+    app.kubernetes.io/component: journalnode
+    app.kubernetes.io/instance: hdfscluster-sample
+spec:
+  clusterIP: None
+  ports:
+    - name: metric
+      port: 8480
+      protocol: TCP
+      targetPort: metric
+  selector:
+    app.kubernetes.io/instance: hdfscluster-sample
+    app.kubernetes.io/component: journalnode
+---
+# Assert NameNode StatefulSet exists
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hdfscluster-sample-namenode-default
+spec:
+  replicas: 2
+---
+# Assert DataNode StatefulSet exists
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hdfscluster-sample-datanode-default
+spec:
+  replicas: 1
+---
+# Assert JournalNode StatefulSet exists
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hdfscluster-sample-journalnode-default
+spec:
+  replicas: 1

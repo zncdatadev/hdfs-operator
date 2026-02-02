@@ -90,7 +90,7 @@ func NewRoleGroupMetricsService(
 	metricsPort, err := GetNativeMetricsPort(role, hdfs.Spec.ClusterConfig)
 	if err != nil {
 		// Log the error and return nil to avoid misconfiguration
-		fmt.Printf("GetMetricsPort error for role %v: %v. Skipping metrics service creation.\n", roleName, err)
+		fmt.Printf("GetNativeMetricsPort error for role %v: %v. Skipping metrics service creation.\n", roleName, err)
 		return nil
 	}
 
