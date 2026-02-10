@@ -28,7 +28,7 @@ type GeneralNodeConfig struct {
 }
 
 func newDefaultResourceSpec(role constant.Role) *commonsv1alpha1.ResourcesSpec {
-	return GetContainerResource(role, constant.ContainerComponent(role)) // todo: fix container name
+	return GetContainerResource(role)
 }
 
 // DefaultNodeConfig default node config
@@ -140,48 +140,25 @@ func parseQuantity(q string) resource.Quantity {
 	return r
 }
 
-func GetContainerResource(role constant.Role, containerName constant.ContainerComponent) *commonsv1alpha1.ResourcesSpec {
+func GetContainerResource(role constant.Role) *commonsv1alpha1.ResourcesSpec {
 	var cpuMin, cpuMax, memoryLimit, storage resource.Quantity
 	switch role {
 	case constant.NameNode:
-		switch containerName {
-		case constant.FormatNameNodeComponent:
-			cpuMin = parseQuantity("100m")
-			cpuMax = parseQuantity("200m")
-			memoryLimit = parseQuantity("512Mi")
-		case constant.FormatZookeeperComponent:
-			cpuMin = parseQuantity("100m")
-			cpuMax = parseQuantity("200m")
-			memoryLimit = parseQuantity("512Mi")
-		case constant.ZkfcComponent:
-			cpuMin = parseQuantity("100m")
-			cpuMax = parseQuantity("200m")
-			memoryLimit = parseQuantity("512Mi")
-		case constant.NameNodeComponent:
-			cpuMin = parseQuantity("300m")
-			cpuMax = parseQuantity("600m")
-			memoryLimit = parseQuantity("1024Mi")
-			storage = parseQuantity("1Gi")
-		default:
-			panic("invalid container name in NameNode role:" + containerName)
-		}
+		// NameNode main container resources
+		cpuMin = parseQuantity("300m")
+		cpuMax = parseQuantity("1000m")
+		memoryLimit = parseQuantity("1024Mi")
+		storage = parseQuantity("1Gi")
 	case constant.DataNode:
-		switch containerName {
-		case "datanode":
-			cpuMin = parseQuantity("100m")
-			cpuMax = parseQuantity("300m")
-			memoryLimit = parseQuantity("512Mi")
-			storage = parseQuantity("2Gi")
-		case "wait-for-namenodes":
-			cpuMin = parseQuantity("100m")
-			cpuMax = parseQuantity("200m")
-			memoryLimit = parseQuantity("512Mi")
-		default:
-			panic("invalid container name in DataNode role" + containerName)
-		}
-	case constant.JournalNode:
+		// DataNode main container resources
 		cpuMin = parseQuantity("100m")
-		cpuMax = parseQuantity("300m")
+		cpuMax = parseQuantity("400m")
+		memoryLimit = parseQuantity("512Mi")
+		storage = parseQuantity("2Gi")
+	case constant.JournalNode:
+		// JournalNode container resources
+		cpuMin = parseQuantity("100m")
+		cpuMax = parseQuantity("400m")
 		memoryLimit = parseQuantity("512Mi")
 		storage = parseQuantity("1Gi")
 	default:

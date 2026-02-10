@@ -9,6 +9,7 @@ import (
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	opgoutil "github.com/zncdatadev/operator-go/pkg/util"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 // Core interface that all container components must implement
@@ -114,7 +115,33 @@ func (c *HdfsContainerBuilder) BuildWithComponent(component ContainerComponentIn
 	}
 
 	if c.RoleGroupConfig != nil {
-		c.SetResources(c.RoleGroupConfig.Resources)
+		if component != nil && component.GetContainerName() == constant.ZkfcContainer {
+			// For zkfc, apply hardcoded defaults only when no resources are configured
+			// zkfc usually has very low resource requirements. only works for zookeeper failover, so set small default resources
+			if c.RoleGroupConfig.Resources == nil {
+				c.SetResources(&commonsv1alpha1.ResourcesSpec{
+					CPU: &commonsv1alpha1.CPUResource{
+						Max: resource.MustParse("400m"),
+						Min: resource.MustParse("100m"),
+					},
+					Memory: &commonsv1alpha1.MemoryResource{
+						Limit: resource.MustParse("512Mi"),
+					},
+				})
+			} else {
+				c.SetResources(c.RoleGroupConfig.Resources)
+			}
+		} else {
+			// For other init containers, directly apply the resources from RoleGroupConfig
+			// Init containers perform critical setup work (e.g., formatting) that is tightly coupled with the main
+			// container's operations (e.g., running services). If the main container requires 4GB of memory, the init
+			// container may require similar resources to complete initialization successfully. By allowing flexible
+			// resource configuration per role group, different node types can have appropriately sized resources:
+			// - DataNode (storage-intensive): configured with more resources
+			// - NameNode (metadata management): configured with fewer resources
+			// Resources are released immediately after init container completion.
+			c.SetResources(c.RoleGroupConfig.Resources)
+		}
 	}
 
 	return c.Build()
