@@ -140,7 +140,7 @@ func (c *journalNodeComponent) GetVolumeMounts() []corev1.VolumeMount {
 
 // ContainerPortsProvider interface implementation
 func (c *journalNodeComponent) GetPorts() []corev1.ContainerPort {
-	ports := []corev1.ContainerPort{
+	return []corev1.ContainerPort{
 		{
 			Name:          hdfsv1alpha1.RpcName,
 			ContainerPort: hdfsv1alpha1.JournalNodeRpcPort,
@@ -151,8 +151,8 @@ func (c *journalNodeComponent) GetPorts() []corev1.ContainerPort {
 			ContainerPort: hdfsv1alpha1.JournalNodeMetricPort,
 			Protocol:      corev1.ProtocolTCP,
 		},
+		common.HttpPort(c.clusterConfig, hdfsv1alpha1.JournalNodeHttpsPort, hdfsv1alpha1.JournalNodeHttpPort),
 	}
-	return append(ports, common.HttpPort(c.clusterConfig, hdfsv1alpha1.JournalNodeHttpsPort, hdfsv1alpha1.JournalNodeHttpPort))
 }
 
 // ContainerHealthCheckProvider interface implementation
