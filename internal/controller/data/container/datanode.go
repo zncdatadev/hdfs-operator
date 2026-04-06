@@ -137,7 +137,7 @@ func (c *DataNodeComponent) GetVolumeMounts() []corev1.VolumeMount {
 }
 
 func (c *DataNodeComponent) GetPorts() []corev1.ContainerPort {
-	ports := []corev1.ContainerPort{
+	return []corev1.ContainerPort{
 		{
 			Name:          hdfsv1alpha1.MetricName,
 			ContainerPort: hdfsv1alpha1.DataNodeMetricPort,
@@ -153,8 +153,8 @@ func (c *DataNodeComponent) GetPorts() []corev1.ContainerPort {
 			ContainerPort: hdfsv1alpha1.DataNodeIpcPort,
 			Protocol:      corev1.ProtocolTCP,
 		},
+		common.HttpPort(c.clusterConfig, hdfsv1alpha1.DataNodeHttpsPort, hdfsv1alpha1.DataNodeHttpPort),
 	}
-	return append(ports, common.HttpPort(c.clusterConfig, hdfsv1alpha1.DataNodeHttpsPort, hdfsv1alpha1.DataNodeHttpPort))
 }
 
 func (c *DataNodeComponent) GetLivenessProbe() *corev1.Probe {

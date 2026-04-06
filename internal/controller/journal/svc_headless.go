@@ -43,8 +43,7 @@ func NewJournalNodeServiceBuilder(
 
 // GetServicePorts implements ServicePortProvider interface
 func (b *JournalNodeServiceBuilder) GetServicePorts() []corev1.ContainerPort {
-	ports := make([]corev1.ContainerPort, 0, 4)
-	ports = append(ports, []corev1.ContainerPort{
+	return []corev1.ContainerPort{
 		{
 			Name:          hdfsv1alpha1.RpcName,
 			ContainerPort: hdfsv1alpha1.JournalNodeRpcPort,
@@ -60,10 +59,6 @@ func (b *JournalNodeServiceBuilder) GetServicePorts() []corev1.ContainerPort {
 			ContainerPort: 4180,
 			Protocol:      corev1.ProtocolTCP,
 		},
-	}...)
-	// Add HTTP/HTTPS port based on TLS configuration
-	httpPort := common.HttpPort(b.clusterConfig, hdfsv1alpha1.JournalNodeHttpsPort, hdfsv1alpha1.JournalNodeHttpPort)
-	ports = append(ports, httpPort)
-
-	return ports
+		common.HttpPort(b.clusterConfig, hdfsv1alpha1.JournalNodeHttpsPort, hdfsv1alpha1.JournalNodeHttpPort),
+	}
 }
