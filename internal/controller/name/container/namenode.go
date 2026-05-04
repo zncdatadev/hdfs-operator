@@ -79,7 +79,7 @@ func (c *nameNodeComponent) GetContainerName() string {
 }
 
 func (c *nameNodeComponent) GetCommand() []string {
-	return []string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}
+	return bashCommand
 }
 
 func (c *nameNodeComponent) GetArgs() []string {

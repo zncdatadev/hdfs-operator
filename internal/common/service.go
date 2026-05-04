@@ -117,14 +117,14 @@ func NewRoleGroupMetricsService(
 	for k, v := range roleGroupInfo.GetLabels() {
 		labels[k] = v
 	}
-	labels["prometheus.io/scrape"] = "true"
+	labels["prometheus.io/scrape"] = xmlTrue
 
 	// Prepare annotations (copy from roleGroupInfo and add Prometheus annotations)
 	annotations := make(map[string]string)
 	for k, v := range roleGroupInfo.GetAnnotations() {
 		annotations[k] = v
 	}
-	annotations["prometheus.io/scrape"] = "true"
+	annotations["prometheus.io/scrape"] = xmlTrue
 	annotations["prometheus.io/path"] = "/prom"
 	annotations["prometheus.io/port"] = strconv.Itoa(int(metricsPort))
 	annotations["prometheus.io/scheme"] = scheme
