@@ -16,6 +16,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+var bashCommand = []string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}
+
 // FormatNameNodeContainerBuilder builds format namenode containers
 type FormatNameNodeContainerBuilder struct {
 	instance           *hdfsv1alpha1.HdfsCluster
@@ -85,7 +87,7 @@ func (c *formatNameNodeComponent) GetContainerName() string {
 }
 
 func (c *formatNameNodeComponent) GetCommand() []string {
-	return []string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}
+	return bashCommand
 }
 
 // todo: container name must be referenced

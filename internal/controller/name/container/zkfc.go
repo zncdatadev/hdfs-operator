@@ -67,7 +67,7 @@ func (c *zkfcComponent) GetContainerName() string {
 }
 
 func (c *zkfcComponent) GetCommand() []string {
-	return []string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}
+	return bashCommand
 }
 
 func (c *zkfcComponent) GetArgs() []string {

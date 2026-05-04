@@ -16,6 +16,11 @@ import (
 
 const KrbVolumeName = "kerberos"
 
+const (
+	xmlTrue                   = "true"
+	dataTransferProtectionVal = "privacy"
+)
+
 func IsKerberosEnabled(clusterSpec *hdfsv1alpha1.ClusterConfigSpec) bool {
 	return clusterSpec.Authentication != nil && clusterSpec.Authentication.Kerberos != nil
 }
@@ -29,7 +34,7 @@ func SecurityHdfsSiteXml() []util.XmlNameValuePair {
 	return []util.XmlNameValuePair{
 		{
 			Name:  "dfs.block.access.token.enable",
-			Value: "true",
+			Value: xmlTrue,
 		},
 		{
 			Name:  "dfs.http.policy",
@@ -37,7 +42,7 @@ func SecurityHdfsSiteXml() []util.XmlNameValuePair {
 		},
 		{
 			Name:  "hadoop.kerberos.keytab.login.autorenewal.enabled",
-			Value: "true",
+			Value: xmlTrue,
 		},
 		{
 			Name:  "dfs.https.server.keystore.resource",
@@ -49,11 +54,11 @@ func SecurityHdfsSiteXml() []util.XmlNameValuePair {
 		},
 		{
 			Name:  "dfs.encrypt.data.transfer",
-			Value: "true",
+			Value: xmlTrue,
 		},
 		{
 			Name:  "dfs.data.transfer.protection",
-			Value: "privacy",
+			Value: dataTransferProtectionVal,
 		},
 	}
 }
@@ -62,15 +67,15 @@ func SecurityDiscoveryHdfsSiteXml() []util.XmlNameValuePair {
 	return []util.XmlNameValuePair{
 		{
 			Name:  "hadoop.kerberos.keytab.login.autorenewal.enabled",
-			Value: "true",
+			Value: xmlTrue,
 		},
 		{
 			Name:  "dfs.data.transfer.protection",
-			Value: "privacy",
+			Value: dataTransferProtectionVal,
 		},
 		{
 			Name:  "dfs.encrypt.data.transfer",
-			Value: "true",
+			Value: xmlTrue,
 		},
 	}
 }
@@ -96,7 +101,7 @@ func SecurityDiscoveryCoreSiteXml(instanceName string, ns string) []util.XmlName
 		},
 		{
 			Name:  "hadoop.rpc.protection",
-			Value: "privacy",
+			Value: dataTransferProtectionVal,
 		},
 	}
 }
@@ -151,7 +156,7 @@ func SecurityCoreSiteXml(instanceName string, ns string) []util.XmlNameValuePair
 		},
 		{
 			Name:  "hadoop.rpc.protection",
-			Value: "privacy",
+			Value: dataTransferProtectionVal,
 		},
 	}
 }

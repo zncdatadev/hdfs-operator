@@ -4,6 +4,8 @@ import (
 	"testing"
 )
 
+const testValue2 = "value2"
+
 func TestXmlConfiguration_Append(t *testing.T) {
 
 	const origin = `<?xml version="1.0" encoding="UTF-8"?>
@@ -28,7 +30,7 @@ func TestXmlConfiguration_Append(t *testing.T) {
 			name: "append a new property",
 			args: args{
 				originXml:  origin,
-				properties: []XmlNameValuePair{{Name: "key2", Value: "value2"}},
+				properties: []XmlNameValuePair{{Name: "key2", Value: testValue2}},
 			},
 			want: `<?xml version="1.0" encoding="UTF-8"?>
 <configuration>
@@ -46,7 +48,7 @@ func TestXmlConfiguration_Append(t *testing.T) {
 			name: "append a new property, but the name exists in origin xml, should override it",
 			args: args{
 				originXml:  origin,
-				properties: []XmlNameValuePair{{Name: "key1", Value: "value2"}, {Name: "key3", Value: "value3"}},
+				properties: []XmlNameValuePair{{Name: "key1", Value: testValue2}, {Name: "key3", Value: "value3"}},
 			},
 			want: `<?xml version="1.0" encoding="UTF-8"?>
 <configuration>

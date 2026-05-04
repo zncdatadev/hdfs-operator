@@ -68,7 +68,7 @@ func (c *formatZookeeperComponent) GetContainerName() string {
 }
 
 func (c *formatZookeeperComponent) GetCommand() []string {
-	return []string{"/bin/bash", "-x", "-euo", "pipefail", "-c"}
+	return bashCommand
 }
 
 func (c *formatZookeeperComponent) GetArgs() []string {

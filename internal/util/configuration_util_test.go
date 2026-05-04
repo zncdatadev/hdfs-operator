@@ -28,7 +28,7 @@ func TestOverrideXmlFileContent(t *testing.T) {
 			name: "test1",
 			args: args{
 				current:  origin,
-				override: map[string]string{"key2": "value2"},
+				override: map[string]string{"key2": testValue2},
 			},
 			want: `<?xml version="1.0" encoding="UTF-8"?>
 <configuration>
