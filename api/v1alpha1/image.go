@@ -6,7 +6,7 @@ import (
 
 const (
 	DefaultRepository     = "quay.io/zncdatadev"
-	DefaultProductVersion = "3.3.6"
+	DefaultProductVersion = "3.4.1"
 	DefaultProductName    = "hadoop"
 )
 

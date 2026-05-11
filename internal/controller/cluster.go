@@ -52,10 +52,15 @@ func NewClusterReconciler(
 
 // GetImage returns the image configuration for HDFS components
 func (r *Reconciler) GetImage(roleType constant.Role) *util.Image {
+	productVersion := r.Spec.Image.ProductVersion
+	if productVersion == "" {
+		productVersion = hdfsv1alpha1.DefaultProductVersion
+	}
+
 	image := util.NewImage(
 		hdfsv1alpha1.DefaultProductName,
 		version.BuildVersion,
-		hdfsv1alpha1.DefaultProductVersion,
+		productVersion,
 		func(options *util.ImageOptions) {
 			options.Custom = r.Spec.Image.Custom
 			options.Repo = r.Spec.Image.Repo
