@@ -202,8 +202,10 @@ jobs:
         id: lint
         uses: helm/chart-testing-action@v2.8.0
 
-      - name: Fetch all tags
-        run: git fetch --tags --force
+      - name: Fetch all tags and release branches
+        run: |
+          git fetch --tags --force
+          git fetch origin --no-tags '+refs/heads/release-*:refs/remotes/origin/release-*'
 
       - name: Get commit range
         id: commit-range
@@ -231,17 +233,17 @@ jobs:
           # Define branch priority: release branches (sorted), then main, then others
           PRIORITY_BRANCH=""
           # 1. Find release branches (sorted lexicographically)
-          RELEASE_BRANCH=$(echo "$PREVIOUS_BRANCHES" | grep -E 'origin/release' | sort | head -n1 || true)
+          RELEASE_BRANCH=$(echo "$PREVIOUS_BRANCHES" | grep -E 'origin/release' | sort | head -n1)
           if [[ -n "$RELEASE_BRANCH" ]]; then
             PRIORITY_BRANCH="$RELEASE_BRANCH"
           else
             # 2. Fallback to main
-            MAIN_BRANCH=$(echo "$PREVIOUS_BRANCHES" | grep -E '^origin/main$' || true)
+            MAIN_BRANCH=$(echo "$PREVIOUS_BRANCHES" | grep -E '^origin/main$')
             if [[ -n "$MAIN_BRANCH" ]]; then
               PRIORITY_BRANCH="$MAIN_BRANCH"
             else
               # 3. Fallback to the first other branch
-              PRIORITY_BRANCH=$(echo "$PREVIOUS_BRANCHES" | head -n1 || true)
+              PRIORITY_BRANCH=$(echo "$PREVIOUS_BRANCHES" | head -n1)
             fi
           fi
 
