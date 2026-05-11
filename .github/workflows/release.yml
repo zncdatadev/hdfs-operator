@@ -231,17 +231,17 @@ jobs:
           # Define branch priority: release branches (sorted), then main, then others
           PRIORITY_BRANCH=""
           # 1. Find release branches (sorted lexicographically)
-          RELEASE_BRANCH=$(echo "$PREVIOUS_BRANCHES" | grep -E 'origin/release' | sort | head -n1)
+          RELEASE_BRANCH=$(echo "$PREVIOUS_BRANCHES" | grep -E 'origin/release' | sort | head -n1 || true)
           if [[ -n "$RELEASE_BRANCH" ]]; then
             PRIORITY_BRANCH="$RELEASE_BRANCH"
           else
             # 2. Fallback to main
-            MAIN_BRANCH=$(echo "$PREVIOUS_BRANCHES" | grep -E '^origin/main$')
+            MAIN_BRANCH=$(echo "$PREVIOUS_BRANCHES" | grep -E '^origin/main$' || true)
             if [[ -n "$MAIN_BRANCH" ]]; then
               PRIORITY_BRANCH="$MAIN_BRANCH"
             else
               # 3. Fallback to the first other branch
-              PRIORITY_BRANCH=$(echo "$PREVIOUS_BRANCHES" | head -n1)
+              PRIORITY_BRANCH=$(echo "$PREVIOUS_BRANCHES" | head -n1 || true)
             fi
           fi
 
