@@ -17,12 +17,22 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/zncdatadev/operator-go/pkg/constants"
-	"github.com/zncdatadev/operator-go/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/common"
+	"github.com/zncdatadev/operator-go/pkg/constant"
+)
+
+// Role names. These are the keys used in the GenericClusterSpec.Roles map and in
+// {cluster}-{role}-{group} resource names produced by the SDK.
+const (
+	NameNodeRoleName    = "namenode"
+	DataNodeRoleName    = "datanode"
+	JournalNodeRoleName = "journalnode"
 )
 
 // file name
@@ -62,13 +72,13 @@ const (
 
 // directory
 const (
-	NameNodeRootDataDir    = constants.KubedoopDataDir + "namenode"
-	JournalNodeRootDataDir = constants.KubedoopDataDir + "journalnode"
+	NameNodeRootDataDir    = constant.KubedoopDataDir + "namenode"
+	JournalNodeRootDataDir = constant.KubedoopDataDir + "journalnode"
 
-	DataNodeRootDataDirPrefix = constants.KubedoopDataDir
+	DataNodeRootDataDirPrefix = constant.KubedoopDataDir
 	DataNodeRootDataDirSuffix = "/datanode"
 
-	HadoopHome = constants.KubedoopRoot + "/hadoop"
+	HadoopHome = constant.KubedoopRoot + "/hadoop"
 )
 
 // port names
@@ -116,8 +126,15 @@ type HdfsCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   HdfsClusterSpec `json:"spec,omitempty"`
-	Status status.Status   `json:"status,omitempty"`
+	Spec   HdfsClusterSpec   `json:"spec,omitempty"`
+	Status HdfsClusterStatus `json:"status,omitempty"`
+}
+
+// HdfsClusterStatus defines the observed state of HdfsCluster.
+// It embeds the SDK GenericClusterStatus (Conditions, RoleGroups, ObservedGeneration)
+// and can be extended with HDFS-specific status fields.
+type HdfsClusterStatus struct {
+	commonsv1alpha1.GenericClusterStatus `json:",inline"`
 }
 
 // +kubebuilder:object:root=true
@@ -131,53 +148,46 @@ type HdfsClusterList struct {
 
 // HdfsClusterSpec defines the desired state of HdfsCluster
 type HdfsClusterSpec struct {
+	// Image specifies the HDFS container image configuration.
+	// If not set, the webhook defaulter should provide product defaults.
 	// +kubebuilder:validation:Optional
-	// +default:value={"repo": "quay.io/zncdatadev", "pullPolicy": "IfNotPresent"}
-	Image *ImageSpec `json:"image,omitempty"`
+	Image *commonsv1alpha1.ImageSpec `json:"image,omitempty"`
 
+	// ClusterOperation controls operator behavior at runtime (pause/stop).
 	// +kubebuilder:validation:Optional
-	ClusterOperationSpec *commonsv1alpha1.ClusterOperationSpec `json:"clusterOperation,omitempty"`
+	ClusterOperation *commonsv1alpha1.ClusterOperationSpec `json:"clusterOperation,omitempty"`
 
+	// ClusterConfig holds HDFS cluster-wide, product-specific configuration. It is NOT part of
+	// the SDK GenericClusterSpec; the product handler/ProductConfig reads it directly.
 	// +kubebuilder:validation:Required
 	ClusterConfig *ClusterConfigSpec `json:"clusterConfig,omitempty"`
 
-	// roles defined: nameNode, dataNode, journalNode
+	// NameNodes defines the NameNode role (metadata servers; HA usually runs 2+).
 	// +kubebuilder:validation:Required
-	NameNode *RoleSpec `json:"nameNode,omitempty"`
+	NameNodes *NameNodeSpec `json:"nameNodes,omitempty"`
 
+	// DataNodes defines the DataNode role (storage workers).
 	// +kubebuilder:validation:Required
-	DataNode *RoleSpec `json:"dataNode,omitempty"`
+	DataNodes *DataNodeSpec `json:"dataNodes,omitempty"`
 
+	// JournalNodes defines the JournalNode role (metadata edit log quorum; odd replica count).
 	// +kubebuilder:validation:Required
-	JournalNode *RoleSpec `json:"journalNode,omitempty"`
+	JournalNodes *JournalNodeSpec `json:"journalNodes,omitempty"`
 }
 
-type RoleSpec struct {
-	// +kubebuilder:validation:Optional
-	Config *ConfigSpec `json:"config,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	RoleGroups map[string]RoleGroupSpec `json:"roleGroups,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	RoleConfig *commonsv1alpha1.RoleConfigSpec `json:"roleConfig,omitempty"`
-
-	*commonsv1alpha1.OverridesSpec `json:",inline"`
+// NameNodeSpec embeds the SDK generic RoleSpec and can carry NameNode-specific fields.
+type NameNodeSpec struct {
+	commonsv1alpha1.RoleSpec `json:",inline"`
 }
 
-type RoleGroupSpec struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=1
-	Replicas *int32 `json:"replicas,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	Config *ConfigSpec `json:"config,omitempty"`
-
-	*commonsv1alpha1.OverridesSpec `json:",inline"`
+// DataNodeSpec embeds the SDK generic RoleSpec and can carry DataNode-specific fields.
+type DataNodeSpec struct {
+	commonsv1alpha1.RoleSpec `json:",inline"`
 }
-type ConfigSpec struct {
-	*commonsv1alpha1.RoleGroupConfigSpec `json:",inline"`
-	ListenerClass                        *string `json:"listenerClass,omitempty"`
+
+// JournalNodeSpec embeds the SDK generic RoleSpec and can carry JournalNode-specific fields.
+type JournalNodeSpec struct {
+	commonsv1alpha1.RoleSpec `json:",inline"`
 }
 
 type ClusterConfigSpec struct {
@@ -282,6 +292,69 @@ type ServiceSpec struct {
 	// +kubebuilder:default=18080
 	Port int32 `json:"port,omitempty"`
 }
+
+// ==================== ClusterInterface Implementation ====================
+// HdfsCluster implements common.ClusterInterface so the SDK GenericReconciler can drive it.
+// GetName/GetNamespace/GetLabels/GetAnnotations are inherited from the embedded ObjectMeta.
+
+// GetSpec bridges the type-safe role fields (NameNodes/DataNodes/JournalNodes) to the SDK's
+// generic Roles map, keyed by the canonical role names. It does not expose ClusterConfig,
+// which stays product-specific and is read directly from the typed CR.
+func (c *HdfsCluster) GetSpec() *commonsv1alpha1.GenericClusterSpec {
+	roles := make(map[string]commonsv1alpha1.RoleSpec)
+	if c.Spec.NameNodes != nil {
+		roles[NameNodeRoleName] = c.Spec.NameNodes.RoleSpec
+	}
+	if c.Spec.DataNodes != nil {
+		roles[DataNodeRoleName] = c.Spec.DataNodes.RoleSpec
+	}
+	if c.Spec.JournalNodes != nil {
+		roles[JournalNodeRoleName] = c.Spec.JournalNodes.RoleSpec
+	}
+	return &commonsv1alpha1.GenericClusterSpec{
+		Image:            c.Spec.Image,
+		ClusterOperation: c.Spec.ClusterOperation,
+		Roles:            roles,
+	}
+}
+
+// GetStatus returns the generic cluster status.
+func (c *HdfsCluster) GetStatus() *commonsv1alpha1.GenericClusterStatus {
+	return &c.Status.GenericClusterStatus
+}
+
+// SetStatus sets the generic cluster status.
+func (c *HdfsCluster) SetStatus(status *commonsv1alpha1.GenericClusterStatus) {
+	c.Status.GenericClusterStatus = *status
+}
+
+// DeepCopyCluster returns a deep copy as a ClusterInterface.
+func (c *HdfsCluster) DeepCopyCluster() common.ClusterInterface {
+	return c.DeepCopy()
+}
+
+// GetRuntimeObject returns the underlying runtime.Object.
+func (c *HdfsCluster) GetRuntimeObject() runtime.Object {
+	return c
+}
+
+// GetObjectMeta returns the object metadata.
+func (c *HdfsCluster) GetObjectMeta() *metav1.ObjectMeta {
+	return &c.ObjectMeta
+}
+
+// GetScheme returns the runtime scheme (set by the manager).
+func (c *HdfsCluster) GetScheme() *runtime.Scheme {
+	return nil
+}
+
+// GetUID returns the cluster UID.
+func (c *HdfsCluster) GetUID() types.UID {
+	return c.UID
+}
+
+// Ensure HdfsCluster satisfies the SDK ClusterInterface.
+var _ common.ClusterInterface = &HdfsCluster{}
 
 func init() {
 	SchemeBuilder.Register(&HdfsCluster{}, &HdfsClusterList{})

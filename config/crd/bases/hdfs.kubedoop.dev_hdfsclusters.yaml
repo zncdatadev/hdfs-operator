@@ -40,6 +40,9 @@ spec:
             description: HdfsClusterSpec defines the desired state of HdfsCluster
             properties:
               clusterConfig:
+                description: |-
+                  ClusterConfig holds HDFS cluster-wide, product-specific configuration. It is NOT part of
+                  the SDK GenericClusterSpec; the product handler/ProductConfig reads it directly.
                 properties:
                   authentication:
                     properties:
@@ -111,7 +114,8 @@ spec:
                     type: string
                 type: object
               clusterOperation:
-                description: ClusterOperationSpec defines the desired state of ClusterOperation
+                description: ClusterOperation controls operator behavior at runtime
+                  (pause/stop).
                 properties:
                   reconciliationPaused:
                     default: false
@@ -120,21 +124,28 @@ spec:
                     default: false
                     type: boolean
                 type: object
-              dataNode:
+              dataNodes:
+                description: DataNodes defines the DataNode role (storage workers).
                 properties:
                   cliOverrides:
+                    description: |-
+                      CliOverrides allows customization of CLI arguments.
+                      These overrides apply to all RoleGroups unless overridden.
                     items:
                       type: string
                     type: array
                   config:
+                    description: |-
+                      Config contains workload runtime configuration defaults for all RoleGroups.
+                      Each RoleGroup inherits these values and can selectively override them.
+                      Key distinction from 'roleConfig': this is workload behavior (resources, affinity, logging)
+                      that propagates to RoleGroups, while roleConfig is Kubernetes resource management.
                     properties:
                       affinity:
                         type: object
                         x-kubernetes-preserve-unknown-fields: true
                       gracefulShutdownTimeout:
                         default: 30s
-                        type: string
-                      listenerClass:
                         type: string
                       logging:
                         properties:
@@ -265,15 +276,28 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
+                    description: |-
+                      ConfigOverrides allows customization of configuration files (e.g., XML, properties).
+                      Map[FileName]Map[Key]Value. These overrides apply to all RoleGroups unless overridden.
                     type: object
                   envOverrides:
                     additionalProperties:
                       type: string
+                    description: |-
+                      EnvOverrides allows customization of environment variables.
+                      These overrides apply to all RoleGroups unless overridden.
                     type: object
                   podOverrides:
+                    description: |-
+                      PodOverrides allows customization of Pod template using Strategic Merge Patch.
+                      These overrides apply to all RoleGroups unless overridden.
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
                   roleConfig:
+                    description: |-
+                      RoleConfig contains Kubernetes-level role management controls.
+                      These settings are role-scoped and NOT inherited or overridden by individual RoleGroups.
+                      Examples: PodDisruptionBudget that covers all Pods across all RoleGroups.
                     properties:
                       podDisruptionBudget:
                         description: |-
@@ -299,20 +323,27 @@ spec:
                     type: object
                   roleGroups:
                     additionalProperties:
+                      description: |-
+                        RoleGroupSpec defines the configuration for a role group.
+                        Each RoleGroup maps directly to a Kubernetes StatefulSet and its associated resources.
                       properties:
                         cliOverrides:
+                          description: |-
+                            CliOverrides allows customization of CLI arguments.
+                            RoleGroup overrides take precedence over Role overrides.
                           items:
                             type: string
                           type: array
                         config:
+                          description: |-
+                            Config contains role group level configurations.
+                            These include resource limits, affinity, and logging settings.
                           properties:
                             affinity:
                               type: object
                               x-kubernetes-preserve-unknown-fields: true
                             gracefulShutdownTimeout:
                               default: 30s
-                              type: string
-                            listenerClass:
                               type: string
                             logging:
                               properties:
@@ -443,59 +474,95 @@ spec:
                             additionalProperties:
                               type: string
                             type: object
+                          description: |-
+                            ConfigOverrides allows customization of configuration files (e.g., XML, properties).
+                            Map[FileName]Map[Key]Value. RoleGroup overrides take precedence over Role overrides.
                           type: object
                         envOverrides:
                           additionalProperties:
                             type: string
+                          description: |-
+                            EnvOverrides allows customization of environment variables.
+                            RoleGroup overrides take precedence over Role overrides.
                           type: object
                         podOverrides:
+                          description: |-
+                            PodOverrides allows customization of Pod template using Strategic Merge Patch.
+                            RoleGroup overrides take precedence over Role overrides.
                           type: object
                           x-kubernetes-preserve-unknown-fields: true
                         replicas:
                           default: 1
+                          description: Replicas is the number of pod replicas for
+                            this role group.
                           format: int32
+                          minimum: 0
                           type: integer
                       type: object
+                    description: |-
+                      RoleGroups defines the role group configurations.
+                      Each RoleGroup maps to a Kubernetes StatefulSet.
                     type: object
                 type: object
               image:
-                default:
-                  pullPolicy: IfNotPresent
-                  repo: quay.io/zncdatadev
+                description: |-
+                  Image specifies the HDFS container image configuration.
+                  If not set, the webhook defaulter should provide product defaults.
                 properties:
                   custom:
+                    description: |-
+                      Custom is a fully qualified image reference (e.g. "my-registry.com/ns/product:3.4.1").
+                      When set, Repo, ProductVersion and KubedoopVersion are ignored.
                     type: string
                   kubedoopVersion:
+                    description: |-
+                      KubedoopVersion is the version of the kubedoop operator stack (e.g. "0.2.0").
+                      Used only when Custom is not set.
                     type: string
                   productVersion:
-                    default: 3.3.6
+                    description: |-
+                      ProductVersion is the version of the product to deploy (e.g. "3.4.1").
+                      Used only when Custom is not set.
                     type: string
                   pullPolicy:
                     default: IfNotPresent
-                    description: PullPolicy describes a policy for if/when to pull
-                      a container image
-                    type: string
-                  pullSecretName:
+                    description: |-
+                      PullPolicy defines the image pull policy for the container.
+                      Defaults to IfNotPresent.
+                    enum:
+                    - Always
+                    - Never
+                    - IfNotPresent
                     type: string
                   repo:
-                    default: quay.io/zncdatadev
+                    description: |-
+                      Repo is the image repository (e.g. "quay.io/kubedoop").
+                      Used only when Custom is not set.
                     type: string
                 type: object
-              journalNode:
+              journalNodes:
+                description: JournalNodes defines the JournalNode role (metadata edit
+                  log quorum; odd replica count).
                 properties:
                   cliOverrides:
+                    description: |-
+                      CliOverrides allows customization of CLI arguments.
+                      These overrides apply to all RoleGroups unless overridden.
                     items:
                       type: string
                     type: array
                   config:
+                    description: |-
+                      Config contains workload runtime configuration defaults for all RoleGroups.
+                      Each RoleGroup inherits these values and can selectively override them.
+                      Key distinction from 'roleConfig': this is workload behavior (resources, affinity, logging)
+                      that propagates to RoleGroups, while roleConfig is Kubernetes resource management.
                     properties:
                       affinity:
                         type: object
                         x-kubernetes-preserve-unknown-fields: true
                       gracefulShutdownTimeout:
                         default: 30s
-                        type: string
-                      listenerClass:
                         type: string
                       logging:
                         properties:
@@ -626,15 +693,28 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
+                    description: |-
+                      ConfigOverrides allows customization of configuration files (e.g., XML, properties).
+                      Map[FileName]Map[Key]Value. These overrides apply to all RoleGroups unless overridden.
                     type: object
                   envOverrides:
                     additionalProperties:
                       type: string
+                    description: |-
+                      EnvOverrides allows customization of environment variables.
+                      These overrides apply to all RoleGroups unless overridden.
                     type: object
                   podOverrides:
+                    description: |-
+                      PodOverrides allows customization of Pod template using Strategic Merge Patch.
+                      These overrides apply to all RoleGroups unless overridden.
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
                   roleConfig:
+                    description: |-
+                      RoleConfig contains Kubernetes-level role management controls.
+                      These settings are role-scoped and NOT inherited or overridden by individual RoleGroups.
+                      Examples: PodDisruptionBudget that covers all Pods across all RoleGroups.
                     properties:
                       podDisruptionBudget:
                         description: |-
@@ -660,20 +740,27 @@ spec:
                     type: object
                   roleGroups:
                     additionalProperties:
+                      description: |-
+                        RoleGroupSpec defines the configuration for a role group.
+                        Each RoleGroup maps directly to a Kubernetes StatefulSet and its associated resources.
                       properties:
                         cliOverrides:
+                          description: |-
+                            CliOverrides allows customization of CLI arguments.
+                            RoleGroup overrides take precedence over Role overrides.
                           items:
                             type: string
                           type: array
                         config:
+                          description: |-
+                            Config contains role group level configurations.
+                            These include resource limits, affinity, and logging settings.
                           properties:
                             affinity:
                               type: object
                               x-kubernetes-preserve-unknown-fields: true
                             gracefulShutdownTimeout:
                               default: 30s
-                              type: string
-                            listenerClass:
                               type: string
                             logging:
                               properties:
@@ -804,37 +891,59 @@ spec:
                             additionalProperties:
                               type: string
                             type: object
+                          description: |-
+                            ConfigOverrides allows customization of configuration files (e.g., XML, properties).
+                            Map[FileName]Map[Key]Value. RoleGroup overrides take precedence over Role overrides.
                           type: object
                         envOverrides:
                           additionalProperties:
                             type: string
+                          description: |-
+                            EnvOverrides allows customization of environment variables.
+                            RoleGroup overrides take precedence over Role overrides.
                           type: object
                         podOverrides:
+                          description: |-
+                            PodOverrides allows customization of Pod template using Strategic Merge Patch.
+                            RoleGroup overrides take precedence over Role overrides.
                           type: object
                           x-kubernetes-preserve-unknown-fields: true
                         replicas:
                           default: 1
+                          description: Replicas is the number of pod replicas for
+                            this role group.
                           format: int32
+                          minimum: 0
                           type: integer
                       type: object
+                    description: |-
+                      RoleGroups defines the role group configurations.
+                      Each RoleGroup maps to a Kubernetes StatefulSet.
                     type: object
                 type: object
-              nameNode:
-                description: 'roles defined: nameNode, dataNode, journalNode'
+              nameNodes:
+                description: NameNodes defines the NameNode role (metadata servers;
+                  HA usually runs 2+).
                 properties:
                   cliOverrides:
+                    description: |-
+                      CliOverrides allows customization of CLI arguments.
+                      These overrides apply to all RoleGroups unless overridden.
                     items:
                       type: string
                     type: array
                   config:
+                    description: |-
+                      Config contains workload runtime configuration defaults for all RoleGroups.
+                      Each RoleGroup inherits these values and can selectively override them.
+                      Key distinction from 'roleConfig': this is workload behavior (resources, affinity, logging)
+                      that propagates to RoleGroups, while roleConfig is Kubernetes resource management.
                     properties:
                       affinity:
                         type: object
                         x-kubernetes-preserve-unknown-fields: true
                       gracefulShutdownTimeout:
                         default: 30s
-                        type: string
-                      listenerClass:
                         type: string
                       logging:
                         properties:
@@ -965,15 +1074,28 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
+                    description: |-
+                      ConfigOverrides allows customization of configuration files (e.g., XML, properties).
+                      Map[FileName]Map[Key]Value. These overrides apply to all RoleGroups unless overridden.
                     type: object
                   envOverrides:
                     additionalProperties:
                       type: string
+                    description: |-
+                      EnvOverrides allows customization of environment variables.
+                      These overrides apply to all RoleGroups unless overridden.
                     type: object
                   podOverrides:
+                    description: |-
+                      PodOverrides allows customization of Pod template using Strategic Merge Patch.
+                      These overrides apply to all RoleGroups unless overridden.
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
                   roleConfig:
+                    description: |-
+                      RoleConfig contains Kubernetes-level role management controls.
+                      These settings are role-scoped and NOT inherited or overridden by individual RoleGroups.
+                      Examples: PodDisruptionBudget that covers all Pods across all RoleGroups.
                     properties:
                       podDisruptionBudget:
                         description: |-
@@ -999,20 +1121,27 @@ spec:
                     type: object
                   roleGroups:
                     additionalProperties:
+                      description: |-
+                        RoleGroupSpec defines the configuration for a role group.
+                        Each RoleGroup maps directly to a Kubernetes StatefulSet and its associated resources.
                       properties:
                         cliOverrides:
+                          description: |-
+                            CliOverrides allows customization of CLI arguments.
+                            RoleGroup overrides take precedence over Role overrides.
                           items:
                             type: string
                           type: array
                         config:
+                          description: |-
+                            Config contains role group level configurations.
+                            These include resource limits, affinity, and logging settings.
                           properties:
                             affinity:
                               type: object
                               x-kubernetes-preserve-unknown-fields: true
                             gracefulShutdownTimeout:
                               default: 30s
-                              type: string
-                            listenerClass:
                               type: string
                             logging:
                               properties:
@@ -1143,31 +1272,51 @@ spec:
                             additionalProperties:
                               type: string
                             type: object
+                          description: |-
+                            ConfigOverrides allows customization of configuration files (e.g., XML, properties).
+                            Map[FileName]Map[Key]Value. RoleGroup overrides take precedence over Role overrides.
                           type: object
                         envOverrides:
                           additionalProperties:
                             type: string
+                          description: |-
+                            EnvOverrides allows customization of environment variables.
+                            RoleGroup overrides take precedence over Role overrides.
                           type: object
                         podOverrides:
+                          description: |-
+                            PodOverrides allows customization of Pod template using Strategic Merge Patch.
+                            RoleGroup overrides take precedence over Role overrides.
                           type: object
                           x-kubernetes-preserve-unknown-fields: true
                         replicas:
                           default: 1
+                          description: Replicas is the number of pod replicas for
+                            this role group.
                           format: int32
+                          minimum: 0
                           type: integer
                       type: object
+                    description: |-
+                      RoleGroups defines the role group configurations.
+                      Each RoleGroup maps to a Kubernetes StatefulSet.
                     type: object
                 type: object
             required:
             - clusterConfig
-            - dataNode
-            - journalNode
-            - nameNode
+            - dataNodes
+            - journalNodes
+            - nameNodes
             type: object
           status:
-            description: Status defines the common status
+            description: |-
+              HdfsClusterStatus defines the observed state of HdfsCluster.
+              It embeds the SDK GenericClusterStatus (Conditions, RoleGroups, ObservedGeneration)
+              and can be extended with HDFS-specific status fields.
             properties:
               conditions:
+                description: Conditions represent the latest available observations
+                  of the cluster state.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -1223,26 +1372,25 @@ spec:
                   - type
                   type: object
                 type: array
-              generation:
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the most recent generation observed for this cluster.
+                  It corresponds to the metadata generation of the CR.
                 format: int64
                 type: integer
-              name:
-                type: string
-              type:
-                type: string
-              urls:
-                items:
-                  description: URL is a URL with a name
-                  properties:
-                    name:
-                      type: string
-                    url:
-                      type: string
-                  required:
-                  - name
-                  - url
-                  type: object
-                type: array
+              roleGroups:
+                additionalProperties:
+                  items:
+                    type: string
+                  type: array
+                description: |-
+                  RoleGroups tracks the actual deployed role groups.
+                  Map key is the role name, value is the list of role group names.
+                  This is used for orphaned resource cleanup.
+                type: object
             type: object
         type: object
     served: true

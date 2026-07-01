@@ -28,6 +28,7 @@ import (
 
 	authv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/authentication/v1alpha1"
 	listenerv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/listeners/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -40,6 +41,7 @@ import (
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/controller"
+	"github.com/zncdatadev/hdfs-operator/internal/product"
 	"github.com/zncdatadev/hdfs-operator/internal/util/version"
 	// +kubebuilder:scaffold:imports
 )
@@ -191,11 +193,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.HdfsClusterReconciler{
+	// Build the HDFS role group handler (embeds the SDK BaseRoleGroupHandler; the framework
+	// owns resource orchestration) and wire it into the SDK GenericReconciler. The product's
+	// computed config flows through the merge pipeline as the lowest layer via product.ComputeConfig.
+	roleGroupHandler := controller.NewHdfsRoleGroupHandler(mgr.GetScheme())
+	reconcilerCfg := &reconciler.GenericReconcilerConfig[*hdfsv1alpha1.HdfsCluster]{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		Log:    setupLog,
-	}).SetupWithManager(mgr); err != nil {
+		//nolint:staticcheck // SDK Recorder uses the old events API; migrate when it exposes GetEventRecorder.
+		Recorder:         mgr.GetEventRecorderFor("hdfs-cluster-controller"),
+		RoleGroupHandler: roleGroupHandler,
+		ProductConfig:    product.ComputeConfig,
+		Prototype:        &hdfsv1alpha1.HdfsCluster{},
+	}
+
+	hdfsReconciler, err := reconciler.NewGenericReconciler(reconcilerCfg)
+	if err != nil {
+		setupLog.Error(err, "unable to create reconciler")
+		os.Exit(1)
+	}
+	if err = hdfsReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HdfsCluster")
 		os.Exit(1)
 	}
