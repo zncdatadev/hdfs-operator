@@ -22,6 +22,7 @@ import (
 
 	"github.com/zncdatadev/operator-go/pkg/config"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -114,20 +115,73 @@ func (h *HdfsRoleGroupHandler) BuildResources(
 		return nil, err
 	}
 
-	// The image is declared in the CR spec and resolved with the product name; override the
-	// framework's operator-default image on the StatefulSet when the user set spec.image.
-	if cr.Spec.Image != nil && resources.StatefulSet != nil {
-		image := cr.Spec.Image.GetImage(constants.ProductName)
-		if image != "" {
-			containers := resources.StatefulSet.Spec.Template.Spec.Containers
-			for i := range containers {
-				containers[i].Image = image
-				containers[i].ImagePullPolicy = cr.Spec.Image.GetPullPolicy()
-			}
-		}
+	if resources.StatefulSet != nil {
+		h.applyMainContainer(cr, buildCtx.RoleName, resources.StatefulSet)
 	}
 
 	return resources, nil
+}
+
+// applyMainContainer sets the CR-driven image, the common env vars, and the role startup command
+// on the primary container of the StatefulSet.
+//
+// NOTE (skeleton): the DataNode registration env (POD_ADDRESS/IPC_PORT/DATA_PORT), init
+// containers (format-namenode/format-zk/wait-for-namenodes), the ZKFC sidecar, and Kerberos/TLS
+// wiring are added in later phases.
+func (h *HdfsRoleGroupHandler) applyMainContainer(cr *hdfsv1alpha1.HdfsCluster, roleName string, sts *appsv1.StatefulSet) {
+	containers := sts.Spec.Template.Spec.Containers
+	if len(containers) == 0 {
+		return
+	}
+	c := &containers[0]
+
+	if cr.Spec.Image != nil {
+		if image := cr.Spec.Image.GetImage(constants.ProductName); image != "" {
+			c.Image = image
+			c.ImagePullPolicy = cr.Spec.Image.GetPullPolicy()
+		}
+	}
+
+	c.Env = append(c.Env, commonEnv(cr, h.ConfigMountPath)...)
+	command, args := roleStartupCommand(roleName)
+	c.Command = command
+	c.Args = args
+}
+
+// commonEnv builds the env vars every HDFS container needs. HADOOP_CONF_DIR points at the path
+// where the framework mounts the config ConfigMap. POD_NAME and ZOOKEEPER are the ${env.X}
+// references the generated config depends on.
+func commonEnv(cr *hdfsv1alpha1.HdfsCluster, confDir string) []corev1.EnvVar {
+	env := []corev1.EnvVar{
+		{Name: constants.EnvHadoopHome, Value: hdfsv1alpha1.HadoopHome},
+		{Name: constants.EnvHadoopConfDir, Value: confDir},
+		{Name: constants.EnvPodName, ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.name"},
+		}},
+	}
+	if cr.Spec.ClusterConfig != nil && cr.Spec.ClusterConfig.ZookeeperConfigMapName != "" {
+		env = append(env, corev1.EnvVar{
+			Name: constants.EnvZookeeper,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: cr.Spec.ClusterConfig.ZookeeperConfigMapName},
+					Key:                  constants.ZookeeperDiscoveryKey,
+				},
+			},
+		})
+	}
+	return env
+}
+
+// roleStartupCommand returns the bash command/args that launch the HDFS daemon for a role.
+func roleStartupCommand(roleName string) (command []string, args []string) {
+	subcommand := map[string]string{
+		hdfsv1alpha1.NameNodeRoleName:    "namenode",
+		hdfsv1alpha1.DataNodeRoleName:    "datanode",
+		hdfsv1alpha1.JournalNodeRoleName: "journalnode",
+	}[roleName]
+	script := fmt.Sprintf("exec %s/bin/hdfs %s", hdfsv1alpha1.HadoopHome, subcommand)
+	return []string{"/bin/bash", "-c"}, []string{script}
 }
 
 // defaultImage is the operator's default HDFS image. The CR's spec.image overrides it per

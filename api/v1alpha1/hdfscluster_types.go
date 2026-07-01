@@ -78,7 +78,8 @@ const (
 	DataNodeRootDataDirPrefix = constant.KubedoopDataDir
 	DataNodeRootDataDirSuffix = "/datanode"
 
-	HadoopHome = constant.KubedoopRoot + "/hadoop"
+	// KubedoopRoot already ends with a slash, so no extra separator is needed here.
+	HadoopHome = constant.KubedoopRoot + "hadoop"
 )
 
 // port names

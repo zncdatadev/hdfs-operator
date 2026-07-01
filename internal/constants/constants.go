@@ -42,3 +42,16 @@ const (
 	CoreSiteXML = "core-site.xml"
 	HdfsSiteXML = "hdfs-site.xml"
 )
+
+// ZookeeperDiscoveryKey is the key, in the user-provided zookeeperConfigMap, whose value is the
+// ZooKeeper connection string. It is exposed to containers as the ZOOKEEPER env var, which the
+// generated config references as ${env.ZOOKEEPER}.
+const ZookeeperDiscoveryKey = "ZOOKEEPER"
+
+// Container env var names.
+const (
+	EnvHadoopHome    = "HADOOP_HOME"
+	EnvHadoopConfDir = "HADOOP_CONF_DIR"
+	EnvPodName       = "POD_NAME"
+	EnvZookeeper     = "ZOOKEEPER"
+)
