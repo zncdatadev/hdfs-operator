@@ -91,14 +91,50 @@ func TestMainContainerScript(t *testing.T) {
 		hdfsv1alpha1.DataNodeRoleName:    "exec /kubedoop/hadoop/bin/hdfs datanode",
 		hdfsv1alpha1.JournalNodeRoleName: "exec /kubedoop/hadoop/bin/hdfs journalnode",
 	}
+	cr := &hdfsv1alpha1.HdfsCluster{Spec: hdfsv1alpha1.HdfsClusterSpec{ClusterConfig: &hdfsv1alpha1.ClusterConfigSpec{}}}
 	for role, wantExec := range cases {
-		script := mainContainerScript(role)
+		script := mainContainerScript(cr, role)
 		if !strings.Contains(script, wantExec) {
 			t.Errorf("%s script missing %q:\n%s", role, wantExec, script)
 		}
 		if !strings.Contains(script, "POD_ADDRESS") {
 			t.Errorf("%s script should export POD_ADDRESS from the listener mount", role)
 		}
+		if strings.Contains(script, "KERBEROS_REALM") {
+			t.Errorf("%s script should not export KERBEROS_REALM when kerberos is off", role)
+		}
+	}
+}
+
+func TestKerberos(t *testing.T) {
+	cr := crWithNameNodes()
+	cr.Spec.ClusterConfig.Authentication = &hdfsv1alpha1.AuthenticationSpec{
+		Kerberos: &hdfsv1alpha1.KerberosSpec{SecretClass: "kerberos"},
+	}
+
+	// secret volume registered per role, named "kerberos"
+	p := kerberosSecretProvisioner(cr, hdfsv1alpha1.NameNodeRoleName)
+	if p == nil {
+		t.Fatal("expected a kerberos provisioner when enabled")
+	}
+	if vols := p.Volumes(); len(vols) != 1 || vols[0].Name != constants.KerberosSecretVolumeName {
+		t.Errorf("expected a single %q volume, got %+v", constants.KerberosSecretVolumeName, vols)
+	}
+
+	// KRB5 env on the container
+	env := commonEnv(cr, "/x")
+	if e := envByName(env, "KRB5_CONFIG"); e == nil || e.Value != "/kubedoop/kerberos/krb5.conf" {
+		t.Errorf("KRB5_CONFIG = %+v, want /kubedoop/kerberos/krb5.conf", e)
+	}
+
+	// realm export in the startup script
+	if !strings.Contains(mainContainerScript(cr, hdfsv1alpha1.NameNodeRoleName), "KERBEROS_REALM") {
+		t.Error("main script should export KERBEROS_REALM when kerberos enabled")
+	}
+
+	// disabled → nil
+	if kerberosSecretProvisioner(crWithNameNodes(), hdfsv1alpha1.NameNodeRoleName) != nil {
+		t.Error("expected nil kerberos provisioner when disabled")
 	}
 }
 

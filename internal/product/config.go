@@ -34,7 +34,15 @@ import (
 	"github.com/zncdatadev/hdfs-operator/internal/constants"
 )
 
-const defaultJksPassword = "changeit"
+const (
+	defaultJksPassword = "changeit"
+	// kerberosRealm is resolved at runtime from krb5.conf and exported as KERBEROS_REALM; the
+	// principals below reference it so the config is realm-agnostic.
+	kerberosRealm          = "${env.KERBEROS_REALM}"
+	dataTransferProtection = "privacy"
+	keytabFile             = "keytab"
+	authKerberos           = "kerberos"
+)
 
 const (
 	defaultClusterDomain = "cluster.local"
@@ -114,9 +122,60 @@ func sslClientConfig(cr *hdfsv1alpha1.HdfsCluster) map[string]string {
 // cluster name), and the ZooKeeper quorum is resolved at runtime from an env var injected from
 // the user's zookeeperConfigMap.
 func coreSiteConfig(cr *hdfsv1alpha1.HdfsCluster) map[string]string {
-	return map[string]string{
+	props := map[string]string{
 		"fs.defaultFS":        fmt.Sprintf("hdfs://%s/", cr.Name),
 		"ha.zookeeper.quorum": "${env.ZOOKEEPER}",
+	}
+	if kerberosEnabled(cr) {
+		for k, v := range kerberosCoreSite(cr) {
+			props[k] = v
+		}
+	}
+	return props
+}
+
+// kerberosEnabled reports whether the CR requests Kerberos authentication.
+func kerberosEnabled(cr *hdfsv1alpha1.HdfsCluster) bool {
+	return cr.Spec.ClusterConfig != nil &&
+		cr.Spec.ClusterConfig.Authentication != nil &&
+		cr.Spec.ClusterConfig.Authentication.Kerberos != nil
+}
+
+// principalHostPart is the shared host/realm suffix of every service principal:
+// {cluster}.{namespace}.svc.cluster.local@${env.KERBEROS_REALM}.
+func principalHostPart(cr *hdfsv1alpha1.HdfsCluster) string {
+	return fmt.Sprintf("%s.%s.svc.cluster.local@%s", cr.Name, cr.Namespace, kerberosRealm)
+}
+
+// kerberosCoreSite returns the core-site.xml Kerberos keys: authentication mode, the per-role
+// service principals (+ SPNEGO/HTTP), the keytab locations and principal patterns.
+func kerberosCoreSite(cr *hdfsv1alpha1.HdfsCluster) map[string]string {
+	host := principalHostPart(cr)
+	keytab := path.Join(constant.KubedoopKerberosDir, keytabFile)
+	return map[string]string{
+		"hadoop.security.authentication":                     authKerberos,
+		"hadoop.rpc.protection":                              dataTransferProtection,
+		"dfs.journalnode.kerberos.principal":                 "jn/" + host,
+		"dfs.namenode.kerberos.principal":                    "nn/" + host,
+		"dfs.datanode.kerberos.principal":                    "dn/" + host,
+		"dfs.web.authentication.kerberos.principal":          "HTTP/" + host,
+		"dfs.journalnode.kerberos.internal.spnego.principal": "jn/" + host,
+		"dfs.journalnode.keytab.file":                        keytab,
+		"dfs.namenode.keytab.file":                           keytab,
+		"dfs.datanode.keytab.file":                           keytab,
+		"dfs.journalnode.kerberos.principal.pattern":         "jn/" + host,
+		"dfs.namenode.kerberos.principal.pattern":            "nn/" + host,
+	}
+}
+
+// kerberosHdfsSite returns the hdfs-site.xml Kerberos keys: block access tokens, keytab login
+// autorenewal, and on-the-wire encryption (privacy).
+func kerberosHdfsSite() map[string]string {
+	return map[string]string{
+		"dfs.block.access.token.enable":                    xmlTrue,
+		"hadoop.kerberos.keytab.login.autorenewal.enabled": xmlTrue,
+		"dfs.encrypt.data.transfer":                        xmlTrue,
+		"dfs.data.transfer.protection":                     dataTransferProtection,
 	}
 }
 
@@ -166,6 +225,12 @@ func hdfsSiteConfig(cr *hdfsv1alpha1.HdfsCluster, roleName string) map[string]st
 		props["dfs.http.policy"] = "HTTPS_ONLY"
 		props["dfs.https.server.keystore.resource"] = constants.SslServerXML
 		props["dfs.https.client.keystore.resource"] = constants.SslClientXML
+	}
+
+	if kerberosEnabled(cr) {
+		for k, v := range kerberosHdfsSite() {
+			props[k] = v
+		}
 	}
 
 	return props

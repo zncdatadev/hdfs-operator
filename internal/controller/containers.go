@@ -78,15 +78,26 @@ func exportPodAddressScript() string {
 fi`, l)
 }
 
-// mainContainerScript is the primary container's startup: export the listener address, then exec
-// the HDFS daemon for the role.
-func mainContainerScript(roleName string) string {
+// exportKerberosRealmScript resolves the Kerberos realm from the mounted krb5.conf and exports it
+// as KERBEROS_REALM, which the generated principals reference as ${env.KERBEROS_REALM}. Empty when
+// Kerberos is disabled.
+func exportKerberosRealmScript(cr *hdfsv1alpha1.HdfsCluster) string {
+	if !kerberosEnabled(cr) {
+		return ""
+	}
+	krb5 := path.Join(constant.KubedoopKerberosDir, constants.Krb5ConfFile)
+	return fmt.Sprintf("export KERBEROS_REALM=$(grep -oP 'default_realm = \\K.*' %s)\n", krb5)
+}
+
+// mainContainerScript is the primary container's startup: resolve the Kerberos realm (if any),
+// export the listener address, then exec the HDFS daemon for the role.
+func mainContainerScript(cr *hdfsv1alpha1.HdfsCluster, roleName string) string {
 	sub := map[string]string{
 		hdfsv1alpha1.NameNodeRoleName:    "namenode",
 		hdfsv1alpha1.DataNodeRoleName:    "datanode",
 		hdfsv1alpha1.JournalNodeRoleName: "journalnode",
 	}[roleName]
-	return exportPodAddressScript() + "\n" + fmt.Sprintf("exec %s %s", hdfsBin, sub)
+	return exportKerberosRealmScript(cr) + exportPodAddressScript() + "\n" + fmt.Sprintf("exec %s %s", hdfsBin, sub)
 }
 
 // newContainer builds a bash-driven container with the common env and the given volume mounts.

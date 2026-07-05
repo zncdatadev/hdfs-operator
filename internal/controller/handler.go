@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"path"
 
 	"github.com/zncdatadev/operator-go/pkg/config"
 	"github.com/zncdatadev/operator-go/pkg/constant"
@@ -104,6 +105,40 @@ func tlsSecretProvisioner(cr *hdfsv1alpha1.HdfsCluster) *security.SecretProvisio
 	)
 }
 
+// kerberosServiceNames maps an HDFS role to its Kerberos service (principal) short name.
+var kerberosServiceNames = map[string]string{
+	hdfsv1alpha1.NameNodeRoleName:    "nn",
+	hdfsv1alpha1.DataNodeRoleName:    "dn",
+	hdfsv1alpha1.JournalNodeRoleName: "jn",
+}
+
+// kerberosSecretProvisioner returns a SecretProvisioner that mounts the role's Kerberos keytab +
+// krb5.conf (named constants.KerberosSecretVolumeName), or nil when Kerberos is disabled. The
+// secret is service-scoped so the KDC issues a principal for the cluster's service DNS.
+func kerberosSecretProvisioner(cr *hdfsv1alpha1.HdfsCluster, roleName string) *security.SecretProvisioner {
+	if cr.Spec.ClusterConfig == nil ||
+		cr.Spec.ClusterConfig.Authentication == nil ||
+		cr.Spec.ClusterConfig.Authentication.Kerberos == nil {
+		return nil
+	}
+	svc, ok := kerberosServiceNames[roleName]
+	if !ok {
+		return nil
+	}
+	secretClass := cr.Spec.ClusterConfig.Authentication.Kerberos.SecretClass
+	return security.NewSecretProvisioner().Register(
+		security.KerberosVolume(constants.KerberosSecretVolumeName, secretClass, svc, "HTTP").
+			WithScope("service=" + cr.Name),
+	)
+}
+
+// kerberosEnabled reports whether the CR requests Kerberos (controller-side check).
+func kerberosEnabled(cr *hdfsv1alpha1.HdfsCluster) bool {
+	return cr.Spec.ClusterConfig != nil &&
+		cr.Spec.ClusterConfig.Authentication != nil &&
+		cr.Spec.ClusterConfig.Authentication.Kerberos != nil
+}
+
 // setRolePorts declares the container/service ports for each role.
 func setRolePorts(base *reconciler.BaseRoleGroupHandler[*hdfsv1alpha1.HdfsCluster]) {
 	rolePorts := map[string][]struct {
@@ -162,6 +197,11 @@ func (h *HdfsRoleGroupHandler) BuildResources(
 	// Register the TLS secret volume (keystore/truststore) when the CR enables TLS. The secret
 	// provisioner satisfies the same VolumeProvider contract as the listener volume.
 	if p := tlsSecretProvisioner(cr); p != nil {
+		buildCtx.VolumeProviders = append(buildCtx.VolumeProviders, p)
+	}
+
+	// Register the Kerberos secret volume (keytab + krb5.conf) for the role when enabled.
+	if p := kerberosSecretProvisioner(cr, buildCtx.RoleName); p != nil {
 		buildCtx.VolumeProviders = append(buildCtx.VolumeProviders, p)
 	}
 
@@ -229,7 +269,7 @@ func (h *HdfsRoleGroupHandler) applyMainContainer(cr *hdfsv1alpha1.HdfsCluster, 
 
 	c.Env = append(c.Env, commonEnv(cr, h.ConfigMountPath)...)
 	c.Command = []string{"/bin/bash", "-c"}
-	c.Args = []string{mainContainerScript(roleName)}
+	c.Args = []string{mainContainerScript(cr, roleName)}
 }
 
 // commonEnv builds the env vars every HDFS container needs. HADOOP_CONF_DIR points at the path
@@ -253,6 +293,14 @@ func commonEnv(cr *hdfsv1alpha1.HdfsCluster, confDir string) []corev1.EnvVar {
 				},
 			},
 		})
+	}
+	if kerberosEnabled(cr) {
+		krb5 := path.Join(constant.KubedoopKerberosDir, constants.Krb5ConfFile)
+		env = append(env,
+			corev1.EnvVar{Name: "KRB5_CONFIG", Value: krb5},
+			corev1.EnvVar{Name: "KRB5_CLIENT_KTNAME", Value: path.Join(constant.KubedoopKerberosDir, constants.KeytabFile)},
+			corev1.EnvVar{Name: "HADOOP_OPTS", Value: "-Djava.security.krb5.conf=" + krb5},
+		)
 	}
 	return env
 }

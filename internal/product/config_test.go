@@ -98,6 +98,29 @@ func TestComputeConfig_NoTLS(t *testing.T) {
 	}
 }
 
+func TestComputeConfig_Kerberos(t *testing.T) {
+	cr := testCluster()
+	cr.Spec.ClusterConfig.Authentication = &hdfsv1alpha1.AuthenticationSpec{
+		Kerberos: &hdfsv1alpha1.KerberosSpec{SecretClass: "kerberos"},
+	}
+	out := ComputeConfig(cr, hdfsv1alpha1.NameNodeRoleName, defaultGroup).ConfigOverrides
+
+	core := out["core-site.xml"]
+	if core["hadoop.security.authentication"] != "kerberos" {
+		t.Errorf("hadoop.security.authentication = %q, want kerberos", core["hadoop.security.authentication"])
+	}
+	wantNN := "nn/simple-hdfs.default.svc.cluster.local@${env.KERBEROS_REALM}"
+	if core["dfs.namenode.kerberos.principal"] != wantNN {
+		t.Errorf("namenode principal = %q, want %q", core["dfs.namenode.kerberos.principal"], wantNN)
+	}
+	if core["dfs.namenode.keytab.file"] != "/kubedoop/kerberos/keytab" {
+		t.Errorf("namenode keytab = %q, want /kubedoop/kerberos/keytab", core["dfs.namenode.keytab.file"])
+	}
+	if out["hdfs-site.xml"]["dfs.data.transfer.protection"] != "privacy" {
+		t.Errorf("data.transfer.protection should be privacy")
+	}
+}
+
 func TestComputeConfig_HdfsSiteHA(t *testing.T) {
 	got := ComputeConfig(testCluster(), hdfsv1alpha1.DataNodeRoleName, defaultGroup).ConfigOverrides["hdfs-site.xml"]
 

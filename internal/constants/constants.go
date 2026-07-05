@@ -67,3 +67,10 @@ const (
 	KeystoreP12           = "keystore.p12"
 	TruststoreP12         = "truststore.p12"
 )
+
+// Kerberos. The SecretProvisioner mounts a keytab + krb5.conf under this volume.
+const (
+	KerberosSecretVolumeName = "kerberos"
+	Krb5ConfFile             = "krb5.conf"
+	KeytabFile               = "keytab"
+)
