@@ -24,6 +24,7 @@ import (
 	"github.com/zncdatadev/operator-go/pkg/constant"
 	"github.com/zncdatadev/operator-go/pkg/listener"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
+	"github.com/zncdatadev/operator-go/pkg/security"
 	"github.com/zncdatadev/operator-go/pkg/sidecar"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -77,6 +78,29 @@ const listenerVolumeName = "listener"
 func newListenerProvisioner() *listener.ListenerProvisioner {
 	return listener.NewProvisioner().RegisterVolume(
 		listener.NewVolume(listenerVolumeName, listener.ListenerClassClusterInternal),
+	)
+}
+
+// tlsSecretProvisioner returns a SecretProvisioner that mounts the TLS PKCS12 keystore/truststore
+// (named constants.TlsSecretVolumeName), or nil when the CR does not enable TLS. Defaults mirror
+// the CRD: secretClass "tls", password "changeit".
+func tlsSecretProvisioner(cr *hdfsv1alpha1.HdfsCluster) *security.SecretProvisioner {
+	if cr.Spec.ClusterConfig == nil ||
+		cr.Spec.ClusterConfig.Authentication == nil ||
+		cr.Spec.ClusterConfig.Authentication.Tls == nil {
+		return nil
+	}
+	tls := cr.Spec.ClusterConfig.Authentication.Tls
+	secretClass := tls.SecretClass
+	if secretClass == "" {
+		secretClass = constants.DefaultTlsSecretClass
+	}
+	password := tls.JksPassword
+	if password == "" {
+		password = "changeit"
+	}
+	return security.NewSecretProvisioner().Register(
+		security.TLS(constants.TlsSecretVolumeName, secretClass).WithPassword(password),
 	)
 }
 
@@ -134,6 +158,12 @@ func (h *HdfsRoleGroupHandler) BuildResources(
 	// and address advertisement). buildCtx.VolumeProviders is per-role/per-reconcile, so this
 	// never accumulates across reconciles.
 	buildCtx.VolumeProviders = append(buildCtx.VolumeProviders, newListenerProvisioner())
+
+	// Register the TLS secret volume (keystore/truststore) when the CR enables TLS. The secret
+	// provisioner satisfies the same VolumeProvider contract as the listener volume.
+	if p := tlsSecretProvisioner(cr); p != nil {
+		buildCtx.VolumeProviders = append(buildCtx.VolumeProviders, p)
+	}
 
 	// Register the role's init containers / native sidecars (format-namenode, format-zk, zkfc for
 	// NameNode; wait-for-namenodes for DataNode) so the framework injects them during the build.

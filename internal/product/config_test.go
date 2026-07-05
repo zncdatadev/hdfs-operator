@@ -63,6 +63,41 @@ func TestComputeConfig_CoreSite(t *testing.T) {
 	}
 }
 
+func TestComputeConfig_TLS(t *testing.T) {
+	cr := testCluster()
+	cr.Spec.ClusterConfig.Authentication = &hdfsv1alpha1.AuthenticationSpec{
+		Tls: &hdfsv1alpha1.TlsSpec{SecretClass: "tls", JksPassword: "secret123"},
+	}
+	out := ComputeConfig(cr, hdfsv1alpha1.NameNodeRoleName, defaultGroup).ConfigOverrides
+
+	if got := out["hdfs-site.xml"]["dfs.http.policy"]; got != "HTTPS_ONLY" {
+		t.Errorf("dfs.http.policy = %q, want HTTPS_ONLY", got)
+	}
+	ssl := out["ssl-server.xml"]
+	if ssl == nil {
+		t.Fatal("ssl-server.xml missing when TLS enabled")
+	}
+	if got := ssl["ssl.server.keystore.location"]; got != "/kubedoop/mount/tls/keystore.p12" {
+		t.Errorf("keystore.location = %q, want /kubedoop/mount/tls/keystore.p12", got)
+	}
+	if got := ssl["ssl.server.keystore.password"]; got != "secret123" {
+		t.Errorf("keystore.password = %q, want secret123", got)
+	}
+	if out["ssl-client.xml"]["ssl.client.truststore.type"] != "pkcs12" {
+		t.Errorf("ssl-client truststore.type should be pkcs12")
+	}
+}
+
+func TestComputeConfig_NoTLS(t *testing.T) {
+	out := ComputeConfig(testCluster(), hdfsv1alpha1.NameNodeRoleName, defaultGroup).ConfigOverrides
+	if _, ok := out["ssl-server.xml"]; ok {
+		t.Error("ssl-server.xml should be absent when TLS disabled")
+	}
+	if _, ok := out["hdfs-site.xml"]["dfs.http.policy"]; ok {
+		t.Error("dfs.http.policy should be absent when TLS disabled")
+	}
+}
+
 func TestComputeConfig_HdfsSiteHA(t *testing.T) {
 	got := ComputeConfig(testCluster(), hdfsv1alpha1.DataNodeRoleName, defaultGroup).ConfigOverrides["hdfs-site.xml"]
 

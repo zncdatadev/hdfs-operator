@@ -55,3 +55,15 @@ const (
 	EnvPodName       = "POD_NAME"
 	EnvZookeeper     = "ZOOKEEPER"
 )
+
+// TLS. The SecretProvisioner mounts a PKCS12 secret volume named TlsSecretVolumeName; it
+// contains keystore.p12 / truststore.p12, referenced by ssl-server.xml / ssl-client.xml.
+const (
+	TlsSecretVolumeName   = "tls"
+	DefaultTlsSecretClass = "tls"
+	SslServerXML          = "ssl-server.xml"
+	SslClientXML          = "ssl-client.xml"
+	Pkcs12StoreType       = "pkcs12"
+	KeystoreP12           = "keystore.p12"
+	TruststoreP12         = "truststore.p12"
+)

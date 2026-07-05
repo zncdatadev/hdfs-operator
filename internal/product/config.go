@@ -21,16 +21,20 @@ package product
 
 import (
 	"fmt"
+	"path"
 	"slices"
 	"strconv"
 	"strings"
 
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/constant"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/constants"
 )
+
+const defaultJksPassword = "changeit"
 
 const (
 	defaultClusterDomain = "cluster.local"
@@ -52,11 +56,57 @@ const (
 // DATA_PORT); the corresponding container env vars are wired by the handler's BuildResources
 // (later phase). Kerberos/TLS keys are added in the security phase.
 func ComputeConfig(cr *hdfsv1alpha1.HdfsCluster, roleName, _ string) *commonsv1alpha1.OverridesSpec {
-	return &commonsv1alpha1.OverridesSpec{
-		ConfigOverrides: map[string]map[string]string{
-			constants.CoreSiteXML: coreSiteConfig(cr),
-			constants.HdfsSiteXML: hdfsSiteConfig(cr, roleName),
-		},
+	overrides := map[string]map[string]string{
+		constants.CoreSiteXML: coreSiteConfig(cr),
+		constants.HdfsSiteXML: hdfsSiteConfig(cr, roleName),
+	}
+	// TLS: emit the keystore/truststore config files referencing the SecretProvisioner mount.
+	if tlsEnabled(cr) {
+		overrides[constants.SslServerXML] = sslServerConfig(cr)
+		overrides[constants.SslClientXML] = sslClientConfig(cr)
+	}
+	return &commonsv1alpha1.OverridesSpec{ConfigOverrides: overrides}
+}
+
+// tlsEnabled reports whether the CR requests TLS.
+func tlsEnabled(cr *hdfsv1alpha1.HdfsCluster) bool {
+	return cr.Spec.ClusterConfig != nil &&
+		cr.Spec.ClusterConfig.Authentication != nil &&
+		cr.Spec.ClusterConfig.Authentication.Tls != nil
+}
+
+// jksPassword returns the configured PKCS12 store password, defaulting to "changeit".
+func jksPassword(cr *hdfsv1alpha1.HdfsCluster) string {
+	if tlsEnabled(cr) && cr.Spec.ClusterConfig.Authentication.Tls.JksPassword != "" {
+		return cr.Spec.ClusterConfig.Authentication.Tls.JksPassword
+	}
+	return defaultJksPassword
+}
+
+// tlsStorePath returns the absolute path of a store file inside the TLS secret mount.
+func tlsStorePath(file string) string {
+	return path.Join(constant.KubedoopMountDir, constants.TlsSecretVolumeName, file)
+}
+
+// sslServerConfig / sslClientConfig render ssl-server.xml / ssl-client.xml pointing at the
+// PKCS12 keystore/truststore materialized by the TLS secret volume.
+func sslServerConfig(cr *hdfsv1alpha1.HdfsCluster) map[string]string {
+	pw := jksPassword(cr)
+	return map[string]string{
+		"ssl.server.truststore.location": tlsStorePath(constants.TruststoreP12),
+		"ssl.server.truststore.type":     constants.Pkcs12StoreType,
+		"ssl.server.truststore.password": pw,
+		"ssl.server.keystore.location":   tlsStorePath(constants.KeystoreP12),
+		"ssl.server.keystore.type":       constants.Pkcs12StoreType,
+		"ssl.server.keystore.password":   pw,
+	}
+}
+
+func sslClientConfig(cr *hdfsv1alpha1.HdfsCluster) map[string]string {
+	return map[string]string{
+		"ssl.client.truststore.location": tlsStorePath(constants.TruststoreP12),
+		"ssl.client.truststore.type":     constants.Pkcs12StoreType,
+		"ssl.client.truststore.password": jksPassword(cr),
 	}
 }
 
@@ -110,6 +160,12 @@ func hdfsSiteConfig(cr *hdfsv1alpha1.HdfsCluster, roleName string) map[string]st
 
 	if roleName == hdfsv1alpha1.DataNodeRoleName {
 		props["dfs.datanode.data.dir"] = hdfsv1alpha1.DataNodeRootDataDirPrefix + "0" + hdfsv1alpha1.DataNodeRootDataDirSuffix
+	}
+
+	if tlsEnabled(cr) {
+		props["dfs.http.policy"] = "HTTPS_ONLY"
+		props["dfs.https.server.keystore.resource"] = constants.SslServerXML
+		props["dfs.https.client.keystore.resource"] = constants.SslClientXML
 	}
 
 	return props

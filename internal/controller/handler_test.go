@@ -23,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/constants"
 )
 
 func envByName(env []corev1.EnvVar, name string) *corev1.EnvVar {
@@ -142,6 +143,26 @@ func TestInitAndSidecarContainers(t *testing.T) {
 	wait := waitForNameNodesContainer(cr, confDir)
 	if !strings.Contains(wait.Args[0], "haadmin -getServiceState") {
 		t.Errorf("wait-for-namenodes should poll haadmin, got %v", wait.Args)
+	}
+}
+
+func TestTlsSecretProvisioner(t *testing.T) {
+	// disabled: no TLS in cluster config
+	if p := tlsSecretProvisioner(crWithNameNodes()); p != nil {
+		t.Errorf("expected nil provisioner when TLS disabled, got %v", p)
+	}
+	// enabled
+	cr := crWithNameNodes()
+	cr.Spec.ClusterConfig.Authentication = &hdfsv1alpha1.AuthenticationSpec{
+		Tls: &hdfsv1alpha1.TlsSpec{SecretClass: constants.DefaultTlsSecretClass, JksPassword: "pw"},
+	}
+	p := tlsSecretProvisioner(cr)
+	if p == nil {
+		t.Fatal("expected a provisioner when TLS enabled")
+	}
+	vols := p.Volumes()
+	if len(vols) != 1 || vols[0].Name != constants.TlsSecretVolumeName {
+		t.Errorf("expected a single %q volume, got %+v", constants.TlsSecretVolumeName, vols)
 	}
 }
 
