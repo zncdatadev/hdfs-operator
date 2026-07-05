@@ -21,6 +21,8 @@ import (
 	"fmt"
 
 	"github.com/zncdatadev/operator-go/pkg/config"
+	"github.com/zncdatadev/operator-go/pkg/constant"
+	"github.com/zncdatadev/operator-go/pkg/listener"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -56,9 +58,30 @@ func NewHdfsRoleGroupHandler(scheme *runtime.Scheme) *HdfsRoleGroupHandler {
 	// HDFS reads its config from the Hadoop config dir.
 	base.ConfigMountPath = hdfsv1alpha1.HadoopHome + "/etc/hadoop"
 
+	// Persist role data (NameNode name.dir, JournalNode edits.dir, DataNode data.dir all live
+	// under KubedoopDataDir). The framework builds the VolumeClaimTemplate from the role group's
+	// configured storage and mounts it here.
+	base.StorageMountPath = constant.KubedoopDataDir
+
+	// Every pod mounts a listener CSI volume; the pod reads its externally reachable address from
+	// this mount (used for DataNode registration and address advertisement). Injected through the
+	// framework's unified VolumeProvisioner hook.
+	base.WithVolumeProvisioners(newListenerProvisioner())
+
 	setRolePorts(base)
 
 	return &HdfsRoleGroupHandler{BaseRoleGroupHandler: base}
+}
+
+// listenerVolumeName is the name of the listener CSI volume mounted on every HDFS pod.
+const listenerVolumeName = "listener"
+
+// newListenerProvisioner declares the per-pod listener volume. cluster-internal is the default
+// class; per-role-group listenerClass overrides are reintroduced in a later phase.
+func newListenerProvisioner() *listener.ListenerProvisioner {
+	return listener.NewProvisioner().RegisterVolume(
+		listener.NewVolume(listenerVolumeName, listener.ListenerClassClusterInternal),
+	)
 }
 
 // setRolePorts declares the container/service ports for each role.

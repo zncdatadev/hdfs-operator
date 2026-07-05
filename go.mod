@@ -96,4 +96,4 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-replace github.com/zncdatadev/operator-go => ../../../operator-go
+replace github.com/zncdatadev/operator-go => ../../../operator-go/.worktree/volume-provisioner

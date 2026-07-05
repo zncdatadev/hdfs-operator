@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"strings"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -64,6 +65,22 @@ func TestCommonEnv_NoZookeeper(t *testing.T) {
 	cr := &hdfsv1alpha1.HdfsCluster{Spec: hdfsv1alpha1.HdfsClusterSpec{ClusterConfig: &hdfsv1alpha1.ClusterConfigSpec{}}}
 	if zk := envByName(commonEnv(cr, "/x"), "ZOOKEEPER"); zk != nil {
 		t.Errorf("ZOOKEEPER should be absent when zookeeperConfigMapName is unset, got %+v", zk)
+	}
+}
+
+func TestListenerProvisioner(t *testing.T) {
+	p := newListenerProvisioner()
+
+	volumes := p.Volumes()
+	if len(volumes) != 1 || volumes[0].Name != listenerVolumeName {
+		t.Fatalf("Volumes() = %+v, want a single %q volume", volumes, listenerVolumeName)
+	}
+	mounts := p.VolumeMounts()
+	if len(mounts) != 1 || mounts[0].Name != listenerVolumeName {
+		t.Fatalf("VolumeMounts() = %+v, want a single %q mount", mounts, listenerVolumeName)
+	}
+	if want := "/listener"; !strings.HasSuffix(mounts[0].MountPath, want) {
+		t.Errorf("listener mount path = %q, want suffix %q", mounts[0].MountPath, want)
 	}
 }
 
