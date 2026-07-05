@@ -63,11 +63,6 @@ func NewHdfsRoleGroupHandler(scheme *runtime.Scheme) *HdfsRoleGroupHandler {
 	// configured storage and mounts it here.
 	base.StorageMountPath = constant.KubedoopDataDir
 
-	// Every pod mounts a listener CSI volume; the pod reads its externally reachable address from
-	// this mount (used for DataNode registration and address advertisement). Injected through the
-	// framework's unified VolumeProvisioner hook.
-	base.WithVolumeProvisioners(newListenerProvisioner())
-
 	setRolePorts(base)
 
 	return &HdfsRoleGroupHandler{BaseRoleGroupHandler: base}
@@ -133,6 +128,12 @@ func (h *HdfsRoleGroupHandler) BuildResources(
 	cr *hdfsv1alpha1.HdfsCluster,
 	buildCtx *reconciler.RoleGroupBuildContext,
 ) (*reconciler.RoleGroupResources, error) {
+	// Register the per-pod listener CSI volume before the framework builds the StatefulSet. The
+	// pod reads its externally reachable address from this mount (used for DataNode registration
+	// and address advertisement). buildCtx.VolumeProviders is per-role/per-reconcile, so this
+	// never accumulates across reconciles.
+	buildCtx.VolumeProviders = append(buildCtx.VolumeProviders, newListenerProvisioner())
+
 	resources, err := h.BaseRoleGroupHandler.BuildResources(ctx, k8sClient, cr, buildCtx)
 	if err != nil {
 		return nil, err
