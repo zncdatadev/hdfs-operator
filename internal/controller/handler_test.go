@@ -84,19 +84,76 @@ func TestListenerProvisioner(t *testing.T) {
 	}
 }
 
-func TestRoleStartupCommand(t *testing.T) {
+func TestMainContainerScript(t *testing.T) {
 	cases := map[string]string{
 		hdfsv1alpha1.NameNodeRoleName:    "exec /kubedoop/hadoop/bin/hdfs namenode",
 		hdfsv1alpha1.DataNodeRoleName:    "exec /kubedoop/hadoop/bin/hdfs datanode",
 		hdfsv1alpha1.JournalNodeRoleName: "exec /kubedoop/hadoop/bin/hdfs journalnode",
 	}
-	for role, wantScript := range cases {
-		command, args := roleStartupCommand(role)
-		if len(command) != 2 || command[0] != "/bin/bash" || command[1] != "-c" {
-			t.Errorf("%s command = %v, want [/bin/bash -c]", role, command)
+	for role, wantExec := range cases {
+		script := mainContainerScript(role)
+		if !strings.Contains(script, wantExec) {
+			t.Errorf("%s script missing %q:\n%s", role, wantExec, script)
 		}
-		if len(args) != 1 || args[0] != wantScript {
-			t.Errorf("%s args = %v, want [%q]", role, args, wantScript)
+		if !strings.Contains(script, "POD_ADDRESS") {
+			t.Errorf("%s script should export POD_ADDRESS from the listener mount", role)
 		}
+	}
+}
+
+func crWithNameNodes() *hdfsv1alpha1.HdfsCluster {
+	cr := &hdfsv1alpha1.HdfsCluster{Spec: hdfsv1alpha1.HdfsClusterSpec{ClusterConfig: &hdfsv1alpha1.ClusterConfigSpec{}}}
+	cr.Name = "simple-hdfs"
+	cr.Spec.NameNodes = &hdfsv1alpha1.NameNodeSpec{}
+	return cr
+}
+
+func TestInitAndSidecarContainers(t *testing.T) {
+	cr := crWithNameNodes()
+	const confDir = "/kubedoop/hadoop/etc/hadoop"
+
+	mountNames := func(ms []corev1.VolumeMount) map[string]bool {
+		m := map[string]bool{}
+		for _, x := range ms {
+			m[x.Name] = true
+		}
+		return m
+	}
+
+	fmtNN := formatNameNodeContainer(cr, confDir)
+	if fmtNN.Name != formatNameNodeContainerName || !strings.Contains(fmtNN.Args[0], "namenode -format") {
+		t.Errorf("format-namenode: name=%q args missing format: %v", fmtNN.Name, fmtNN.Args)
+	}
+	if m := mountNames(fmtNN.VolumeMounts); !m[configVolumeName] || !m[dataVolumeName] {
+		t.Errorf("format-namenode should mount config+data, got %v", fmtNN.VolumeMounts)
+	}
+	if fmtNN.RestartPolicy != nil {
+		t.Errorf("format-namenode is an init container, RestartPolicy should be nil")
+	}
+
+	zkfc := zkfcContainer(cr, confDir)
+	if zkfc.RestartPolicy == nil || *zkfc.RestartPolicy != corev1.ContainerRestartPolicyAlways {
+		t.Errorf("zkfc should be a native sidecar (RestartPolicy=Always), got %v", zkfc.RestartPolicy)
+	}
+	if !strings.Contains(zkfc.Args[0], "hdfs zkfc") {
+		t.Errorf("zkfc args should run 'hdfs zkfc', got %v", zkfc.Args)
+	}
+
+	wait := waitForNameNodesContainer(cr, confDir)
+	if !strings.Contains(wait.Args[0], "haadmin -getServiceState") {
+		t.Errorf("wait-for-namenodes should poll haadmin, got %v", wait.Args)
+	}
+}
+
+func TestRoleSidecarManager(t *testing.T) {
+	cr := crWithNameNodes()
+	if roleSidecarManager(cr, hdfsv1alpha1.NameNodeRoleName, "/x") == nil {
+		t.Error("NameNode should have a sidecar manager (format + zkfc)")
+	}
+	if roleSidecarManager(cr, hdfsv1alpha1.DataNodeRoleName, "/x") == nil {
+		t.Error("DataNode should have a sidecar manager (wait-for-namenodes)")
+	}
+	if roleSidecarManager(cr, hdfsv1alpha1.JournalNodeRoleName, "/x") != nil {
+		t.Error("JournalNode should have no sidecar manager")
 	}
 }

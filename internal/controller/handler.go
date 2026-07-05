@@ -24,6 +24,7 @@ import (
 	"github.com/zncdatadev/operator-go/pkg/constant"
 	"github.com/zncdatadev/operator-go/pkg/listener"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
+	"github.com/zncdatadev/operator-go/pkg/sidecar"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -134,6 +135,12 @@ func (h *HdfsRoleGroupHandler) BuildResources(
 	// never accumulates across reconciles.
 	buildCtx.VolumeProviders = append(buildCtx.VolumeProviders, newListenerProvisioner())
 
+	// Register the role's init containers / native sidecars (format-namenode, format-zk, zkfc for
+	// NameNode; wait-for-namenodes for DataNode) so the framework injects them during the build.
+	if sm := roleSidecarManager(cr, buildCtx.RoleName, h.ConfigMountPath); sm != nil {
+		buildCtx.SidecarManager = sm
+	}
+
 	resources, err := h.BaseRoleGroupHandler.BuildResources(ctx, k8sClient, cr, buildCtx)
 	if err != nil {
 		return nil, err
@@ -146,12 +153,36 @@ func (h *HdfsRoleGroupHandler) BuildResources(
 	return resources, nil
 }
 
+// roleSidecarManager returns a SidecarManager carrying the role's init containers and native
+// sidecars, or nil when the role needs none (JournalNode). StaticContainerProvider injects
+// non-restart containers as init containers and RestartPolicy=Always containers as native
+// sidecars.
+func roleSidecarManager(cr *hdfsv1alpha1.HdfsCluster, roleName, confDir string) *sidecar.SidecarManager {
+	var containers []corev1.Container
+	switch roleName {
+	case hdfsv1alpha1.NameNodeRoleName:
+		containers = []corev1.Container{
+			formatNameNodeContainer(cr, confDir),
+			formatZookeeperContainer(cr, confDir),
+			zkfcContainer(cr, confDir),
+		}
+	case hdfsv1alpha1.DataNodeRoleName:
+		containers = []corev1.Container{
+			waitForNameNodesContainer(cr, confDir),
+		}
+	default:
+		return nil
+	}
+
+	sm := sidecar.NewSidecarManager()
+	for _, c := range containers {
+		sm.Register(sidecar.NewStaticContainerProvider(c), &sidecar.SidecarConfig{Enabled: true})
+	}
+	return sm
+}
+
 // applyMainContainer sets the CR-driven image, the common env vars, and the role startup command
-// on the primary container of the StatefulSet.
-//
-// NOTE (skeleton): the DataNode registration env (POD_ADDRESS/IPC_PORT/DATA_PORT), init
-// containers (format-namenode/format-zk/wait-for-namenodes), the ZKFC sidecar, and Kerberos/TLS
-// wiring are added in later phases.
+// (which exports the listener address then execs the HDFS daemon) on the primary container.
 func (h *HdfsRoleGroupHandler) applyMainContainer(cr *hdfsv1alpha1.HdfsCluster, roleName string, sts *appsv1.StatefulSet) {
 	containers := sts.Spec.Template.Spec.Containers
 	if len(containers) == 0 {
@@ -167,9 +198,8 @@ func (h *HdfsRoleGroupHandler) applyMainContainer(cr *hdfsv1alpha1.HdfsCluster, 
 	}
 
 	c.Env = append(c.Env, commonEnv(cr, h.ConfigMountPath)...)
-	command, args := roleStartupCommand(roleName)
-	c.Command = command
-	c.Args = args
+	c.Command = []string{"/bin/bash", "-c"}
+	c.Args = []string{mainContainerScript(roleName)}
 }
 
 // commonEnv builds the env vars every HDFS container needs. HADOOP_CONF_DIR points at the path
@@ -195,17 +225,6 @@ func commonEnv(cr *hdfsv1alpha1.HdfsCluster, confDir string) []corev1.EnvVar {
 		})
 	}
 	return env
-}
-
-// roleStartupCommand returns the bash command/args that launch the HDFS daemon for a role.
-func roleStartupCommand(roleName string) (command []string, args []string) {
-	subcommand := map[string]string{
-		hdfsv1alpha1.NameNodeRoleName:    "namenode",
-		hdfsv1alpha1.DataNodeRoleName:    "datanode",
-		hdfsv1alpha1.JournalNodeRoleName: "journalnode",
-	}[roleName]
-	script := fmt.Sprintf("exec %s/bin/hdfs %s", hdfsv1alpha1.HadoopHome, subcommand)
-	return []string{"/bin/bash", "-c"}, []string{script}
 }
 
 // defaultImage is the operator's default HDFS image. The CR's spec.image overrides it per

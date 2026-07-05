@@ -131,6 +131,18 @@ func clusterDomain(cr *hdfsv1alpha1.HdfsCluster) string {
 	return defaultClusterDomain
 }
 
+// NameNodePodNames returns every NameNode pod name (across all NameNode role groups, sorted).
+// These double as the HA namenode ids used by `hdfs haadmin -getServiceState` in the
+// format-namenode and wait-for-namenodes containers.
+func NameNodePodNames(cr *hdfsv1alpha1.HdfsCluster) []string {
+	pods := nameNodePods(cr)
+	names := make([]string, 0, len(pods))
+	for _, p := range pods {
+		names = append(names, p.id)
+	}
+	return names
+}
+
 // nnPod is a single NameNode pod: its HA id (the pod name) and its stable DNS FQDN.
 type nnPod struct {
 	id   string
