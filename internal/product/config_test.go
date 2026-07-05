@@ -26,15 +26,18 @@ import (
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 )
 
-// defaultGroup is the role group name used throughout these tests.
-const defaultGroup = "default"
+// defaultGroup / clusterName are fixtures used throughout these tests.
+const (
+	defaultGroup = "default"
+	clusterName  = "simple-hdfs"
+)
 
 func testCluster() *hdfsv1alpha1.HdfsCluster {
 	rg := func(replicas int32) commonsv1alpha1.RoleGroupSpec {
 		return commonsv1alpha1.RoleGroupSpec{Replicas: ptr.To(replicas)}
 	}
 	return &hdfsv1alpha1.HdfsCluster{
-		ObjectMeta: metav1.ObjectMeta{Name: "simple-hdfs", Namespace: "default"},
+		ObjectMeta: metav1.ObjectMeta{Name: clusterName, Namespace: "default"},
 		Spec: hdfsv1alpha1.HdfsClusterSpec{
 			ClusterConfig: &hdfsv1alpha1.ClusterConfigSpec{DfsReplication: 3},
 			NameNodes: &hdfsv1alpha1.NameNodeSpec{RoleSpec: commonsv1alpha1.RoleSpec{
@@ -98,6 +101,32 @@ func TestComputeConfig_NoTLS(t *testing.T) {
 	}
 }
 
+func TestDiscoveryConfig(t *testing.T) {
+	out := DiscoveryConfig(testCluster())
+
+	core := out["core-site.xml"]
+	if core["fs.defaultFS"] != "hdfs://simple-hdfs/" {
+		t.Errorf("discovery fs.defaultFS = %q, want hdfs://simple-hdfs/", core["fs.defaultFS"])
+	}
+	hdfs := out["hdfs-site.xml"]
+	if hdfs["dfs.nameservices"] != clusterName {
+		t.Errorf("discovery nameservices = %q", hdfs["dfs.nameservices"])
+	}
+	if hdfs["dfs.ha.namenodes.simple-hdfs"] != "simple-hdfs-namenode-default-0,simple-hdfs-namenode-default-1" {
+		t.Errorf("discovery ha.namenodes = %q", hdfs["dfs.ha.namenodes.simple-hdfs"])
+	}
+	want := "simple-hdfs-namenode-default-0.simple-hdfs-namenode-default-headless.default.svc.cluster.local:8020"
+	if hdfs["dfs.namenode.rpc-address.simple-hdfs.simple-hdfs-namenode-default-0"] != want {
+		t.Errorf("discovery rpc-address = %q, want %q", hdfs["dfs.namenode.rpc-address.simple-hdfs.simple-hdfs-namenode-default-0"], want)
+	}
+	// pod-local keys must NOT leak into the client discovery config.
+	for _, k := range []string{"dfs.namenode.name.dir", "dfs.datanode.registered.hostname", "dfs.ha.namenode.id"} {
+		if _, ok := hdfs[k]; ok {
+			t.Errorf("discovery hdfs-site should not contain pod-local key %q", k)
+		}
+	}
+}
+
 func TestComputeConfig_Kerberos(t *testing.T) {
 	cr := testCluster()
 	cr.Spec.ClusterConfig.Authentication = &hdfsv1alpha1.AuthenticationSpec{
@@ -125,7 +154,7 @@ func TestComputeConfig_HdfsSiteHA(t *testing.T) {
 	got := ComputeConfig(testCluster(), hdfsv1alpha1.DataNodeRoleName, defaultGroup).ConfigOverrides["hdfs-site.xml"]
 
 	cases := map[string]string{
-		"dfs.nameservices":                  "simple-hdfs",
+		"dfs.nameservices":                  clusterName,
 		"dfs.replication":                   "3",
 		"dfs.ha.namenodes.simple-hdfs":      "simple-hdfs-namenode-default-0,simple-hdfs-namenode-default-1",
 		"dfs.ha.automatic-failover.enabled": "true",

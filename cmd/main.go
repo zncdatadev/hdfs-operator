@@ -28,6 +28,7 @@ import (
 
 	authv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/authentication/v1alpha1"
 	listenerv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/listeners/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/common"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -41,6 +42,7 @@ import (
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/controller"
+	"github.com/zncdatadev/hdfs-operator/internal/extensions"
 	"github.com/zncdatadev/hdfs-operator/internal/product"
 	"github.com/zncdatadev/hdfs-operator/internal/util/version"
 	// +kubebuilder:scaffold:imports
@@ -192,6 +194,10 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+
+	// Register the discovery ClusterExtension: it publishes the cluster-level discovery ConfigMap
+	// (client-facing core-site/hdfs-site) after each successful reconcile.
+	common.GetExtensionRegistry().RegisterClusterExtension(extensions.NewDiscoveryExtension())
 
 	// Build the HDFS role group handler (embeds the SDK BaseRoleGroupHandler; the framework
 	// owns resource orchestration) and wire it into the SDK GenericReconciler. The product's

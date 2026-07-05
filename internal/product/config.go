@@ -42,6 +42,7 @@ const (
 	dataTransferProtection = "privacy"
 	keytabFile             = "keytab"
 	authKerberos           = "kerberos"
+	keyFsDefaultFS         = "fs.defaultFS"
 )
 
 const (
@@ -123,7 +124,7 @@ func sslClientConfig(cr *hdfsv1alpha1.HdfsCluster) map[string]string {
 // the user's zookeeperConfigMap.
 func coreSiteConfig(cr *hdfsv1alpha1.HdfsCluster) map[string]string {
 	props := map[string]string{
-		"fs.defaultFS":        fmt.Sprintf("hdfs://%s/", cr.Name),
+		keyFsDefaultFS:        fmt.Sprintf("hdfs://%s/", cr.Name),
 		"ha.zookeeper.quorum": "${env.ZOOKEEPER}",
 	}
 	if kerberosEnabled(cr) {
@@ -180,42 +181,51 @@ func kerberosHdfsSite() map[string]string {
 }
 
 // hdfsSiteConfig builds hdfs-site.xml: the shared NameNode HA block plus role-specific data dirs.
-func hdfsSiteConfig(cr *hdfsv1alpha1.HdfsCluster, roleName string) map[string]string {
+// nameNodeHAConfig returns the client-facing NameNode HA block shared by the pod hdfs-site.xml
+// and the discovery ConfigMap: the nameservice, the failover proxy provider, the HA namenode id
+// list and each NameNode's rpc/http address.
+func nameNodeHAConfig(cr *hdfsv1alpha1.HdfsCluster) map[string]string {
 	nameservice := cr.Name
 	props := map[string]string{
 		"dfs.nameservices": nameservice,
 		"dfs.client.failover.proxy.provider." + nameservice: failoverProxyProvider,
-		"dfs.replication": strconv.Itoa(int(dfsReplication(cr))),
-
-		// Automatic failover + fencing (ZKFC drives failover; fencing is a no-op because
-		// StatefulSet guarantees at-most-one pod per ordinal).
-		"dfs.ha.automatic-failover.enabled": xmlTrue,
-		"dfs.ha.fencing.methods":            "shell(/bin/true)",
-		"dfs.ha.namenode.id":                "${env.POD_NAME}",
-		"dfs.namenode.datanode.registration.unsafe.allow-address-override": xmlTrue,
-
-		// DataNode registers with its externally reachable address/ports (set via env by the
-		// pod), so clients reach it through the listener rather than the pod IP.
-		"dfs.datanode.registered.hostname": "${env.POD_ADDRESS}",
-		"dfs.datanode.registered.ipc.port": "${env.IPC_PORT}",
-		"dfs.datanode.registered.port":     "${env.DATA_PORT}",
-
-		// JournalNode quorum shared edits + on-disk dirs.
-		"dfs.namenode.shared.edits.dir": sharedEditsURI(cr, nameservice),
-		"dfs.journalnode.edits.dir":     hdfsv1alpha1.JournalNodeRootDataDir,
-		"dfs.namenode.name.dir":         hdfsv1alpha1.NameNodeRootDataDir,
 	}
-
-	// Enumerate every NameNode pod as an HA namenode id, with its rpc/http/name.dir entries.
 	nnPods := nameNodePods(cr)
 	ids := make([]string, 0, len(nnPods))
 	for _, nn := range nnPods {
 		ids = append(ids, nn.id)
 		props["dfs.namenode.rpc-address."+nameservice+"."+nn.id] = fmt.Sprintf("%s:%d", nn.fqdn, hdfsv1alpha1.NameNodeRpcPort)
 		props["dfs.namenode.http-address."+nameservice+"."+nn.id] = fmt.Sprintf("%s:%d", nn.fqdn, hdfsv1alpha1.NameNodeHttpPort)
-		props["dfs.namenode.name.dir."+nameservice+"."+nn.id] = hdfsv1alpha1.NameNodeRootDataDir
 	}
 	props["dfs.ha.namenodes."+nameservice] = strings.Join(ids, ",")
+	return props
+}
+
+func hdfsSiteConfig(cr *hdfsv1alpha1.HdfsCluster, roleName string) map[string]string {
+	nameservice := cr.Name
+	props := nameNodeHAConfig(cr)
+
+	props["dfs.replication"] = strconv.Itoa(int(dfsReplication(cr)))
+	// Automatic failover + fencing (ZKFC drives failover; fencing is a no-op because
+	// StatefulSet guarantees at-most-one pod per ordinal).
+	props["dfs.ha.automatic-failover.enabled"] = xmlTrue
+	props["dfs.ha.fencing.methods"] = "shell(/bin/true)"
+	props["dfs.ha.namenode.id"] = "${env.POD_NAME}"
+	props["dfs.namenode.datanode.registration.unsafe.allow-address-override"] = xmlTrue
+	// DataNode registers with its externally reachable address/ports (set via env by the pod),
+	// so clients reach it through the listener rather than the pod IP.
+	props["dfs.datanode.registered.hostname"] = "${env.POD_ADDRESS}"
+	props["dfs.datanode.registered.ipc.port"] = "${env.IPC_PORT}"
+	props["dfs.datanode.registered.port"] = "${env.DATA_PORT}"
+	// JournalNode quorum shared edits + on-disk dirs.
+	props["dfs.namenode.shared.edits.dir"] = sharedEditsURI(cr, nameservice)
+	props["dfs.journalnode.edits.dir"] = hdfsv1alpha1.JournalNodeRootDataDir
+	props["dfs.namenode.name.dir"] = hdfsv1alpha1.NameNodeRootDataDir
+
+	// Per-NameNode name.dir (pod-local, not part of the discovery block).
+	for _, nn := range nameNodePods(cr) {
+		props["dfs.namenode.name.dir."+nameservice+"."+nn.id] = hdfsv1alpha1.NameNodeRootDataDir
+	}
 
 	if roleName == hdfsv1alpha1.DataNodeRoleName {
 		props["dfs.datanode.data.dir"] = hdfsv1alpha1.DataNodeRootDataDirPrefix + "0" + hdfsv1alpha1.DataNodeRootDataDirSuffix
@@ -250,6 +260,30 @@ func clusterDomain(cr *hdfsv1alpha1.HdfsCluster) string {
 		return cr.Spec.ClusterConfig.ClusterDomain
 	}
 	return defaultClusterDomain
+}
+
+// DiscoveryConfig returns the client-facing core-site.xml / hdfs-site.xml for the cluster-level
+// discovery ConfigMap: enough for an external client to reach the HA NameNodes (nameservice,
+// failover proxy, per-NameNode rpc/http addresses) plus the Kerberos client keys when enabled.
+func DiscoveryConfig(cr *hdfsv1alpha1.HdfsCluster) map[string]map[string]string {
+	core := map[string]string{
+		keyFsDefaultFS: fmt.Sprintf("hdfs://%s/", cr.Name),
+	}
+	hdfs := nameNodeHAConfig(cr)
+
+	if kerberosEnabled(cr) {
+		for k, v := range kerberosCoreSite(cr) {
+			core[k] = v
+		}
+		for k, v := range kerberosHdfsSite() {
+			hdfs[k] = v
+		}
+	}
+
+	return map[string]map[string]string{
+		constants.CoreSiteXML: core,
+		constants.HdfsSiteXML: hdfs,
+	}
 }
 
 // NameNodePodNames returns every NameNode pod name (across all NameNode role groups, sorted).
