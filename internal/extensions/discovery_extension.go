@@ -24,12 +24,11 @@ import (
 
 	"github.com/zncdatadev/operator-go/pkg/common"
 	"github.com/zncdatadev/operator-go/pkg/config"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/constants"
 	"github.com/zncdatadev/hdfs-operator/internal/product"
 )
 
@@ -51,7 +50,8 @@ func (e *DiscoveryExtension) PreReconcile(_ context.Context, _ client.Client, _ 
 	return nil
 }
 
-// PostReconcile renders the discovery config and applies the ConfigMap (owned by the cluster).
+// PostReconcile renders the discovery config and applies the ConfigMap via the SDK's shared
+// ensure-helper (idempotent CreateOrUpdate + owner reference + canonical labels).
 func (e *DiscoveryExtension) PostReconcile(ctx context.Context, k8sClient client.Client, cr common.ClusterInterface) error {
 	hdfs, ok := cr.(*hdfsv1alpha1.HdfsCluster)
 	if !ok {
@@ -65,20 +65,9 @@ func (e *DiscoveryExtension) PostReconcile(ctx context.Context, k8sClient client
 		return fmt.Errorf("render discovery config: %w", err)
 	}
 
-	cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: hdfs.Name, Namespace: hdfs.Namespace}}
-	_, err = controllerutil.CreateOrUpdate(ctx, k8sClient, cm, func() error {
-		if cm.Labels == nil {
-			cm.Labels = map[string]string{}
-		}
-		cm.Labels["app.kubernetes.io/managed-by"] = "hdfs-operator"
-		cm.Labels["app.kubernetes.io/component"] = "discovery"
-		cm.Data = data
-		return controllerutil.SetControllerReference(hdfs, cm, k8sClient.Scheme())
-	})
-	if err != nil {
-		return fmt.Errorf("apply discovery ConfigMap: %w", err)
-	}
-	return nil
+	return reconciler.EnsureDiscoveryConfigMap(ctx, k8sClient, k8sClient.Scheme(), hdfs, hdfs.Name, data,
+		reconciler.WithDiscoveryProductName(constants.ProductName),
+	)
 }
 
 // OnReconcileError is a no-op for discovery.
