@@ -24,6 +24,7 @@ import (
 	"github.com/zncdatadev/operator-go/pkg/config"
 	"github.com/zncdatadev/operator-go/pkg/constant"
 	"github.com/zncdatadev/operator-go/pkg/listener"
+	"github.com/zncdatadev/operator-go/pkg/productlogging"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	"github.com/zncdatadev/operator-go/pkg/security"
 	"github.com/zncdatadev/operator-go/pkg/sidecar"
@@ -67,8 +68,32 @@ func NewHdfsRoleGroupHandler(scheme *runtime.Scheme) *HdfsRoleGroupHandler {
 	base.StorageMountPath = constant.KubedoopDataDir
 
 	setRolePorts(base)
+	setRoleLogging(base)
 
 	return &HdfsRoleGroupHandler{BaseRoleGroupHandler: base}
+}
+
+// roleContainerNames maps each HDFS role to its primary (daemon) container name. These become
+// both the renamed StatefulSet container and the per-container logging key
+// (logging.containers.<name>) in the CRD.
+var roleContainerNames = map[string]string{
+	hdfsv1alpha1.NameNodeRoleName:    constants.NameNodeContainerName,
+	hdfsv1alpha1.DataNodeRoleName:    constants.DataNodeContainerName,
+	hdfsv1alpha1.JournalNodeRoleName: constants.JournalNodeContainerName,
+}
+
+// setRoleLogging gives each role its own primary container name and declarative log4j logging.
+// The SDK renders a log4j.properties from the merged CRD logging spec into the role group
+// ConfigMap (mounted at HADOOP_CONF_DIR) and, when the Vector agent is enabled, ships the
+// container's log files. Uses the SDK per-role hooks (operator-go #531) since HDFS container
+// names differ per role.
+func setRoleLogging(base *reconciler.BaseRoleGroupHandler[*hdfsv1alpha1.HdfsCluster]) {
+	for role, cname := range roleContainerNames {
+		base.SetRoleMainContainerName(role, cname)
+		base.SetRoleLoggingContainers(role, []productlogging.ContainerLogging{
+			{Container: cname, Framework: productlogging.LoggingFrameworkLog4j},
+		})
+	}
 }
 
 // listenerVolumeName is the name of the listener CSI volume mounted on every HDFS pod.

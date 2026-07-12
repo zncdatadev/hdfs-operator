@@ -20,11 +20,30 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zncdatadev/operator-go/pkg/productlogging"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/constants"
 )
+
+func TestRoleLogging(t *testing.T) {
+	h := NewHdfsRoleGroupHandler(runtime.NewScheme())
+	for role, cname := range roleContainerNames {
+		if got := h.RoleMainContainerName[role]; got != cname {
+			t.Errorf("role %q main container = %q, want %q", role, got, cname)
+		}
+		lc := h.LoggingProducers(role)
+		if len(lc) != 1 || lc[0].Container != cname || lc[0].Framework != productlogging.LoggingFrameworkLog4j {
+			t.Errorf("role %q logging = %+v, want single {%s, log4j}", role, lc, cname)
+		}
+	}
+	// A role group with no per-role entry falls back to the (empty) global list.
+	if lc := h.LoggingProducers("unknown"); len(lc) != 0 {
+		t.Errorf("unknown role should have no logging producers, got %+v", lc)
+	}
+}
 
 func envByName(env []corev1.EnvVar, name string) *corev1.EnvVar {
 	for i := range env {
