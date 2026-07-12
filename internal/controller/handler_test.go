@@ -22,11 +22,37 @@ import (
 
 	"github.com/zncdatadev/operator-go/pkg/productlogging"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/constants"
 )
+
+func TestJvmHeapEnv(t *testing.T) {
+	withMem := func(q string) *corev1.Container {
+		return &corev1.Container{Resources: corev1.ResourceRequirements{
+			Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse(q)},
+		}}
+	}
+
+	// 2Gi * 0.8 / 1Mi = 1638
+	e := jvmHeapEnv(hdfsv1alpha1.NameNodeRoleName, withMem("2Gi"))
+	if e == nil || e.Name != "HDFS_NAMENODE_OPTS" || e.Value != "-Xmx1638m" {
+		t.Errorf("namenode heap env = %+v, want HDFS_NAMENODE_OPTS=-Xmx1638m", e)
+	}
+	if e := jvmHeapEnv(hdfsv1alpha1.DataNodeRoleName, withMem("1Gi")); e == nil || e.Value != "-Xmx819m" {
+		t.Errorf("datanode heap env = %+v, want -Xmx819m", e)
+	}
+	// no memory limit -> nil (leave image JVM defaults)
+	if e := jvmHeapEnv(hdfsv1alpha1.NameNodeRoleName, &corev1.Container{}); e != nil {
+		t.Errorf("no memory limit should yield nil, got %+v", e)
+	}
+	// unknown role -> nil
+	if e := jvmHeapEnv("unknown", withMem("2Gi")); e != nil {
+		t.Errorf("unknown role should yield nil, got %+v", e)
+	}
+}
 
 func TestRoleLogging(t *testing.T) {
 	h := NewHdfsRoleGroupHandler(runtime.NewScheme())

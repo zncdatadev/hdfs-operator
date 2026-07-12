@@ -293,8 +293,37 @@ func (h *HdfsRoleGroupHandler) applyMainContainer(cr *hdfsv1alpha1.HdfsCluster, 
 	}
 
 	c.Env = append(c.Env, commonEnv(cr, h.ConfigMountPath)...)
+	if heap := jvmHeapEnv(roleName, c); heap != nil {
+		c.Env = append(c.Env, *heap)
+	}
 	c.Command = []string{"/bin/bash", "-c"}
 	c.Args = []string{mainContainerScript(cr, roleName)}
+}
+
+// roleOptsEnv maps each role to the Hadoop env var that carries its daemon JVM options.
+var roleOptsEnv = map[string]string{
+	hdfsv1alpha1.NameNodeRoleName:    "HDFS_NAMENODE_OPTS",
+	hdfsv1alpha1.DataNodeRoleName:    "HDFS_DATANODE_OPTS",
+	hdfsv1alpha1.JournalNodeRoleName: "HDFS_JOURNALNODE_OPTS",
+}
+
+// jvmHeapEnv sizes the daemon's max heap (-Xmx) from the container's memory limit (which the
+// framework set from the role group's configured resources), scaled by JvmHeapFactor. Returns
+// nil when no memory limit is set, leaving the image's JVM defaults in place.
+func jvmHeapEnv(roleName string, c *corev1.Container) *corev1.EnvVar {
+	envName := roleOptsEnv[roleName]
+	if envName == "" {
+		return nil
+	}
+	limit, ok := c.Resources.Limits[corev1.ResourceMemory]
+	if !ok || limit.IsZero() {
+		return nil
+	}
+	heapMi := int64(float64(limit.Value())*hdfsv1alpha1.JvmHeapFactor) / (1024 * 1024)
+	if heapMi < 1 {
+		return nil
+	}
+	return &corev1.EnvVar{Name: envName, Value: fmt.Sprintf("-Xmx%dm", heapMi)}
 }
 
 // commonEnv builds the env vars every HDFS container needs. HADOOP_CONF_DIR points at the path
