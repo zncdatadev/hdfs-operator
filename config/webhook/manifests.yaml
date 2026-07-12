@@ -1,0 +1,26 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-hdfs-kubedoop-dev-v1alpha1-hdfscluster
+  failurePolicy: Fail
+  name: mhdfscluster-v1alpha1.kb.io
+  rules:
+  - apiGroups:
+    - hdfs.kubedoop.dev
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - hdfsclusters
+  sideEffects: None

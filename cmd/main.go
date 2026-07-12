@@ -45,6 +45,7 @@ import (
 	"github.com/zncdatadev/hdfs-operator/internal/extensions"
 	"github.com/zncdatadev/hdfs-operator/internal/product"
 	"github.com/zncdatadev/hdfs-operator/internal/util/version"
+	webhookv1alpha1 "github.com/zncdatadev/hdfs-operator/internal/webhook/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -221,6 +222,14 @@ func main() {
 	if err = hdfsReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HdfsCluster")
 		os.Exit(1)
+	}
+
+	// Register the HdfsCluster admission webhook (image defaulting) unless disabled.
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err = webhookv1alpha1.SetupHdfsClusterWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "HdfsCluster")
+			os.Exit(1)
+		}
 	}
 
 	// +kubebuilder:scaffold:builder
