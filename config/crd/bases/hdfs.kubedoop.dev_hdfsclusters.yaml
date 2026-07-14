@@ -46,8 +46,6 @@ spec:
                 properties:
                   authentication:
                     properties:
-                      authenticationClass:
-                        type: string
                       kerberos:
                         properties:
                           secretClass:
@@ -83,31 +81,10 @@ spec:
                   clusterDomain:
                     default: cluster.local
                     type: string
-                  clusterName:
-                    default: cluster.local
-                    type: string
                   dfsReplication:
                     default: 1
                     format: int32
                     type: integer
-                  service:
-                    properties:
-                      annotations:
-                        additionalProperties:
-                          type: string
-                        type: object
-                      port:
-                        default: 18080
-                        format: int32
-                        maximum: 65535
-                        minimum: 1
-                        type: integer
-                      type:
-                        default: ClusterIP
-                        description: Service Type string describes ingress methods
-                          for a service
-                        type: string
-                    type: object
                   vectorAggregatorConfigMapName:
                     type: string
                   zookeeperConfigMapName:

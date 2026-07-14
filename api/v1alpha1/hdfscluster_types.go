@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -196,13 +195,6 @@ type ClusterConfigSpec struct {
 	VectorAggregatorConfigMapName string `json:"vectorAggregatorConfigMapName,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	Service *ServiceSpec `json:"service,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default:="cluster.local"
-	ClusterName string `json:"clusterName,omitempty"`
-
-	// +kubebuilder:validation:Optional
 	Authentication *AuthenticationSpec `json:"authentication,omitempty"`
 
 	// +kubebuilder:validation:Optional
@@ -218,9 +210,6 @@ type ClusterConfigSpec struct {
 }
 
 type AuthenticationSpec struct {
-	// +kubebuilder:validation:Optional
-	AuthenticationClass string `json:"authenticationClass,omitempty"`
-
 	// +kubebuilder:validation:Optional
 	Oidc *OidcSpec `json:"oidc,omitempty"`
 
@@ -257,41 +246,6 @@ type TlsSpec struct {
 type KerberosSpec struct {
 	// +kubebuilder:validation:Optional
 	SecretClass string `json:"secretClass,omitempty"`
-}
-
-type ConfigOverridesSpec struct {
-	CoreSite map[string]string `json:"core-site.xml,omitempty"`
-	HdfsSite map[string]string `json:"hdfs-site.xml,omitempty"`
-	// only for nameNode
-	Log4j        map[string]string `json:"log4j.properties,omitempty"`
-	Security     map[string]string `json:"security.properties,omitempty"`
-	HadoopPolicy map[string]string `json:"hadoop-policy.xml,omitempty"`
-	SslServer    map[string]string `json:"ssl-server.xml,omitempty"`
-	SslClient    map[string]string `json:"ssl-client.xml,omitempty"`
-}
-
-type PodDisruptionBudgetSpec struct {
-	// +kubebuilder:validation:Optional
-	MinAvailable int32 `json:"minAvailable,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	MaxUnavailable int32 `json:"maxUnavailable,omitempty"`
-}
-
-type ServiceSpec struct {
-	// +kubebuilder:validation:Optional
-	Annotations map[string]string `json:"annotations,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:enum=ClusterIP;NodePort;LoadBalancer;ExternalName
-	// +kubebuilder:default=ClusterIP
-	Type corev1.ServiceType `json:"type,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:validation:Maximum=65535
-	// +kubebuilder:default=18080
-	Port int32 `json:"port,omitempty"`
 }
 
 // ==================== ClusterInterface Implementation ====================
