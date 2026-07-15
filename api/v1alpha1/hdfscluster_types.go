@@ -210,6 +210,12 @@ type ClusterConfigSpec struct {
 }
 
 type AuthenticationSpec struct {
+	// AuthenticationClass references an authentication.kubedoop.dev AuthenticationClass. For OIDC
+	// it must name a class whose provider.oidc block describes the issuer; the operator fronts the
+	// NameNode web UI with an oauth2-proxy sidecar configured from it.
+	// +kubebuilder:validation:Optional
+	AuthenticationClass string `json:"authenticationClass,omitempty"`
+
 	// +kubebuilder:validation:Optional
 	Oidc *OidcSpec `json:"oidc,omitempty"`
 

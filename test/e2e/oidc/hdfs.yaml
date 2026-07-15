@@ -14,6 +14,7 @@ spec:
   clusterConfig:
     zookeeperConfigMapName: sample-hdfs-znode
     authentication:
+      authenticationClass: oidc
       oidc:
         clientCredentialsSecret: oidc-credentials
   nameNodes:

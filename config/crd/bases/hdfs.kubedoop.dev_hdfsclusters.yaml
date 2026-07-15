@@ -46,6 +46,12 @@ spec:
                 properties:
                   authentication:
                     properties:
+                      authenticationClass:
+                        description: |-
+                          AuthenticationClass references an authentication.kubedoop.dev AuthenticationClass. For OIDC
+                          it must name a class whose provider.oidc block describes the issuer; the operator fronts the
+                          NameNode web UI with an oauth2-proxy sidecar configured from it.
+                        type: string
                       kerberos:
                         properties:
                           secretClass:

@@ -236,7 +236,23 @@ func (h *HdfsRoleGroupHandler) BuildResources(
 
 	// Register the role's init containers / native sidecars (format-namenode, format-zk, zkfc for
 	// NameNode; wait-for-namenodes for DataNode) so the framework injects them during the build.
-	if sm := roleSidecarManager(cr, buildCtx.RoleName, h.ConfigMountPath); sm != nil {
+	sm := roleSidecarManager(cr, buildCtx.RoleName, h.ConfigMountPath)
+
+	// The NameNode web UI is fronted by an oauth2-proxy sidecar when OIDC is enabled.
+	if buildCtx.RoleName == hdfsv1alpha1.NameNodeRoleName {
+		oidc, err := oidcSidecar(ctx, k8sClient, cr)
+		if err != nil {
+			return nil, err
+		}
+		if oidc != nil {
+			if sm == nil {
+				sm = sidecar.NewSidecarManager()
+			}
+			sm.Register(sidecar.NewStaticContainerProvider(*oidc), &sidecar.SidecarConfig{Enabled: true})
+		}
+	}
+
+	if sm != nil {
 		buildCtx.SidecarManager = sm
 	}
 
