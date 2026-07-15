@@ -54,6 +54,30 @@ func listenerMountPath() string {
 	return path.Join(constant.KubedoopListenerDir, listenerVolumeName)
 }
 
+// roleHTTPSPorts is each role's HTTPS web port, exposed only when TLS is enabled.
+var roleHTTPSPorts = map[string]int32{
+	hdfsv1alpha1.NameNodeRoleName:    hdfsv1alpha1.NameNodeHttpsPort,
+	hdfsv1alpha1.DataNodeRoleName:    hdfsv1alpha1.DataNodeHttpsPort,
+	hdfsv1alpha1.JournalNodeRoleName: hdfsv1alpha1.JournalNodeHttpsPort,
+}
+
+// tlsOn reports whether the CR enables TLS.
+func tlsOn(cr *hdfsv1alpha1.HdfsCluster) bool {
+	return cr.Spec.ClusterConfig != nil &&
+		cr.Spec.ClusterConfig.Authentication != nil &&
+		cr.Spec.ClusterConfig.Authentication.Tls != nil
+}
+
+// httpsContainerPort returns the role's HTTPS container port (named so the listener exposes it and
+// projects ${env.HTTPS_PORT}), or nil for an unknown role.
+func httpsContainerPort(roleName string) *corev1.ContainerPort {
+	port, ok := roleHTTPSPorts[roleName]
+	if !ok {
+		return nil
+	}
+	return &corev1.ContainerPort{Name: hdfsv1alpha1.HttpsName, ContainerPort: port, Protocol: corev1.ProtocolTCP}
+}
+
 // resolveImage returns the CR-driven image (resolved with the product name), or the operator
 // default when the CR does not set spec.image.
 func resolveImage(cr *hdfsv1alpha1.HdfsCluster) string {

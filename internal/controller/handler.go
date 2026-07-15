@@ -296,6 +296,12 @@ func (h *HdfsRoleGroupHandler) applyMainContainer(cr *hdfsv1alpha1.HdfsCluster, 
 	if heap := jvmHeapEnv(roleName, c); heap != nil {
 		c.Env = append(c.Env, *heap)
 	}
+	// Under TLS the role also serves HTTPS; expose the port so the listener projects HTTPS_PORT.
+	if tlsOn(cr) {
+		if p := httpsContainerPort(roleName); p != nil {
+			c.Ports = append(c.Ports, *p)
+		}
+	}
 	c.Command = []string{"/bin/bash", "-c"}
 	c.Args = []string{mainContainerScript(cr, roleName)}
 }

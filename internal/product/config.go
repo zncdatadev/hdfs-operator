@@ -223,6 +223,13 @@ func hdfsSiteConfig(cr *hdfsv1alpha1.HdfsCluster, roleName string) map[string]st
 	props["dfs.datanode.registered.hostname"] = "${env.POD_ADDRESS}"
 	props["dfs.datanode.registered.ipc.port"] = "${env.IPC_PORT}"
 	props["dfs.datanode.registered.port"] = "${env.DATA_PORT}"
+	// The DataNode's registered web port follows the http policy: HTTPS under TLS, HTTP otherwise.
+	// The port value comes from the listener (exported as ${env.HTTP_PORT}/${env.HTTPS_PORT}).
+	if tlsEnabled(cr) {
+		props["dfs.datanode.registered.https.port"] = "${env.HTTPS_PORT}"
+	} else {
+		props["dfs.datanode.registered.http.port"] = "${env.HTTP_PORT}"
+	}
 	// JournalNode quorum shared edits + on-disk dirs.
 	props["dfs.namenode.shared.edits.dir"] = sharedEditsURI(cr, nameservice)
 	props["dfs.journalnode.edits.dir"] = hdfsv1alpha1.JournalNodeRootDataDir

@@ -94,6 +94,13 @@ func TestComputeConfig_TLS(t *testing.T) {
 	if got := out["hdfs-site.xml"]["dfs.namenode.https-address.simple-hdfs.simple-hdfs-namenode-default-0"]; got != wantHTTPS {
 		t.Errorf("https-address = %q, want %q", got, wantHTTPS)
 	}
+	hs := out["hdfs-site.xml"]
+	if hs["dfs.datanode.registered.https.port"] != "${env.HTTPS_PORT}" {
+		t.Errorf("registered.https.port = %q, want ${env.HTTPS_PORT}", hs["dfs.datanode.registered.https.port"])
+	}
+	if _, ok := hs["dfs.datanode.registered.http.port"]; ok {
+		t.Error("registered.http.port must be absent under TLS")
+	}
 }
 
 func TestComputeConfig_NoTLS_NoHTTPSAddress(t *testing.T) {

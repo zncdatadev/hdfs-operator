@@ -247,6 +247,23 @@ func TestTlsSecretProvisioner(t *testing.T) {
 	}
 }
 
+func TestHTTPSContainerPort(t *testing.T) {
+	cases := map[string]int32{
+		hdfsv1alpha1.NameNodeRoleName:    hdfsv1alpha1.NameNodeHttpsPort,
+		hdfsv1alpha1.DataNodeRoleName:    hdfsv1alpha1.DataNodeHttpsPort,
+		hdfsv1alpha1.JournalNodeRoleName: hdfsv1alpha1.JournalNodeHttpsPort,
+	}
+	for role, want := range cases {
+		p := httpsContainerPort(role)
+		if p == nil || p.ContainerPort != want || p.Name != hdfsv1alpha1.HttpsName {
+			t.Errorf("%s https port = %+v, want %d named %q", role, p, want, hdfsv1alpha1.HttpsName)
+		}
+	}
+	if httpsContainerPort("unknown") != nil {
+		t.Error("unknown role should have no https port")
+	}
+}
+
 func TestRoleSidecarManager(t *testing.T) {
 	cr := crWithNameNodes()
 	if roleSidecarManager(cr, hdfsv1alpha1.NameNodeRoleName, "/x") == nil {
