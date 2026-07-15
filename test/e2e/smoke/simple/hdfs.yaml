@@ -15,21 +15,21 @@ spec:
   clusterConfig:
     zookeeperConfigMapName: sample-hdfs-znode
     vectorAggregatorConfigMapName: vector-aggregator-discovery
-  nameNode:
+  nameNodes:
     roleGroups:
       default:
         replicas: 2
         config:
           resources:
             cpu: {}
-  journalNode:
+  journalNodes:
     roleGroups:
       default:
         replicas: 1
         config:
           resources:
             cpu: {}
-  dataNode:
+  dataNodes:
     roleGroups:
       default:
         replicas: 1

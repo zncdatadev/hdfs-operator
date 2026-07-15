@@ -12,21 +12,21 @@ spec:
   clusterConfig:
     zookeeperConfigMapName: sample-hdfs-znode
     vectorAggregatorConfigMapName: vector-aggregator-discovery
-  nameNode:
+  nameNodes:
     roleGroups:
       default:
         replicas: 2
         config:
           logging:
             enableVectorAgent: true
-  journalNode:
+  journalNodes:
     roleGroups:
       default:
         replicas: 1
         config:
           logging:
             enableVectorAgent: true
-  dataNode:
+  dataNodes:
     roleGroups:
       default:
         replicas: 2

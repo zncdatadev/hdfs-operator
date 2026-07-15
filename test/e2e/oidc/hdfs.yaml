@@ -14,22 +14,21 @@ spec:
   clusterConfig:
     zookeeperConfigMapName: sample-hdfs-znode
     authentication:
-      authenticationClass: oidc
       oidc:
         clientCredentialsSecret: oidc-credentials
-  nameNode:
+  nameNodes:
     roleGroups:
       default:
         replicas: 2
         config:
           resources: {}
-  journalNode:
+  journalNodes:
     roleGroups:
       default:
         replicas: 1
         config:
           resources: {}
-  dataNode:
+  dataNodes:
     roleGroups:
       default:
         replicas: 1
