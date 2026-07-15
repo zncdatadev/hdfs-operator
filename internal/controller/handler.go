@@ -386,3 +386,6 @@ func defaultImage() string {
 
 // Ensure interface implementation.
 var _ reconciler.RoleGroupHandler[*hdfsv1alpha1.HdfsCluster] = &HdfsRoleGroupHandler{}
+
+// HdfsCluster exposes its Vector aggregator ConfigMap so the framework wires the Vector sidecar.
+var _ reconciler.VectorAggregatorProvider = &hdfsv1alpha1.HdfsCluster{}

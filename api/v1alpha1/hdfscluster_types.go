@@ -308,6 +308,16 @@ func (c *HdfsCluster) GetUID() types.UID {
 	return c.UID
 }
 
+// VectorAggregatorConfigMapName implements the SDK VectorAggregatorProvider: it exposes the
+// user's Vector aggregator discovery ConfigMap so the framework wires the Vector log sidecar when
+// a role group enables the agent. Empty when unset (Vector disabled).
+func (c *HdfsCluster) VectorAggregatorConfigMapName() string {
+	if c.Spec.ClusterConfig == nil {
+		return ""
+	}
+	return c.Spec.ClusterConfig.VectorAggregatorConfigMapName
+}
+
 // Ensure HdfsCluster satisfies the SDK ClusterInterface.
 var _ common.ClusterInterface = &HdfsCluster{}
 
