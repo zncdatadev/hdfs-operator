@@ -21,7 +21,9 @@ import (
 	"path"
 	"strings"
 
+	"github.com/zncdatadev/operator-go/pkg/builder"
 	"github.com/zncdatadev/operator-go/pkg/constant"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 
@@ -52,6 +54,32 @@ var hdfsBin = hdfsv1alpha1.HadoopHome + "/bin/hdfs"
 // <KubedoopListenerDir>/<volumeName>). The pod reads its address from here.
 func listenerMountPath() string {
 	return path.Join(constant.KubedoopListenerDir, listenerVolumeName)
+}
+
+// roleMetricPorts is each role's native metrics HTTP port (where the daemon serves /jmx),
+// published by the per-role metrics Service.
+var roleMetricPorts = map[string]int32{
+	hdfsv1alpha1.NameNodeRoleName:    hdfsv1alpha1.NameNodeNativeMetricsHttpPort,
+	hdfsv1alpha1.DataNodeRoleName:    hdfsv1alpha1.DataNodeNativeMetricsHttpPort,
+	hdfsv1alpha1.JournalNodeRoleName: hdfsv1alpha1.JournalNodeNativeMetricsHttpPort,
+}
+
+// metricsService builds the role group's headless metrics Service ({resource}-metrics), scraping
+// the "metric" container port. The selector uses the framework's default identity labels
+// (instance + component) so it matches the role's pods.
+func metricsService(buildCtx *reconciler.RoleGroupBuildContext) *corev1.Service {
+	port, ok := roleMetricPorts[buildCtx.RoleName]
+	if !ok {
+		return nil
+	}
+	labels := map[string]string{
+		"app.kubernetes.io/instance":  buildCtx.ClusterName,
+		"app.kubernetes.io/component": buildCtx.RoleName,
+	}
+	return builder.NewMetricsServiceBuilder(buildCtx.ResourceName, buildCtx.ClusterNamespace, port, labels).
+		WithPortName(hdfsv1alpha1.MetricName).
+		WithTargetPortName(hdfsv1alpha1.MetricName).
+		Build()
 }
 
 // roleHTTPSPorts is each role's HTTPS web port, exposed only when TLS is enabled.

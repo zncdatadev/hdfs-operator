@@ -173,15 +173,18 @@ func setRolePorts(base *reconciler.BaseRoleGroupHandler[*hdfsv1alpha1.HdfsCluste
 		hdfsv1alpha1.NameNodeRoleName: {
 			{hdfsv1alpha1.RpcName, hdfsv1alpha1.NameNodeRpcPort},
 			{hdfsv1alpha1.HttpName, hdfsv1alpha1.NameNodeHttpPort},
+			{hdfsv1alpha1.MetricName, hdfsv1alpha1.NameNodeNativeMetricsHttpPort},
 		},
 		hdfsv1alpha1.DataNodeRoleName: {
 			{hdfsv1alpha1.DataName, hdfsv1alpha1.DataNodeDataPort},
 			{hdfsv1alpha1.HttpName, hdfsv1alpha1.DataNodeHttpPort},
 			{hdfsv1alpha1.IpcName, hdfsv1alpha1.DataNodeIpcPort},
+			{hdfsv1alpha1.MetricName, hdfsv1alpha1.DataNodeNativeMetricsHttpPort},
 		},
 		hdfsv1alpha1.JournalNodeRoleName: {
 			{hdfsv1alpha1.RpcName, hdfsv1alpha1.JournalNodeRpcPort},
 			{hdfsv1alpha1.HttpName, hdfsv1alpha1.JournalNodeHttpPort},
+			{hdfsv1alpha1.MetricName, hdfsv1alpha1.JournalNodeNativeMetricsHttpPort},
 		},
 	}
 
@@ -243,6 +246,11 @@ func (h *HdfsRoleGroupHandler) BuildResources(
 
 	if resources.StatefulSet != nil {
 		h.applyMainContainer(cr, buildCtx.RoleName, resources.StatefulSet)
+	}
+
+	// Publish the per-role metrics Service so Prometheus can scrape the daemon's /jmx endpoint.
+	if svc := metricsService(buildCtx); svc != nil {
+		resources.MetricsService = svc
 	}
 
 	return resources, nil

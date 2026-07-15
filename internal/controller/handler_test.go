@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/zncdatadev/operator-go/pkg/productlogging"
+	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -283,6 +284,33 @@ func TestKinitInInitContainers(t *testing.T) {
 	wait := waitForNameNodesContainer(cr, "/x")
 	if !strings.Contains(wait.Args[0], "dn/simple-hdfs.default.svc.cluster.local") {
 		t.Errorf("wait-for-namenodes should kinit as dn principal:\n%s", wait.Args[0])
+	}
+}
+
+func TestMetricsService(t *testing.T) {
+	buildCtx := &reconciler.RoleGroupBuildContext{
+		ClusterName:      "simple-hdfs",
+		ClusterNamespace: "default",
+		RoleName:         hdfsv1alpha1.NameNodeRoleName,
+		ResourceName:     "simple-hdfs-namenode-default",
+	}
+	svc := metricsService(buildCtx)
+	if svc == nil {
+		t.Fatal("expected a metrics service for namenode")
+	}
+	if svc.Name != "simple-hdfs-namenode-default-metrics" {
+		t.Errorf("name = %q, want simple-hdfs-namenode-default-metrics", svc.Name)
+	}
+	if svc.Spec.ClusterIP != corev1.ClusterIPNone {
+		t.Error("metrics service should be headless")
+	}
+	if len(svc.Spec.Ports) != 1 || svc.Spec.Ports[0].Name != hdfsv1alpha1.MetricName ||
+		svc.Spec.Ports[0].Port != hdfsv1alpha1.NameNodeNativeMetricsHttpPort ||
+		svc.Spec.Ports[0].TargetPort.StrVal != hdfsv1alpha1.MetricName {
+		t.Errorf("port = %+v, want metric/%d targetPort metric", svc.Spec.Ports, hdfsv1alpha1.NameNodeNativeMetricsHttpPort)
+	}
+	if svc.Spec.Selector["app.kubernetes.io/component"] != hdfsv1alpha1.NameNodeRoleName {
+		t.Errorf("selector component = %q, want namenode", svc.Spec.Selector["app.kubernetes.io/component"])
 	}
 }
 
