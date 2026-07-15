@@ -113,6 +113,24 @@ func exportKerberosRealmScript(cr *hdfsv1alpha1.HdfsCluster) string {
 	return fmt.Sprintf("export KERBEROS_REALM=$(grep -oP 'default_realm = \\K.*' %s)\n", krb5)
 }
 
+// kerberosMount is the volume mount for the Kerberos keytab + krb5.conf.
+func kerberosMount() corev1.VolumeMount {
+	return corev1.VolumeMount{Name: constants.KerberosSecretVolumeName, MountPath: constant.KubedoopKerberosDir}
+}
+
+// kinitScriptPrefix returns the realm-export + kinit prelude a Kerberos client operation (e.g.
+// `hdfs haadmin`, `zkfc -formatZK`) needs to obtain a TGT, or "" when Kerberos is disabled.
+// serviceName is the role's Kerberos short name (nn/dn/jn).
+func kinitScriptPrefix(cr *hdfsv1alpha1.HdfsCluster, serviceName string) string {
+	if !kerberosEnabled(cr) {
+		return ""
+	}
+	krb5 := path.Join(constant.KubedoopKerberosDir, constants.Krb5ConfFile)
+	keytab := path.Join(constant.KubedoopKerberosDir, constants.KeytabFile)
+	principal := fmt.Sprintf("%s/%s.%s.svc.cluster.local@${KERBEROS_REALM}", serviceName, cr.Name, cr.Namespace)
+	return fmt.Sprintf("export KERBEROS_REALM=$(grep -oP 'default_realm = \\K.*' %s)\nkinit -kt %s \"%s\"\n", krb5, keytab, principal)
+}
+
 // mainContainerScript is the primary container's startup: resolve the Kerberos realm (if any),
 // export the listener address, then exec the HDFS daemon for the role.
 func mainContainerScript(cr *hdfsv1alpha1.HdfsCluster, roleName string) string {
@@ -128,6 +146,10 @@ func mainContainerScript(cr *hdfsv1alpha1.HdfsCluster, roleName string) string {
 // When restartAlways is true the container is a native sidecar (K8s 1.28+); otherwise it is a
 // plain init container.
 func newContainer(name string, cr *hdfsv1alpha1.HdfsCluster, confDir, script string, mounts []corev1.VolumeMount, restartAlways bool) corev1.Container {
+	// Kerberos containers also mount the keytab + krb5.conf so they can authenticate.
+	if kerberosEnabled(cr) {
+		mounts = append(mounts, kerberosMount())
+	}
 	c := corev1.Container{
 		Name:         name,
 		Image:        resolveImage(cr),
@@ -174,6 +196,7 @@ if [ ! -f "%[3]s/current/VERSION" ]; then
 else
     echo "$POD_NAME already formatted. Skipping."
 fi`, ids, hdfsBin, hdfsv1alpha1.NameNodeRootDataDir)
+	script = kinitScriptPrefix(cr, kerberosServiceNames[hdfsv1alpha1.NameNodeRoleName]) + script
 	return newContainer(formatNameNodeContainerName, cr, confDir, script,
 		[]corev1.VolumeMount{configMount(confDir), dataMount()}, false)
 }
@@ -192,6 +215,7 @@ func formatZookeeperContainer(cr *hdfsv1alpha1.HdfsCluster, confDir string) core
 else
     echo "ZooKeeper already formatted by pod 0."
 fi`, hdfsBin)
+	script = kinitScriptPrefix(cr, kerberosServiceNames[hdfsv1alpha1.NameNodeRoleName]) + script
 	return newContainer(formatZookeeperContainerName, cr, confDir, script,
 		[]corev1.VolumeMount{configMount(confDir)}, false)
 }
@@ -215,6 +239,7 @@ while [ ${n} -lt 12 ]; do
     if [ "$ALL_NODES_READY" == "true" ]; then echo "All namenodes ready!"; break; fi
     n=$((n + 1)); sleep 5
 done`, ids, hdfsBin)
+	script = kinitScriptPrefix(cr, kerberosServiceNames[hdfsv1alpha1.DataNodeRoleName]) + script
 	return newContainer(waitForNameNodesContainerName, cr, confDir, script,
 		[]corev1.VolumeMount{configMount(confDir)}, false)
 }

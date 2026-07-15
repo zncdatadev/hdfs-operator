@@ -247,6 +247,45 @@ func TestTlsSecretProvisioner(t *testing.T) {
 	}
 }
 
+func hasMount(ms []corev1.VolumeMount, name string) bool {
+	for _, m := range ms {
+		if m.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func TestKinitInInitContainers(t *testing.T) {
+	cr := crWithNameNodes()
+	cr.Namespace = "default"
+
+	// Without Kerberos: no kinit, no kerberos mount.
+	noKrb := formatNameNodeContainer(cr, "/x")
+	if strings.Contains(noKrb.Args[0], "kinit") {
+		t.Error("no kinit expected without kerberos")
+	}
+	if hasMount(noKrb.VolumeMounts, constants.KerberosSecretVolumeName) {
+		t.Error("no kerberos mount expected without kerberos")
+	}
+
+	// With Kerberos: format-namenode kinits as nn, wait-for-namenodes as dn, both mount the keytab.
+	cr.Spec.ClusterConfig.Authentication = &hdfsv1alpha1.AuthenticationSpec{
+		Kerberos: &hdfsv1alpha1.KerberosSpec{SecretClass: "kerberos"},
+	}
+	fmtNN := formatNameNodeContainer(cr, "/x")
+	if !strings.Contains(fmtNN.Args[0], "kinit -kt") || !strings.Contains(fmtNN.Args[0], "nn/simple-hdfs.default.svc.cluster.local") {
+		t.Errorf("format-namenode should kinit as nn principal:\n%s", fmtNN.Args[0])
+	}
+	if !hasMount(fmtNN.VolumeMounts, constants.KerberosSecretVolumeName) {
+		t.Error("format-namenode should mount the kerberos volume under kerberos")
+	}
+	wait := waitForNameNodesContainer(cr, "/x")
+	if !strings.Contains(wait.Args[0], "dn/simple-hdfs.default.svc.cluster.local") {
+		t.Errorf("wait-for-namenodes should kinit as dn principal:\n%s", wait.Args[0])
+	}
+}
+
 func TestHTTPSContainerPort(t *testing.T) {
 	cases := map[string]int32{
 		hdfsv1alpha1.NameNodeRoleName:    hdfsv1alpha1.NameNodeHttpsPort,
