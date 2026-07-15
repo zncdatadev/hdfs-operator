@@ -89,6 +89,20 @@ func TestComputeConfig_TLS(t *testing.T) {
 	if out["ssl-client.xml"]["ssl.client.truststore.type"] != "pkcs12" {
 		t.Errorf("ssl-client truststore.type should be pkcs12")
 	}
+	// HTTPS_ONLY means clients reach the NameNodes via the https-address.
+	wantHTTPS := "simple-hdfs-namenode-default-0.simple-hdfs-namenode-default-headless.default.svc.cluster.local:9871"
+	if got := out["hdfs-site.xml"]["dfs.namenode.https-address.simple-hdfs.simple-hdfs-namenode-default-0"]; got != wantHTTPS {
+		t.Errorf("https-address = %q, want %q", got, wantHTTPS)
+	}
+}
+
+func TestComputeConfig_NoTLS_NoHTTPSAddress(t *testing.T) {
+	out := ComputeConfig(testCluster(), hdfsv1alpha1.NameNodeRoleName, defaultGroup).ConfigOverrides
+	for k := range out["hdfs-site.xml"] {
+		if len(k) >= 24 && k[:24] == "dfs.namenode.https-addre" {
+			t.Errorf("https-address keys should be absent without TLS, found %q", k)
+		}
+	}
 }
 
 func TestComputeConfig_NoTLS(t *testing.T) {

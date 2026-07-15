@@ -190,12 +190,18 @@ func nameNodeHAConfig(cr *hdfsv1alpha1.HdfsCluster) map[string]string {
 		"dfs.nameservices": nameservice,
 		"dfs.client.failover.proxy.provider." + nameservice: failoverProxyProvider,
 	}
+	tls := tlsEnabled(cr)
 	nnPods := nameNodePods(cr)
 	ids := make([]string, 0, len(nnPods))
 	for _, nn := range nnPods {
 		ids = append(ids, nn.id)
 		props["dfs.namenode.rpc-address."+nameservice+"."+nn.id] = fmt.Sprintf("%s:%d", nn.fqdn, hdfsv1alpha1.NameNodeRpcPort)
 		props["dfs.namenode.http-address."+nameservice+"."+nn.id] = fmt.Sprintf("%s:%d", nn.fqdn, hdfsv1alpha1.NameNodeHttpPort)
+		// With dfs.http.policy=HTTPS_ONLY (set when TLS is enabled) the NameNode web UI/API binds
+		// to the https-address, so clients need it to reach the NameNodes over TLS.
+		if tls {
+			props["dfs.namenode.https-address."+nameservice+"."+nn.id] = fmt.Sprintf("%s:%d", nn.fqdn, hdfsv1alpha1.NameNodeHttpsPort)
+		}
 	}
 	props["dfs.ha.namenodes."+nameservice] = strings.Join(ids, ",")
 	return props
