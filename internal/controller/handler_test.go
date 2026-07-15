@@ -30,27 +30,36 @@ import (
 	"github.com/zncdatadev/hdfs-operator/internal/constants"
 )
 
-func TestJvmHeapEnv(t *testing.T) {
+func TestRoleJvmOptsEnv(t *testing.T) {
 	withMem := func(q string) *corev1.Container {
 		return &corev1.Container{Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse(q)},
 		}}
 	}
 
-	// 2Gi * 0.8 / 1Mi = 1638
-	e := jvmHeapEnv(hdfsv1alpha1.NameNodeRoleName, withMem("2Gi"))
-	if e == nil || e.Name != "HDFS_NAMENODE_OPTS" || e.Value != "-Xmx1638m" {
-		t.Errorf("namenode heap env = %+v, want HDFS_NAMENODE_OPTS=-Xmx1638m", e)
+	// NameNode with a 2Gi limit: -Xmx (2Gi*0.8/1Mi = 1638) + the jmx javaagent on port 8183.
+	e := roleJvmOptsEnv(hdfsv1alpha1.NameNodeRoleName, withMem("2Gi"))
+	if e == nil || e.Name != "HDFS_NAMENODE_OPTS" {
+		t.Fatalf("namenode opts env = %+v, want HDFS_NAMENODE_OPTS", e)
 	}
-	if e := jvmHeapEnv(hdfsv1alpha1.DataNodeRoleName, withMem("1Gi")); e == nil || e.Value != "-Xmx819m" {
-		t.Errorf("datanode heap env = %+v, want -Xmx819m", e)
+	if !strings.Contains(e.Value, "-Xmx1638m") {
+		t.Errorf("namenode opts should size heap: %q", e.Value)
 	}
-	// no memory limit -> nil (leave image JVM defaults)
-	if e := jvmHeapEnv(hdfsv1alpha1.NameNodeRoleName, &corev1.Container{}); e != nil {
-		t.Errorf("no memory limit should yield nil, got %+v", e)
+	if !strings.Contains(e.Value, "-javaagent:/kubedoop/jmx/jmx_prometheus_javaagent.jar=8183:/kubedoop/jmx/namenode.yaml") {
+		t.Errorf("namenode opts should add the jmx javaagent on 8183: %q", e.Value)
 	}
-	// unknown role -> nil
-	if e := jvmHeapEnv("unknown", withMem("2Gi")); e != nil {
+
+	// No memory limit: no -Xmx, but the javaagent is still added.
+	noMem := roleJvmOptsEnv(hdfsv1alpha1.DataNodeRoleName, &corev1.Container{})
+	if noMem == nil || strings.Contains(noMem.Value, "-Xmx") {
+		t.Errorf("no-limit datanode opts should have the agent but no -Xmx: %+v", noMem)
+	}
+	if !strings.Contains(noMem.Value, "=8082:/kubedoop/jmx/datanode.yaml") {
+		t.Errorf("datanode javaagent should use port 8082: %q", noMem.Value)
+	}
+
+	// Unknown role -> nil.
+	if e := roleJvmOptsEnv("unknown", withMem("2Gi")); e != nil {
 		t.Errorf("unknown role should yield nil, got %+v", e)
 	}
 }
@@ -305,9 +314,9 @@ func TestMetricsService(t *testing.T) {
 		t.Error("metrics service should be headless")
 	}
 	if len(svc.Spec.Ports) != 1 || svc.Spec.Ports[0].Name != hdfsv1alpha1.MetricName ||
-		svc.Spec.Ports[0].Port != hdfsv1alpha1.NameNodeNativeMetricsHttpPort ||
+		svc.Spec.Ports[0].Port != hdfsv1alpha1.NameNodeMetricPort ||
 		svc.Spec.Ports[0].TargetPort.StrVal != hdfsv1alpha1.MetricName {
-		t.Errorf("port = %+v, want metric/%d targetPort metric", svc.Spec.Ports, hdfsv1alpha1.NameNodeNativeMetricsHttpPort)
+		t.Errorf("port = %+v, want metric/%d targetPort metric", svc.Spec.Ports, hdfsv1alpha1.NameNodeMetricPort)
 	}
 	if svc.Spec.Selector["app.kubernetes.io/component"] != hdfsv1alpha1.NameNodeRoleName {
 		t.Errorf("selector component = %q, want namenode", svc.Spec.Selector["app.kubernetes.io/component"])

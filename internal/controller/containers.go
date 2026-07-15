@@ -59,9 +59,9 @@ func listenerMountPath() string {
 // roleMetricPorts is each role's native metrics HTTP port (where the daemon serves /jmx),
 // published by the per-role metrics Service.
 var roleMetricPorts = map[string]int32{
-	hdfsv1alpha1.NameNodeRoleName:    hdfsv1alpha1.NameNodeNativeMetricsHttpPort,
-	hdfsv1alpha1.DataNodeRoleName:    hdfsv1alpha1.DataNodeNativeMetricsHttpPort,
-	hdfsv1alpha1.JournalNodeRoleName: hdfsv1alpha1.JournalNodeNativeMetricsHttpPort,
+	hdfsv1alpha1.NameNodeRoleName:    hdfsv1alpha1.NameNodeMetricPort,
+	hdfsv1alpha1.DataNodeRoleName:    hdfsv1alpha1.DataNodeMetricPort,
+	hdfsv1alpha1.JournalNodeRoleName: hdfsv1alpha1.JournalNodeMetricPort,
 }
 
 // metricsService builds the role group's headless metrics Service ({resource}-metrics), scraping

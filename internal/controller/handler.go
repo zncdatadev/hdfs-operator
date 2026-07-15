@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/zncdatadev/operator-go/pkg/config"
 	"github.com/zncdatadev/operator-go/pkg/constant"
@@ -173,18 +174,18 @@ func setRolePorts(base *reconciler.BaseRoleGroupHandler[*hdfsv1alpha1.HdfsCluste
 		hdfsv1alpha1.NameNodeRoleName: {
 			{hdfsv1alpha1.RpcName, hdfsv1alpha1.NameNodeRpcPort},
 			{hdfsv1alpha1.HttpName, hdfsv1alpha1.NameNodeHttpPort},
-			{hdfsv1alpha1.MetricName, hdfsv1alpha1.NameNodeNativeMetricsHttpPort},
+			{hdfsv1alpha1.MetricName, hdfsv1alpha1.NameNodeMetricPort},
 		},
 		hdfsv1alpha1.DataNodeRoleName: {
 			{hdfsv1alpha1.DataName, hdfsv1alpha1.DataNodeDataPort},
 			{hdfsv1alpha1.HttpName, hdfsv1alpha1.DataNodeHttpPort},
 			{hdfsv1alpha1.IpcName, hdfsv1alpha1.DataNodeIpcPort},
-			{hdfsv1alpha1.MetricName, hdfsv1alpha1.DataNodeNativeMetricsHttpPort},
+			{hdfsv1alpha1.MetricName, hdfsv1alpha1.DataNodeMetricPort},
 		},
 		hdfsv1alpha1.JournalNodeRoleName: {
 			{hdfsv1alpha1.RpcName, hdfsv1alpha1.JournalNodeRpcPort},
 			{hdfsv1alpha1.HttpName, hdfsv1alpha1.JournalNodeHttpPort},
-			{hdfsv1alpha1.MetricName, hdfsv1alpha1.JournalNodeNativeMetricsHttpPort},
+			{hdfsv1alpha1.MetricName, hdfsv1alpha1.JournalNodeMetricPort},
 		},
 	}
 
@@ -301,7 +302,7 @@ func (h *HdfsRoleGroupHandler) applyMainContainer(cr *hdfsv1alpha1.HdfsCluster, 
 	}
 
 	c.Env = append(c.Env, commonEnv(cr, h.ConfigMountPath)...)
-	if heap := jvmHeapEnv(roleName, c); heap != nil {
+	if heap := roleJvmOptsEnv(roleName, c); heap != nil {
 		c.Env = append(c.Env, *heap)
 	}
 	// Under TLS the role also serves HTTPS; expose the port so the listener projects HTTPS_PORT.
@@ -321,23 +322,30 @@ var roleOptsEnv = map[string]string{
 	hdfsv1alpha1.JournalNodeRoleName: "HDFS_JOURNALNODE_OPTS",
 }
 
-// jvmHeapEnv sizes the daemon's max heap (-Xmx) from the container's memory limit (which the
-// framework set from the role group's configured resources), scaled by JvmHeapFactor. Returns
-// nil when no memory limit is set, leaving the image's JVM defaults in place.
-func jvmHeapEnv(roleName string, c *corev1.Container) *corev1.EnvVar {
+// roleJvmOptsEnv builds the role's HDFS_<ROLE>_OPTS env var: the JVM max heap sized from the
+// container's memory limit, plus the jmx_prometheus javaagent that exposes Prometheus metrics on
+// the role's metric port (the jar and per-role rules file are provided by the product image under
+// KubedoopJmxDir). Returns nil for an unknown role or when there is nothing to set.
+func roleJvmOptsEnv(roleName string, c *corev1.Container) *corev1.EnvVar {
 	envName := roleOptsEnv[roleName]
 	if envName == "" {
 		return nil
 	}
-	limit, ok := c.Resources.Limits[corev1.ResourceMemory]
-	if !ok || limit.IsZero() {
+	var opts []string
+	if limit, ok := c.Resources.Limits[corev1.ResourceMemory]; ok && !limit.IsZero() {
+		if heapMi := int64(float64(limit.Value())*hdfsv1alpha1.JvmHeapFactor) / (1024 * 1024); heapMi >= 1 {
+			opts = append(opts, fmt.Sprintf("-Xmx%dm", heapMi))
+		}
+	}
+	if port, ok := roleMetricPorts[roleName]; ok {
+		jar := path.Join(constant.KubedoopJmxDir, "jmx_prometheus_javaagent.jar")
+		cfg := path.Join(constant.KubedoopJmxDir, roleName+".yaml")
+		opts = append(opts, fmt.Sprintf("-javaagent:%s=%d:%s", jar, port, cfg))
+	}
+	if len(opts) == 0 {
 		return nil
 	}
-	heapMi := int64(float64(limit.Value())*hdfsv1alpha1.JvmHeapFactor) / (1024 * 1024)
-	if heapMi < 1 {
-		return nil
-	}
-	return &corev1.EnvVar{Name: envName, Value: fmt.Sprintf("-Xmx%dm", heapMi)}
+	return &corev1.EnvVar{Name: envName, Value: strings.Join(opts, " ")}
 }
 
 // commonEnv builds the env vars every HDFS container needs. HADOOP_CONF_DIR points at the path
