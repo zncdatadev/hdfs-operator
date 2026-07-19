@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -25,6 +26,12 @@ import (
 	"github.com/zncdatadev/operator-go/pkg/common"
 	"github.com/zncdatadev/operator-go/pkg/constant"
 )
+
+// DefaultDataStorageCapacity is the data PVC size used when a role group does not request storage.
+// Every HDFS role persists to KubedoopDataDir (NameNode fsimage/edits, JournalNode edits, DataNode
+// blocks), and the framework only builds the data VolumeClaimTemplate when Resources.Storage is
+// set — so GetSpec defaults it, matching the commons StorageResource schema default.
+const DefaultDataStorageCapacity = "10Gi"
 
 // Role names. These are the keys used in the GenericClusterSpec.Roles map and in
 // {cluster}-{role}-{group} resource names produced by the SDK.
@@ -264,19 +271,42 @@ type KerberosSpec struct {
 func (c *HdfsCluster) GetSpec() *commonsv1alpha1.GenericClusterSpec {
 	roles := make(map[string]commonsv1alpha1.RoleSpec)
 	if c.Spec.NameNodes != nil {
-		roles[NameNodeRoleName] = c.Spec.NameNodes.RoleSpec
+		roles[NameNodeRoleName] = roleWithDefaultStorage(c.Spec.NameNodes.RoleSpec)
 	}
 	if c.Spec.DataNodes != nil {
-		roles[DataNodeRoleName] = c.Spec.DataNodes.RoleSpec
+		roles[DataNodeRoleName] = roleWithDefaultStorage(c.Spec.DataNodes.RoleSpec)
 	}
 	if c.Spec.JournalNodes != nil {
-		roles[JournalNodeRoleName] = c.Spec.JournalNodes.RoleSpec
+		roles[JournalNodeRoleName] = roleWithDefaultStorage(c.Spec.JournalNodes.RoleSpec)
 	}
 	return &commonsv1alpha1.GenericClusterSpec{
 		Image:            c.Spec.Image,
 		ClusterOperation: c.Spec.ClusterOperation,
 		Roles:            roles,
 	}
+}
+
+// roleWithDefaultStorage returns a deep copy of the role spec in which every role group has a data
+// storage request. Without it the framework skips the data VolumeClaimTemplate (it requires
+// Resources.Storage != nil), leaving the init containers' "data" mount dangling and the StatefulSet
+// pod template invalid. It copies rather than mutating the CR so status/update paths stay clean.
+func roleWithDefaultStorage(rs commonsv1alpha1.RoleSpec) commonsv1alpha1.RoleSpec {
+	out := *rs.DeepCopy()
+	for name, rg := range out.RoleGroups {
+		if rg.Config == nil {
+			rg.Config = &commonsv1alpha1.RoleGroupConfigSpec{}
+		}
+		if rg.Config.Resources == nil {
+			rg.Config.Resources = &commonsv1alpha1.ResourcesSpec{}
+		}
+		if rg.Config.Resources.Storage == nil {
+			rg.Config.Resources.Storage = &commonsv1alpha1.StorageResource{
+				Capacity: resource.MustParse(DefaultDataStorageCapacity),
+			}
+		}
+		out.RoleGroups[name] = rg
+	}
+	return out
 }
 
 // GetStatus returns the generic cluster status.
