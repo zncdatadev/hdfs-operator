@@ -133,8 +133,8 @@ github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=
 github.com/x448/float16 v0.8.4/go.mod h1:14CWIYCyZA/cWjXOioeEpHeN/83MdbZDRQHoFcYsOfg=
-github.com/zncdatadev/operator-go v0.12.7-0.20260714012805-7fc89f853b8f h1:cmymbFaN6GWIg5SMfTri6rT+dc8qFSRpAorol3yFC1o=
-github.com/zncdatadev/operator-go v0.12.7-0.20260714012805-7fc89f853b8f/go.mod h1:lryluWNSLStwutbZ920ULZjGlDUCFya7WimdiSuX7jU=
+github.com/zncdatadev/operator-go v0.12.7-0.20260714053542-4d5d74f6ffa4 h1:T1kLNjm5KKnmNWLLx/TRK6iIsUd2gNbQRLwwkZRdbr0=
+github.com/zncdatadev/operator-go v0.12.7-0.20260714053542-4d5d74f6ffa4/go.mod h1:lryluWNSLStwutbZ920ULZjGlDUCFya7WimdiSuX7jU=
 go.opentelemetry.io/auto/sdk v1.1.0 h1:cH53jehLUN6UFLY71z+NDOiNJqDdPRaXzTel0sJySYA=
 go.opentelemetry.io/auto/sdk v1.1.0/go.mod h1:3wSPjt5PWp2RhlCcmmOial7AvC4DQqZb7a7wCow3W8A=
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.61.0 h1:F7Jx+6hwnZ41NSFTO5q4LYDtJRXBf2PD0rNBkeB/lus=

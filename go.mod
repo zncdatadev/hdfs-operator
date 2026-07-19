@@ -3,7 +3,7 @@ module github.com/zncdatadev/hdfs-operator
 go 1.25.8
 
 require (
-	github.com/zncdatadev/operator-go v0.12.7-0.20260714012805-7fc89f853b8f
+	github.com/zncdatadev/operator-go v0.12.7-0.20260714053542-4d5d74f6ffa4
 	k8s.io/api v0.35.4
 	k8s.io/apimachinery v0.35.4
 	k8s.io/client-go v0.35.4
