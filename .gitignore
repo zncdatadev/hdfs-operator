@@ -49,6 +49,3 @@ cover.out
 # helm charts
 # helm package directory
 target
-
-# generated chainsaw values
-test/e2e/.values.yaml
