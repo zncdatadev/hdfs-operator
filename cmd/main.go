@@ -224,8 +224,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Register the HdfsCluster admission webhook (image defaulting) unless disabled.
-	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+	// Register the HdfsCluster admission webhook (image defaulting) only when a serving
+	// certificate is configured (--webhook-cert-path). The Helm chart deploys the operator
+	// without a webhook or cert-manager (image defaults are applied in-code via defaultImage()),
+	// so registering the webhook there would crash the manager on the missing serving cert.
+	if webhookCertPath != "" && os.Getenv("ENABLE_WEBHOOKS") != "false" {
 		if err = webhookv1alpha1.SetupHdfsClusterWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "HdfsCluster")
 			os.Exit(1)
