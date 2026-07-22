@@ -4,72 +4,66 @@ metadata:
   labels:
     app.kubernetes.io/name: hdfscluster
     app.kubernetes.io/instance: hdfscluster-sample
-    app.kubernetes.io/part-of: hdfs-operator
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: hdfs-operator
+    app.kubernetes.io/managed-by: hdfs-operator
   name: hdfscluster-sample
 spec:
+  image:
+    productVersion: "3.4.1"
+    kubedoopVersion: "0.0.0-dev"
   clusterConfig:
-    zookeeperConfigMapName: sample-hdfs
-  nameNode:
+    # A ConfigMap that publishes the ZooKeeper connection string under the "ZOOKEEPER" key
+    # (required for HDFS HA and the JournalNode quorum).
+    zookeeperConfigMapName: hdfscluster-sample-znode
+    dfsReplication: 3
+  # NameNode: HA metadata servers (Active/Standby).
+  nameNodes:
     roleGroups:
       default:
         replicas: 2
         config:
           resources:
             cpu:
-              min: 1
-              max: 2
+              min: "500m"
+              max: "2"
             memory:
-              limit: "3Gi"
+              limit: "2Gi"
+            storage:
+              capacity: "2Gi"
           logging:
-            namenode:
-              loggers:
-                test:
-                  level: DEBUG
-              console:
-                level: WARN
-              file:
-                level: ERROR
-            formatNameNode:
-              loggers:
-                test-format:
-                  level: DEBUG
-  journalNode:
+            containers:
+              namenode:
+                console:
+                  level: INFO
+  # JournalNode: shared edit-log quorum (odd replica count).
+  journalNodes:
     roleGroups:
       default:
         replicas: 3
         config:
           resources:
             cpu:
-              min: 1
-              max: 2
+              min: "250m"
+              max: "1"
             memory:
-              limit: "3Gi"
-          logging:
-            journalNode:
-              loggers:
-                test:
-                  level: DEBUG
-              console:
-                level: WARN
-              file:
-                level: ERROR
-  dataNode:
+              limit: "1Gi"
+            storage:
+              capacity: "1Gi"
+  # DataNode: storage workers.
+  dataNodes:
     roleGroups:
       default:
         replicas: 3
         config:
           resources:
             cpu:
-              min: 1
-              max: 2
+              min: "500m"
+              max: "2"
             memory:
-              limit: "3Gi"
+              limit: "2Gi"
+            storage:
+              capacity: "5Gi"
           logging:
-            datanode:
-              loggers:
-                test:
+            containers:
+              datanode:
+                console:
                   level: DEBUG
-              console:
-                level: WARN

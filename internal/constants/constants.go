@@ -1,0 +1,76 @@
+/*
+Copyright 2024 zncdatadev.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+// Package constants holds HDFS product-specific constants used by the operator
+// (image defaults, container names, config file names). These are the values the
+// operator applies when the user does not override them via the CR.
+package constants
+
+// Product image defaults. The container image is modeled by the SDK
+// commonsv1alpha1.ImageSpec; these supply the product defaults used to build the
+// operator's fallback image reference ({Repo}/{ProductName}:{ProductVersion}-kubedoop{KubedoopVersion}).
+const (
+	ProductName            = "hadoop"
+	DefaultImageRepo       = "quay.io/zncdatadev"
+	DefaultProductVersion  = "3.4.1"
+	DefaultKubedoopVersion = "0.0.0-dev"
+)
+
+// Primary container names per role. The SDK BaseRoleGroupHandler renames the primary
+// container (via MainContainerName) and keys per-container logging on these names.
+const (
+	NameNodeContainerName    = "namenode"
+	DataNodeContainerName    = "datanode"
+	JournalNodeContainerName = "journalnode"
+)
+
+// Config file names rendered into the role group ConfigMap.
+const (
+	CoreSiteXML = "core-site.xml"
+	HdfsSiteXML = "hdfs-site.xml"
+)
+
+// ZookeeperDiscoveryKey is the key, in the user-provided zookeeperConfigMap, whose value is the
+// ZooKeeper connection string. It is exposed to containers as the ZOOKEEPER env var, which the
+// generated config references as ${env.ZOOKEEPER}.
+const ZookeeperDiscoveryKey = "ZOOKEEPER"
+
+// Container env var names.
+const (
+	EnvHadoopHome    = "HADOOP_HOME"
+	EnvHadoopConfDir = "HADOOP_CONF_DIR"
+	EnvPodName       = "POD_NAME"
+	EnvZookeeper     = "ZOOKEEPER"
+)
+
+// TLS. The SecretProvisioner mounts a PKCS12 secret volume named TlsSecretVolumeName; it
+// contains keystore.p12 / truststore.p12, referenced by ssl-server.xml / ssl-client.xml.
+const (
+	TlsSecretVolumeName   = "tls"
+	DefaultTlsSecretClass = "tls"
+	SslServerXML          = "ssl-server.xml"
+	SslClientXML          = "ssl-client.xml"
+	Pkcs12StoreType       = "pkcs12"
+	KeystoreP12           = "keystore.p12"
+	TruststoreP12         = "truststore.p12"
+)
+
+// Kerberos. The SecretProvisioner mounts a keytab + krb5.conf under this volume.
+const (
+	KerberosSecretVolumeName = "kerberos"
+	Krb5ConfFile             = "krb5.conf"
+	KeytabFile               = "keytab"
+)
