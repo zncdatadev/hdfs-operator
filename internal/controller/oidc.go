@@ -62,8 +62,9 @@ func ensureOidcCookieSecret(ctx context.Context, c ctrlclient.Client, cr *hdfsv1
 }
 
 // oidcSidecarProvider builds the framework oauth2-proxy sidecar that fronts the NameNode web UI.
-// It returns (nil, nil) when OIDC is not configured or the referenced AuthenticationClass / OIDC
-// provider is absent (a later reconcile picks it up once created).
+// It returns nil only when OIDC is not configured. Once the CR explicitly requests OIDC, a
+// missing AuthenticationClass or OIDC provider is an error so the NameNode cannot silently start
+// without the authentication sidecar the user requested.
 func oidcSidecarProvider(ctx context.Context, c ctrlclient.Client, cr *hdfsv1alpha1.HdfsCluster) (*sidecar.OAuth2ProxySidecarProvider, error) {
 	if !oidcEnabled(cr) {
 		return nil, nil
@@ -76,10 +77,10 @@ func oidcSidecarProvider(ctx context.Context, c ctrlclient.Client, cr *hdfsv1alp
 		if ctrlclient.IgnoreNotFound(err) != nil {
 			return nil, fmt.Errorf("get AuthenticationClass %q: %w", auth.AuthenticationClass, err)
 		}
-		return nil, nil // not found yet; a later reconcile picks it up
+		return nil, fmt.Errorf("AuthenticationClass %q not found", auth.AuthenticationClass)
 	}
 	if authClass.Spec.AuthenticationProvider == nil || authClass.Spec.AuthenticationProvider.OIDC == nil {
-		return nil, nil
+		return nil, fmt.Errorf("AuthenticationClass %q does not define an OIDC provider", auth.AuthenticationClass)
 	}
 
 	return sidecar.NewOAuth2ProxySidecarProvider(

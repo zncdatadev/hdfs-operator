@@ -112,11 +112,27 @@ func TestOidcSidecarProvider_AbsentAuthClass(t *testing.T) {
 	c := fake.NewClientBuilder().WithScheme(oidcScheme(t)).Build()
 
 	provider, err := oidcSidecarProvider(context.Background(), c, cr)
-	if err != nil {
-		t.Fatalf("oidcSidecarProvider: %v", err)
+	if err == nil {
+		t.Fatal("expected an error when the configured AuthenticationClass does not exist")
 	}
 	if provider != nil {
-		t.Error("expected nil provider when the AuthenticationClass does not exist yet")
+		t.Error("expected nil provider when AuthenticationClass resolution fails")
+	}
+}
+
+func TestOidcSidecarProvider_RejectsAuthClassWithoutOidcProvider(t *testing.T) {
+	cr := oidcCR()
+	authClass := &authv1alpha1.AuthenticationClass{
+		ObjectMeta: metav1.ObjectMeta{Name: testAuthClass, Namespace: testNamespace},
+	}
+	c := fake.NewClientBuilder().WithScheme(oidcScheme(t)).WithObjects(authClass).Build()
+
+	provider, err := oidcSidecarProvider(context.Background(), c, cr)
+	if err == nil {
+		t.Fatal("expected an error when AuthenticationClass has no OIDC provider")
+	}
+	if provider != nil {
+		t.Error("expected nil provider for an incompatible AuthenticationClass")
 	}
 }
 

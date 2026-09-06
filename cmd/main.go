@@ -228,6 +228,7 @@ func main() {
 			ProductName: constants.ProductName,
 			Defaults:    constants.ImageDefaults(),
 		},
+		Dependencies:      controller.ExternalDependencies,
 		Prototype:         &hdfsv1alpha1.HdfsCluster{},
 		ExtensionRegistry: extensionRegistry,
 	}
@@ -237,8 +238,9 @@ func main() {
 		setupLog.Error(err, "unable to create reconciler")
 		os.Exit(1)
 	}
+	watches := append(controller.DependencyWatches(mgr.GetClient()), extensions.DiscoveryWatches(mgr.GetClient())...)
 	if err = hdfsReconciler.SetupWithManagerOpts(mgr, reconciler.SetupWithManagerOptions{
-		Watches: extensions.DiscoveryWatches(mgr.GetClient()),
+		Watches: watches,
 	}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HdfsCluster")
 		os.Exit(1)
