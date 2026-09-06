@@ -11,25 +11,15 @@ spec:
     stopped: ($cluster_stopped)
   clusterConfig:
     zookeeperConfigMapName: sample-hdfs-znode
-    vectorAggregatorConfigMapName: vector-aggregator-discovery
   nameNodes:
     roleGroups:
       default:
         replicas: 2
-        config:
-          logging:
-            enableVectorAgent: true
   journalNodes:
     roleGroups:
       default:
         replicas: 1
-        config:
-          logging:
-            enableVectorAgent: true
   dataNodes:
     roleGroups:
       default:
         replicas: 1
-        config:
-          logging:
-            enableVectorAgent: true
