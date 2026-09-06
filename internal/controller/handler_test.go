@@ -337,6 +337,27 @@ func TestTlsSecretProvisioner(t *testing.T) {
 	if len(vols) != 1 || vols[0].Name != constants.TlsSecretVolumeName {
 		t.Errorf("expected a single %q volume, got %+v", constants.TlsSecretVolumeName, vols)
 	}
+	if got := p.MustPath(constants.TlsSecretVolumeName); got != constants.TlsMountDir {
+		t.Errorf("provisioner TLS mount path = %q, want %q", got, constants.TlsMountDir)
+	}
+
+	for _, c := range []corev1.Container{
+		formatNameNodeContainer(cr, "/x"),
+		formatZookeeperContainer(cr, "/x"),
+		waitForNameNodesContainer(cr, "/x"),
+		zkfcContainer(cr, "/x"),
+	} {
+		found := false
+		for _, mount := range c.VolumeMounts {
+			if mount.Name == constants.TlsSecretVolumeName && mount.MountPath == constants.TlsMountDir {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("container %q should mount TLS material at %q: %+v", c.Name, constants.TlsMountDir, c.VolumeMounts)
+		}
+	}
 }
 
 func hasMount(ms []corev1.VolumeMount, name string) bool {

@@ -76,6 +76,7 @@ const (
 // contains keystore.p12 / truststore.p12, referenced by ssl-server.xml / ssl-client.xml.
 const (
 	TlsSecretVolumeName   = "tls"
+	TlsMountDir           = constant.KubedoopMountDir + TlsSecretVolumeName
 	DefaultTlsSecretClass = "tls"
 	SslServerXML          = "ssl-server.xml"
 	SslClientXML          = "ssl-client.xml"

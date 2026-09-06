@@ -164,6 +164,13 @@ func kerberosMount() corev1.VolumeMount {
 	return corev1.VolumeMount{Name: constants.KerberosSecretVolumeName, MountPath: constants.KerberosMountDir}
 }
 
+// tlsMount is the volume mount for the TLS keystore + truststore used by HDFS client and server
+// operations. Init containers need it too: bootstrapStandby transfers the namespace image over
+// HTTPS and validates the active NameNode certificate with the configured truststore.
+func tlsMount() corev1.VolumeMount {
+	return corev1.VolumeMount{Name: constants.TlsSecretVolumeName, MountPath: constants.TlsMountDir}
+}
+
 // kinitScriptPrefix returns the realm-export + kinit prelude a Kerberos client operation (e.g.
 // `hdfs haadmin`, `zkfc -formatZK`) needs to obtain a TGT, or "" when Kerberos is disabled.
 // serviceName is the role's Kerberos short name (nn/dn/jn).
@@ -189,9 +196,13 @@ func mainContainerScript(cr *hdfsv1alpha1.HdfsCluster, roleName string) string {
 }
 
 // newContainer builds a bash-driven container with the common env and the given volume mounts.
-// When restartAlways is true the container is a native sidecar (K8s 1.28+); otherwise it is a
-// plain init container.
+// When restartAlways is true the container is a native sidecar; otherwise it is a plain init
+// container. Native sidecars are enabled by default in Kubernetes 1.29+.
 func newContainer(name string, cr *hdfsv1alpha1.HdfsCluster, confDir, script string, mounts []corev1.VolumeMount, restartAlways bool) corev1.Container {
+	// TLS client operations in init containers read the same keystore/truststore as the daemon.
+	if tlsOn(cr) {
+		mounts = append(mounts, tlsMount())
+	}
 	// Kerberos containers also mount the keytab + krb5.conf so they can authenticate.
 	if kerberosEnabled(cr) {
 		mounts = append(mounts, kerberosMount())
