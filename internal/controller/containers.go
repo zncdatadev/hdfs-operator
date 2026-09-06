@@ -219,29 +219,47 @@ func dataMount() corev1.VolumeMount {
 	return corev1.VolumeMount{Name: dataVolumeName, MountPath: constant.KubedoopDataDir}
 }
 
-// formatNameNodeContainer formats this NameNode pod on first start: it becomes the active
-// namenode if none is active yet, otherwise it bootstraps as standby. Already-formatted pods are
-// skipped (VERSION file present).
+// formatNameNodeContainer formats this NameNode pod on first start. Pod 0 is the only pod allowed
+// to create a new namespace; every other pod waits for an active NameNode and then bootstraps as a
+// standby. This keeps initial startup safe when the StatefulSet uses Parallel pod management while
+// still allowing a pod whose data was lost to bootstrap from an already-active peer. Already-
+// formatted pods are skipped (VERSION file present).
 func formatNameNodeContainer(cr *hdfsv1alpha1.HdfsCluster, confDir string) corev1.Container {
 	ids := strings.Join(product.NameNodePodNames(cr), " ")
-	script := fmt.Sprintf(`echo "Formatting namenode $POD_NAME. Checking for an active namenode:"
-for namenode_id in %[1]s; do
-    echo -n "Checking pod $namenode_id... "
-    SERVICE_STATE=$(%[2]s haadmin -getServiceState "$namenode_id" | tail -n1 || true)
-    if [ "$SERVICE_STATE" == "active" ]; then ACTIVE_NAMENODE=$namenode_id; echo "active"; break; fi
-    echo ""
-done
-if [ ! -f "%[3]s/current/VERSION" ]; then
-    if [ -z ${ACTIVE_NAMENODE+x} ]; then
-        echo "Formatting $POD_NAME as the active namenode."
-        %[2]s namenode -format -noninteractive
-    else
-        echo "Bootstrapping $POD_NAME as a standby namenode."
-        %[2]s namenode -bootstrapStandby -nonInteractive
-    fi
-else
+	script := fmt.Sprintf(`if [ -f "%[3]s/current/VERSION" ]; then
     echo "$POD_NAME already formatted. Skipping."
-fi`, ids, hdfsBin, hdfsv1alpha1.NameNodeRootDataDir)
+    exit 0
+fi
+
+POD_ORDINAL="${POD_NAME##*-}"
+while true; do
+    echo "Checking for an active namenode before initializing $POD_NAME:"
+    ACTIVE_NAMENODE=""
+    for namenode_id in %[1]s; do
+        echo -n "Checking pod $namenode_id... "
+        SERVICE_STATE=$(%[2]s haadmin -getServiceState "$namenode_id" | tail -n1 || true)
+        if [ "$SERVICE_STATE" = "active" ]; then
+            ACTIVE_NAMENODE=$namenode_id
+            echo "active"
+            break
+        fi
+        echo "not active"
+    done
+
+    if [ -n "$ACTIVE_NAMENODE" ]; then
+        echo "Bootstrapping $POD_NAME as a standby namenode from $ACTIVE_NAMENODE."
+        %[2]s namenode -bootstrapStandby -nonInteractive
+        break
+    fi
+    if [ "$POD_ORDINAL" = "0" ]; then
+        echo "No active namenode found; formatting designated pod $POD_NAME."
+        %[2]s namenode -format -noninteractive
+        break
+    fi
+
+    echo "No active namenode yet; only pod 0 may format. Retrying in 5 seconds."
+    sleep 5
+done`, ids, hdfsBin, hdfsv1alpha1.NameNodeRootDataDir)
 	script = kinitScriptPrefix(cr, kerberosServiceNames[hdfsv1alpha1.NameNodeRoleName]) + script
 	return newContainer(formatNameNodeContainerName, cr, confDir, script,
 		[]corev1.VolumeMount{configMount(confDir), dataMount()}, false)
@@ -292,6 +310,7 @@ done`, ids, hdfsBin)
 
 // zkfcContainer runs the ZooKeeper Failover Controller as a native sidecar next to the namenode.
 func zkfcContainer(cr *hdfsv1alpha1.HdfsCluster, confDir string) corev1.Container {
-	return newContainer(zkfcContainerName, cr, confDir, fmt.Sprintf("exec %s zkfc", hdfsBin),
+	script := exportKerberosRealmScript(cr) + fmt.Sprintf("exec %s zkfc", hdfsBin)
+	return newContainer(zkfcContainerName, cr, confDir, script,
 		[]corev1.VolumeMount{configMount(confDir)}, true)
 }

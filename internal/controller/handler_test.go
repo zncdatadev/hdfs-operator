@@ -287,6 +287,14 @@ func TestInitAndSidecarContainers(t *testing.T) {
 	if fmtNN.Name != formatNameNodeContainerName || !strings.Contains(fmtNN.Args[0], "namenode -format") {
 		t.Errorf("format-namenode: name=%q args missing format: %v", fmtNN.Name, fmtNN.Args)
 	}
+	if !strings.Contains(fmtNN.Args[0], `POD_ORDINAL="${POD_NAME##*-}"`) ||
+		!strings.Contains(fmtNN.Args[0], `if [ "$POD_ORDINAL" = "0" ]`) ||
+		!strings.Contains(fmtNN.Args[0], "only pod 0 may format") {
+		t.Errorf("format-namenode should serialize initial formatting through pod 0:\n%s", fmtNN.Args[0])
+	}
+	if !strings.Contains(fmtNN.Args[0], "namenode -bootstrapStandby") {
+		t.Errorf("format-namenode should bootstrap non-initial pods as standby:\n%s", fmtNN.Args[0])
+	}
 	if m := mountNames(fmtNN.VolumeMounts); !m[configVolumeName] || !m[dataVolumeName] {
 		t.Errorf("format-namenode should mount config+data, got %v", fmtNN.VolumeMounts)
 	}
@@ -300,6 +308,9 @@ func TestInitAndSidecarContainers(t *testing.T) {
 	}
 	if !strings.Contains(zkfc.Args[0], "hdfs zkfc") {
 		t.Errorf("zkfc args should run 'hdfs zkfc', got %v", zkfc.Args)
+	}
+	if strings.Contains(zkfc.Args[0], "KERBEROS_REALM") {
+		t.Errorf("zkfc should not export KERBEROS_REALM when kerberos is off, got %v", zkfc.Args)
 	}
 
 	wait := waitForNameNodesContainer(cr, confDir)
@@ -369,6 +380,10 @@ func TestKinitInInitContainers(t *testing.T) {
 	wait := waitForNameNodesContainer(cr, "/x")
 	if !strings.Contains(wait.Args[0], "dn/simple-hdfs.default.svc.cluster.local") {
 		t.Errorf("wait-for-namenodes should kinit as dn principal:\n%s", wait.Args[0])
+	}
+	zkfc := zkfcContainer(cr, "/x")
+	if !strings.Contains(zkfc.Args[0], "export KERBEROS_REALM=") {
+		t.Errorf("zkfc should export the Kerberos realm before starting:\n%s", zkfc.Args[0])
 	}
 }
 
