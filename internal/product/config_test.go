@@ -291,8 +291,8 @@ func TestComputeConfig_Kerberos(t *testing.T) {
 	if core["dfs.namenode.kerberos.principal"] != wantNN {
 		t.Errorf("namenode principal = %q, want %q", core["dfs.namenode.kerberos.principal"], wantNN)
 	}
-	if core["dfs.namenode.keytab.file"] != "/kubedoop/kerberos/keytab" {
-		t.Errorf("namenode keytab = %q, want /kubedoop/kerberos/keytab", core["dfs.namenode.keytab.file"])
+	if core["dfs.namenode.keytab.file"] != "/kubedoop/mount/kerberos/keytab" {
+		t.Errorf("namenode keytab = %q, want /kubedoop/mount/kerberos/keytab", core["dfs.namenode.keytab.file"])
 	}
 	if out["hdfs-site.xml"]["dfs.data.transfer.protection"] != "privacy" {
 		t.Errorf("data.transfer.protection should be privacy")

@@ -19,7 +19,10 @@ limitations under the License.
 // operator applies when the user does not override them via the CR.
 package constants
 
-import commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+import (
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/constant"
+)
 
 // Product image defaults. The container image is modeled by the SDK
 // commonsv1alpha1.ImageSpec; these supply the product defaults used to build the
@@ -84,6 +87,7 @@ const (
 // Kerberos. The SecretProvisioner mounts a keytab + krb5.conf under this volume.
 const (
 	KerberosSecretVolumeName = "kerberos"
+	KerberosMountDir         = constant.KubedoopMountDir + KerberosSecretVolumeName
 	Krb5ConfFile             = "krb5.conf"
 	KeytabFile               = "keytab"
 )

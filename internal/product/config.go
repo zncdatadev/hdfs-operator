@@ -253,7 +253,7 @@ func principalHostPart(cr *hdfsv1alpha1.HdfsCluster) string {
 // service principals (+ SPNEGO/HTTP), the keytab locations and principal patterns.
 func kerberosCoreSite(cr *hdfsv1alpha1.HdfsCluster) map[string]string {
 	host := principalHostPart(cr)
-	keytab := path.Join(constant.KubedoopKerberosDir, keytabFile)
+	keytab := path.Join(constants.KerberosMountDir, keytabFile)
 	return map[string]string{
 		"hadoop.security.authentication":                     authKerberos,
 		"hadoop.rpc.protection":                              dataTransferProtection,

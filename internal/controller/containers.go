@@ -155,13 +155,13 @@ func exportKerberosRealmScript(cr *hdfsv1alpha1.HdfsCluster) string {
 	if !kerberosEnabled(cr) {
 		return ""
 	}
-	krb5 := path.Join(constant.KubedoopKerberosDir, constants.Krb5ConfFile)
+	krb5 := path.Join(constants.KerberosMountDir, constants.Krb5ConfFile)
 	return fmt.Sprintf("export KERBEROS_REALM=$(grep -oP 'default_realm = \\K.*' %s)\n", krb5)
 }
 
 // kerberosMount is the volume mount for the Kerberos keytab + krb5.conf.
 func kerberosMount() corev1.VolumeMount {
-	return corev1.VolumeMount{Name: constants.KerberosSecretVolumeName, MountPath: constant.KubedoopKerberosDir}
+	return corev1.VolumeMount{Name: constants.KerberosSecretVolumeName, MountPath: constants.KerberosMountDir}
 }
 
 // kinitScriptPrefix returns the realm-export + kinit prelude a Kerberos client operation (e.g.
@@ -171,8 +171,8 @@ func kinitScriptPrefix(cr *hdfsv1alpha1.HdfsCluster, serviceName string) string 
 	if !kerberosEnabled(cr) {
 		return ""
 	}
-	krb5 := path.Join(constant.KubedoopKerberosDir, constants.Krb5ConfFile)
-	keytab := path.Join(constant.KubedoopKerberosDir, constants.KeytabFile)
+	krb5 := path.Join(constants.KerberosMountDir, constants.Krb5ConfFile)
+	keytab := path.Join(constants.KerberosMountDir, constants.KeytabFile)
 	principal := fmt.Sprintf("%s/%s.%s.svc.cluster.local@${KERBEROS_REALM}", serviceName, cr.Name, cr.Namespace)
 	return fmt.Sprintf("export KERBEROS_REALM=$(grep -oP 'default_realm = \\K.*' %s)\nkinit -kt %s \"%s\"\n", krb5, keytab, principal)
 }

@@ -354,10 +354,10 @@ func commonEnv(cr *hdfsv1alpha1.HdfsCluster, confDir string) []corev1.EnvVar {
 		})
 	}
 	if kerberosEnabled(cr) {
-		krb5 := path.Join(constant.KubedoopKerberosDir, constants.Krb5ConfFile)
+		krb5 := path.Join(constants.KerberosMountDir, constants.Krb5ConfFile)
 		env = append(env,
 			corev1.EnvVar{Name: "KRB5_CONFIG", Value: krb5},
-			corev1.EnvVar{Name: "KRB5_CLIENT_KTNAME", Value: path.Join(constant.KubedoopKerberosDir, constants.KeytabFile)},
+			corev1.EnvVar{Name: "KRB5_CLIENT_KTNAME", Value: path.Join(constants.KerberosMountDir, constants.KeytabFile)},
 			corev1.EnvVar{Name: "HADOOP_OPTS", Value: "-Djava.security.krb5.conf=" + krb5},
 		)
 	}

@@ -246,8 +246,11 @@ func TestKerberos(t *testing.T) {
 
 	// KRB5 env on the container
 	env := commonEnv(cr, "/x")
-	if e := envByName(env, "KRB5_CONFIG"); e == nil || e.Value != "/kubedoop/kerberos/krb5.conf" {
-		t.Errorf("KRB5_CONFIG = %+v, want /kubedoop/kerberos/krb5.conf", e)
+	if e := envByName(env, "KRB5_CONFIG"); e == nil || e.Value != "/kubedoop/mount/kerberos/krb5.conf" {
+		t.Errorf("KRB5_CONFIG = %+v, want /kubedoop/mount/kerberos/krb5.conf", e)
+	}
+	if got := p.MustPath(constants.KerberosSecretVolumeName); got != constants.KerberosMountDir {
+		t.Errorf("provisioner Kerberos mount path = %q, want %q", got, constants.KerberosMountDir)
 	}
 
 	// realm export in the startup script
@@ -357,6 +360,11 @@ func TestKinitInInitContainers(t *testing.T) {
 	}
 	if !hasMount(fmtNN.VolumeMounts, constants.KerberosSecretVolumeName) {
 		t.Error("format-namenode should mount the kerberos volume under kerberos")
+	}
+	for _, mount := range fmtNN.VolumeMounts {
+		if mount.Name == constants.KerberosSecretVolumeName && mount.MountPath != constants.KerberosMountDir {
+			t.Errorf("format-namenode Kerberos mount path = %q, want %q", mount.MountPath, constants.KerberosMountDir)
+		}
 	}
 	wait := waitForNameNodesContainer(cr, "/x")
 	if !strings.Contains(wait.Args[0], "dn/simple-hdfs.default.svc.cluster.local") {
