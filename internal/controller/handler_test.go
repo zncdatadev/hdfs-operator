@@ -134,6 +134,31 @@ func TestDeclareRolesTLSAddsHTTPSPort(t *testing.T) {
 	}
 }
 
+func TestDeclareRolesOIDCAddsProxyServicePort(t *testing.T) {
+	h := NewHdfsRoleGroupHandler(runtime.NewScheme())
+	cr := crWithNameNodes()
+	cr.Spec.ClusterConfig.Authentication = &hdfsv1alpha1.AuthenticationSpec{
+		AuthenticationClass: "oidc",
+		Oidc:                &hdfsv1alpha1.OidcSpec{ClientCredentialsSecret: "oidc-credentials"},
+	}
+
+	cat, err := h.DeclareRoles(context.Background(), nil, cr)
+	if err != nil {
+		t.Fatalf("DeclareRoles: %v", err)
+	}
+	d := cat[hdfsv1alpha1.NameNodeRoleName]
+	for _, p := range d.ServicePorts {
+		if p.Name == sidecar.OAuth2ProxyPortName {
+			if p.Port != sidecar.OAuth2ProxyPort || p.TargetPort.IntVal != sidecar.OAuth2ProxyPort {
+				t.Errorf("OIDC service port = %+v, want %s/%d targeting numeric port %d", p,
+					sidecar.OAuth2ProxyPortName, sidecar.OAuth2ProxyPort, sidecar.OAuth2ProxyPort)
+			}
+			return
+		}
+	}
+	t.Errorf("OIDC should publish the oauth2-proxy service port, got %+v", d.ServicePorts)
+}
+
 func envByName(env []corev1.EnvVar, name string) *corev1.EnvVar {
 	for i := range env {
 		if env[i].Name == name {

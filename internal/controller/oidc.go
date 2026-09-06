@@ -48,6 +48,19 @@ func oidcCookieSecretName(cr *hdfsv1alpha1.HdfsCluster) string {
 	return cr.Name + "-oidc-cookie"
 }
 
+// oidcSidecarConfig points oauth2-proxy at the role group's client Service rather than localhost.
+// HDFS binds its web server to the pod's advertised hostname, so localhost:9870 is closed. The
+// client Service's HTTP port selects only ready NameNodes and gives the proxy a stable upstream
+// that works for every pod in the role group.
+func oidcSidecarConfig(resourceName string) *sidecar.SidecarConfig {
+	return &sidecar.SidecarConfig{
+		Enabled: true,
+		EnvVars: map[string]string{
+			"OAUTH2_PROXY_UPSTREAMS": fmt.Sprintf("http://%s:%d", resourceName, hdfsv1alpha1.NameNodeHttpPort),
+		},
+	}
+}
+
 // ensureOidcCookieSecret creates (once) the generated session-cookie Secret the oauth2-proxy
 // sidecar signs sessions with. reconciler.EnsureGeneratedSecret generates the value only when the
 // Secret is absent and never re-converges it, so restarts and re-reconciles keep every existing

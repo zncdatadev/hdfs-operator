@@ -22,6 +22,7 @@ import (
 
 	authv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/authentication/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/sidecar"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -50,6 +51,17 @@ func TestOidcCookieSecretName(t *testing.T) {
 	cr := crWithNameNodes()
 	if got, want := oidcCookieSecretName(cr), "simple-hdfs-oidc-cookie"; got != want {
 		t.Errorf("cookie secret name = %q, want %q", got, want)
+	}
+}
+
+func TestOidcSidecarConfigUsesRoleGroupService(t *testing.T) {
+	config := oidcSidecarConfig("simple-hdfs-namenode-default")
+	if !config.Enabled {
+		t.Fatal("OIDC sidecar config should be enabled")
+	}
+	if got, want := config.EnvVars["OAUTH2_PROXY_UPSTREAMS"],
+		"http://simple-hdfs-namenode-default:9870"; got != want {
+		t.Errorf("OIDC upstream = %q, want %q", got, want)
 	}
 }
 
@@ -104,6 +116,17 @@ func TestOidcSidecarProvider(t *testing.T) {
 	}
 	if provider.Name() != oidcContainerName {
 		t.Errorf("provider name = %q, want %q", provider.Name(), oidcContainerName)
+	}
+	podSpec := &corev1.PodSpec{}
+	if err := provider.Inject(podSpec, oidcSidecarConfig("simple-hdfs-namenode-default")); err != nil {
+		t.Fatalf("inject OIDC sidecar: %v", err)
+	}
+	if len(podSpec.InitContainers) != 1 {
+		t.Fatalf("OIDC should inject one native sidecar, got %d", len(podSpec.InitContainers))
+	}
+	upstream := envByName(podSpec.InitContainers[0].Env, "OAUTH2_PROXY_UPSTREAMS")
+	if upstream == nil || upstream.Value != "http://simple-hdfs-namenode-default:9870" {
+		t.Errorf("injected OIDC upstream = %+v, want the role-group Service", upstream)
 	}
 }
 

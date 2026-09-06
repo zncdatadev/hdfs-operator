@@ -30,6 +30,7 @@ import (
 	"github.com/zncdatadev/operator-go/pkg/sidecar"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
@@ -90,6 +91,20 @@ func (h *HdfsRoleGroupHandler) DeclareRoles(
 func (h *HdfsRoleGroupHandler) roleDeclaration(cr *hdfsv1alpha1.HdfsCluster, roleName string) reconciler.RoleDeclaration {
 	cname := roleContainerNames[roleName]
 	containerPorts, servicePorts := rolePorts(roleName)
+	// oauth2-proxy is injected as a native sidecar, so its container port is contributed by the
+	// sidecar provider rather than this role declaration. The role-group Service still needs to
+	// publish that port or in-cluster clients cannot reach the authenticated NameNode web UI.
+	if roleName == hdfsv1alpha1.NameNodeRoleName && oidcEnabled(cr) {
+		servicePorts = append(servicePorts, corev1.ServicePort{
+			Name:     sidecar.OAuth2ProxyPortName,
+			Port:     sidecar.OAuth2ProxyPort,
+			Protocol: corev1.ProtocolTCP,
+			// Kubernetes does not resolve named Service target ports from native sidecars,
+			// because they live in pod.spec.initContainers. Use the numeric port so the
+			// EndpointSlice includes it.
+			TargetPort: intstr.FromInt32(sidecar.OAuth2ProxyPort),
+		})
+	}
 	// Under TLS the role also serves HTTPS; expose the port so the listener projects HTTPS_PORT.
 	if tlsOn(cr) {
 		if p := httpsContainerPort(roleName); p != nil {
@@ -290,7 +305,7 @@ func (h *HdfsRoleGroupHandler) BuildResources(
 			return nil, err
 		}
 		if provider != nil {
-			buildCtx.SidecarManager.Register(provider, &sidecar.SidecarConfig{Enabled: true})
+			buildCtx.SidecarManager.Register(provider, oidcSidecarConfig(buildCtx.ResourceName))
 		}
 	}
 
