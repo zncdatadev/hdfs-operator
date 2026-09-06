@@ -185,11 +185,15 @@ const listenerVolumeName = "listener"
 // bashShell is the shell every HDFS container's entrypoint runs under.
 const bashShell = "/bin/bash"
 
-// newListenerProvisioner declares the per-pod listener volume. cluster-internal is the default
-// class; per-role-group listenerClass overrides are reintroduced in a later phase.
-func newListenerProvisioner() *listener.ListenerProvisioner {
+// newListenerProvisioner declares the per-pod listener volume with the same effective class that
+// selects the role group's client-facing Service. Empty is a defensive fallback for direct handler
+// tests; GenericReconciler normally supplies the folded product default through Contribution.
+func newListenerProvisioner(listenerClass listener.ListenerClass) *listener.ListenerProvisioner {
+	if listenerClass == "" {
+		listenerClass = listener.ListenerClassClusterInternal
+	}
 	return listener.NewProvisioner().RegisterVolume(
-		listener.NewVolume(listenerVolumeName, listener.ListenerClassClusterInternal),
+		listener.NewVolume(listenerVolumeName, listenerClass),
 	)
 }
 
@@ -261,7 +265,10 @@ func (h *HdfsRoleGroupHandler) BuildResources(
 ) (*reconciler.RoleGroupResources, error) {
 	// Per-pod listener CSI volume: the pod reads its externally reachable address from this mount
 	// (DataNode registration + address advertisement). VolumeProviders is per-role/per-reconcile.
-	buildCtx.VolumeProviders = append(buildCtx.VolumeProviders, newListenerProvisioner())
+	buildCtx.VolumeProviders = append(
+		buildCtx.VolumeProviders,
+		newListenerProvisioner(buildCtx.Declaration.ListenerClass),
+	)
 	if p := tlsSecretProvisioner(cr); p != nil {
 		buildCtx.VolumeProviders = append(buildCtx.VolumeProviders, p)
 	}

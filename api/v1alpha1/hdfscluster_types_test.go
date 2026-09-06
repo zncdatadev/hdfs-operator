@@ -17,9 +17,11 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"encoding/json"
 	"testing"
 
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/listener"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/ptr"
 )
@@ -30,8 +32,8 @@ import (
 func TestGetSpecPassesRolesThrough(t *testing.T) {
 	cr := &HdfsCluster{
 		Spec: HdfsClusterSpec{
-			NameNodes: &NameNodeSpec{RoleSpec: commonsv1alpha1.RoleSpec{
-				RoleGroups: map[string]commonsv1alpha1.RoleGroupSpec{
+			NameNodes: &NameNodeSpec{RoleSpec: RoleSpec{
+				RoleGroups: map[string]RoleGroupSpec{
 					"default": {}, // no config.resources.storage
 				},
 			}},
@@ -56,11 +58,13 @@ func TestGetSpecPassesRolesThrough(t *testing.T) {
 func TestGetSpecKeepsExplicitStorage(t *testing.T) {
 	cr := &HdfsCluster{
 		Spec: HdfsClusterSpec{
-			DataNodes: &DataNodeSpec{RoleSpec: commonsv1alpha1.RoleSpec{
-				RoleGroups: map[string]commonsv1alpha1.RoleGroupSpec{
-					"default": {Config: &commonsv1alpha1.RoleGroupConfigSpec{
-						Resources: &commonsv1alpha1.ResourcesSpec{
-							Storage: &commonsv1alpha1.StorageResource{Capacity: ptr.To(resource.MustParse("5Gi"))},
+			DataNodes: &DataNodeSpec{RoleSpec: RoleSpec{
+				RoleGroups: map[string]RoleGroupSpec{
+					"default": {Config: &ConfigSpec{
+						RoleGroupConfigSpec: &commonsv1alpha1.RoleGroupConfigSpec{
+							Resources: &commonsv1alpha1.ResourcesSpec{
+								Storage: &commonsv1alpha1.StorageResource{Capacity: ptr.To(resource.MustParse("5Gi"))},
+							},
 						},
 					}},
 				},
@@ -71,5 +75,46 @@ func TestGetSpecKeepsExplicitStorage(t *testing.T) {
 	got := cr.GetSpec().Roles[DataNodeRoleName].RoleGroups["default"].Config.Resources.Storage.Capacity
 	if want := resource.MustParse("5Gi"); got.Cmp(want) != 0 {
 		t.Errorf("capacity = %s, want %s (explicit request must win)", got.String(), want.String())
+	}
+}
+
+func TestProductConfigUnmarshalAndGenericProjection(t *testing.T) {
+	raw := []byte(`{
+		"spec": {
+			"nameNodes": {
+				"config": {"listenerClass": "external-stable"},
+				"roleGroups": {
+					"default": {
+						"config": {
+							"listenerClass": "external-unstable",
+							"resources": {"storage": {"capacity": "7Gi"}}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	var cr HdfsCluster
+	if err := json.Unmarshal(raw, &cr); err != nil {
+		t.Fatalf("unmarshal HdfsCluster: %v", err)
+	}
+
+	roleClass := cr.Spec.NameNodes.Config.ListenerClass
+	if roleClass == nil || *roleClass != listener.ListenerClassExternalStable {
+		t.Fatalf("role listenerClass = %v, want %q", roleClass, listener.ListenerClassExternalStable)
+	}
+	group := cr.Spec.NameNodes.RoleGroups["default"]
+	if group.Config == nil || group.Config.ListenerClass == nil ||
+		*group.Config.ListenerClass != listener.ListenerClassExternalUnstable {
+		t.Fatalf("role-group listenerClass = %+v, want %q", group.Config, listener.ListenerClassExternalUnstable)
+	}
+
+	genericGroup := cr.GetSpec().Roles[NameNodeRoleName].RoleGroups["default"]
+	if genericGroup.Config == nil || genericGroup.Config.Resources == nil ||
+		genericGroup.Config.Resources.Storage == nil || genericGroup.Config.Resources.Storage.Capacity == nil {
+		t.Fatalf("generic projection lost storage config: %+v", genericGroup.Config)
+	}
+	if got, want := genericGroup.Config.Resources.Storage.Capacity, resource.MustParse("7Gi"); got.Cmp(want) != 0 {
+		t.Errorf("generic storage = %s, want %s", got.String(), want.String())
 	}
 }

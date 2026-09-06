@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
+	"github.com/zncdatadev/operator-go/pkg/listener"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -76,21 +77,21 @@ const (
 )
 
 func testCluster() *hdfsv1alpha1.HdfsCluster {
-	rg := func(replicas int32) commonsv1alpha1.RoleGroupSpec {
-		return commonsv1alpha1.RoleGroupSpec{Replicas: ptr.To(replicas)}
+	rg := func(replicas int32) hdfsv1alpha1.RoleGroupSpec {
+		return hdfsv1alpha1.RoleGroupSpec{Replicas: ptr.To(replicas)}
 	}
 	return &hdfsv1alpha1.HdfsCluster{
 		ObjectMeta: metav1.ObjectMeta{Name: clusterName, Namespace: "default"},
 		Spec: hdfsv1alpha1.HdfsClusterSpec{
 			ClusterConfig: &hdfsv1alpha1.ClusterConfigSpec{DfsReplication: 3},
-			NameNodes: &hdfsv1alpha1.NameNodeSpec{RoleSpec: commonsv1alpha1.RoleSpec{
-				RoleGroups: map[string]commonsv1alpha1.RoleGroupSpec{defaultGroup: rg(2)},
+			NameNodes: &hdfsv1alpha1.NameNodeSpec{RoleSpec: hdfsv1alpha1.RoleSpec{
+				RoleGroups: map[string]hdfsv1alpha1.RoleGroupSpec{defaultGroup: rg(2)},
 			}},
-			JournalNodes: &hdfsv1alpha1.JournalNodeSpec{RoleSpec: commonsv1alpha1.RoleSpec{
-				RoleGroups: map[string]commonsv1alpha1.RoleGroupSpec{defaultGroup: rg(3)},
+			JournalNodes: &hdfsv1alpha1.JournalNodeSpec{RoleSpec: hdfsv1alpha1.RoleSpec{
+				RoleGroups: map[string]hdfsv1alpha1.RoleGroupSpec{defaultGroup: rg(3)},
 			}},
-			DataNodes: &hdfsv1alpha1.DataNodeSpec{RoleSpec: commonsv1alpha1.RoleSpec{
-				RoleGroups: map[string]commonsv1alpha1.RoleGroupSpec{defaultGroup: rg(3)},
+			DataNodes: &hdfsv1alpha1.DataNodeSpec{RoleSpec: hdfsv1alpha1.RoleSpec{
+				RoleGroups: map[string]hdfsv1alpha1.RoleGroupSpec{defaultGroup: rg(3)},
 			}},
 		},
 	}
@@ -106,6 +107,40 @@ func TestComputeConfig_CoreSite(t *testing.T) {
 		if got[k] != v {
 			t.Errorf("core-site.xml[%q] = %q, want %q", k, got[k], v)
 		}
+	}
+}
+
+func TestComputeConfig_ListenerClassPrecedence(t *testing.T) {
+	cr := testCluster()
+	compute := func(group string) listener.ListenerClass {
+		out, err := ComputeConfig(context.Background(), nil, cr, &reconciler.RoleGroupBuildContext{
+			RoleName:      hdfsv1alpha1.NameNodeRoleName,
+			RoleGroupName: group,
+		})
+		if err != nil {
+			t.Fatalf("ComputeConfig(%s): %v", group, err)
+		}
+		return out.ListenerClass
+	}
+
+	if got := compute(defaultGroup); got != listener.ListenerClassClusterInternal {
+		t.Errorf("default listener class = %q, want %q", got, listener.ListenerClassClusterInternal)
+	}
+
+	roleClass := listener.ListenerClassExternalStable
+	groupClass := listener.ListenerClassExternalUnstable
+	cr.Spec.NameNodes.Config = &hdfsv1alpha1.ConfigSpec{ListenerClass: &roleClass}
+	cr.Spec.NameNodes.RoleGroups[defaultGroup] = hdfsv1alpha1.RoleGroupSpec{
+		Replicas: ptr.To(int32(2)),
+		Config:   &hdfsv1alpha1.ConfigSpec{ListenerClass: &groupClass},
+	}
+	cr.Spec.NameNodes.RoleGroups["inherited"] = hdfsv1alpha1.RoleGroupSpec{Replicas: ptr.To(int32(1))}
+
+	if got := compute("inherited"); got != roleClass {
+		t.Errorf("role-inherited listener class = %q, want %q", got, roleClass)
+	}
+	if got := compute(defaultGroup); got != groupClass {
+		t.Errorf("role-group listener class = %q, want %q", got, groupClass)
 	}
 }
 

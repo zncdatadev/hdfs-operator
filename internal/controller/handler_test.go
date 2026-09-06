@@ -23,6 +23,7 @@ import (
 
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/constant"
+	"github.com/zncdatadev/operator-go/pkg/listener"
 	"github.com/zncdatadev/operator-go/pkg/productlogging"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	"github.com/zncdatadev/operator-go/pkg/sidecar"
@@ -177,7 +178,7 @@ func TestCommonEnv_NoZookeeper(t *testing.T) {
 }
 
 func TestListenerProvisioner(t *testing.T) {
-	p := newListenerProvisioner()
+	p := newListenerProvisioner("")
 
 	volumes := p.Volumes()
 	if len(volumes) != 1 || volumes[0].Name != listenerVolumeName {
@@ -189,6 +190,21 @@ func TestListenerProvisioner(t *testing.T) {
 	}
 	if want := "/listener"; !strings.HasSuffix(mounts[0].MountPath, want) {
 		t.Errorf("listener mount path = %q, want suffix %q", mounts[0].MountPath, want)
+	}
+	if got := volumes[0].Ephemeral; got == nil || got.VolumeClaimTemplate == nil {
+		t.Fatal("listener volume must be backed by an ephemeral PVC template")
+	}
+}
+
+func TestListenerProvisionerUsesEffectiveClass(t *testing.T) {
+	p := newListenerProvisioner(listener.ListenerClassExternalStable)
+	volumes := p.Volumes()
+	if len(volumes) != 1 || volumes[0].Ephemeral == nil || volumes[0].Ephemeral.VolumeClaimTemplate == nil {
+		t.Fatalf("Volumes() = %+v, want one ephemeral listener PVC", volumes)
+	}
+	template := volumes[0].Ephemeral.VolumeClaimTemplate
+	if got := template.Annotations[listener.ListenerClassAnnotation]; got != string(listener.ListenerClassExternalStable) {
+		t.Errorf("listener class annotation = %q, want %q", got, listener.ListenerClassExternalStable)
 	}
 }
 

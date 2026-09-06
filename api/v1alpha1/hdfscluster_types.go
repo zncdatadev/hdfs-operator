@@ -18,10 +18,12 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/common"
 	"github.com/zncdatadev/operator-go/pkg/constant"
+	"github.com/zncdatadev/operator-go/pkg/listener"
 )
 
 // Role names. These are the keys used in the GenericClusterSpec.Roles map and in
@@ -174,19 +176,105 @@ type HdfsClusterSpec struct {
 	JournalNodes *JournalNodeSpec `json:"journalNodes,omitempty"`
 }
 
-// NameNodeSpec embeds the SDK generic RoleSpec and can carry NameNode-specific fields.
+// NameNodeSpec embeds the HDFS role shape and can carry NameNode-specific fields later.
 type NameNodeSpec struct {
-	commonsv1alpha1.RoleSpec `json:",inline"`
+	RoleSpec `json:",inline"`
 }
 
-// DataNodeSpec embeds the SDK generic RoleSpec and can carry DataNode-specific fields.
+// DataNodeSpec embeds the HDFS role shape and can carry DataNode-specific fields later.
 type DataNodeSpec struct {
-	commonsv1alpha1.RoleSpec `json:",inline"`
+	RoleSpec `json:",inline"`
 }
 
-// JournalNodeSpec embeds the SDK generic RoleSpec and can carry JournalNode-specific fields.
+// JournalNodeSpec embeds the HDFS role shape and can carry JournalNode-specific fields later.
 type JournalNodeSpec struct {
-	commonsv1alpha1.RoleSpec `json:",inline"`
+	RoleSpec `json:",inline"`
+}
+
+// RoleSpec keeps the framework-owned role fields while allowing HDFS to extend the folded config.
+// GetSpec projects this product shape onto commons RoleSpec for GenericReconciler.
+type RoleSpec struct {
+	// Config contains workload runtime configuration defaults for all RoleGroups.
+	// Each RoleGroup inherits these values and can selectively override them.
+	// +kubebuilder:validation:Optional
+	Config *ConfigSpec `json:"config,omitempty"`
+
+	// RoleGroups defines the role group configurations. Each RoleGroup maps to a StatefulSet.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MaxProperties=256
+	// +kubebuilder:validation:XValidation:rule=`self.all(k, size(k) <= 63 && k.matches('^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'))`,message=`each role group name must be a lowercase RFC 1123 label (lowercase alphanumerics and '-', starting and ending with an alphanumeric, at most 63 characters): role group names become part of the name and labels of every resource built for the group`
+	RoleGroups map[string]RoleGroupSpec `json:"roleGroups,omitempty"`
+
+	// RoleConfig contains Kubernetes-level role management controls that role groups do not inherit.
+	// +kubebuilder:validation:Optional
+	RoleConfig *commonsv1alpha1.RoleConfigSpec `json:"roleConfig,omitempty"`
+
+	// ConfigOverrides applies configuration-file overrides to all role groups.
+	// +kubebuilder:validation:Optional
+	ConfigOverrides map[string]map[string]string `json:"configOverrides,omitempty"`
+
+	// EnvOverrides applies environment-variable overrides to all role groups.
+	// +kubebuilder:validation:Optional
+	EnvOverrides map[string]string `json:"envOverrides,omitempty"`
+
+	// CliOverrides replaces the declared command arguments for all role groups.
+	// +kubebuilder:validation:Optional
+	CliOverrides []string `json:"cliOverrides,omitempty"`
+
+	// PodOverrides applies a strategic merge patch to all role groups.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=object
+	PodOverrides *k8sruntime.RawExtension `json:"podOverrides,omitempty"`
+}
+
+// ConfigSpec composes the framework-owned role-group configuration with HDFS-specific fields.
+type ConfigSpec struct {
+	*commonsv1alpha1.RoleGroupConfigSpec `json:",inline"`
+
+	// ListenerClass selects how this role group is exposed. It deliberately has no structural
+	// default: role -> role-group inheritance must see whether the field was omitted. The runtime
+	// fold applies cluster-internal only when neither user layer states a value.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=cluster-internal;external-unstable;external-stable
+	ListenerClass *listener.ListenerClass `json:"listenerClass,omitempty"`
+}
+
+// RoleGroupSpec defines one StatefulSet and its role-group-level overrides.
+type RoleGroupSpec struct {
+	// Replicas is the number of pod replicas for this role group.
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:default=1
+	// +kubebuilder:validation:Optional
+	Replicas *int32 `json:"replicas,omitempty"`
+
+	// Config contains role-group-level configuration and overrides the role-level Config.
+	// +kubebuilder:validation:Optional
+	Config *ConfigSpec `json:"config,omitempty"`
+
+	// ConfigOverrides overrides role-level configuration-file entries per key.
+	// +kubebuilder:validation:Optional
+	ConfigOverrides map[string]map[string]string `json:"configOverrides,omitempty"`
+
+	// EnvOverrides overrides role-level environment variables per key.
+	// +kubebuilder:validation:Optional
+	EnvOverrides map[string]string `json:"envOverrides,omitempty"`
+
+	// CliOverrides replaces the role-level command arguments.
+	// +kubebuilder:validation:Optional
+	CliOverrides []string `json:"cliOverrides,omitempty"`
+
+	// PodOverrides applies a strategic merge patch after role-level pod overrides.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=object
+	PodOverrides *k8sruntime.RawExtension `json:"podOverrides,omitempty"`
+}
+
+// GetReplicas returns the requested replica count, defaulting to one like commons RoleGroupSpec.
+func (r *RoleGroupSpec) GetReplicas() int32 {
+	if r == nil || r.Replicas == nil {
+		return 1
+	}
+	return *r.Replicas
 }
 
 type ClusterConfigSpec struct {
@@ -264,13 +352,13 @@ type KerberosSpec struct {
 func (c *HdfsCluster) GetSpec() *commonsv1alpha1.GenericClusterSpec {
 	roles := make(map[string]commonsv1alpha1.RoleSpec)
 	if c.Spec.NameNodes != nil {
-		roles[NameNodeRoleName] = c.Spec.NameNodes.RoleSpec
+		roles[NameNodeRoleName] = c.Spec.NameNodes.toGeneric()
 	}
 	if c.Spec.DataNodes != nil {
-		roles[DataNodeRoleName] = c.Spec.DataNodes.RoleSpec
+		roles[DataNodeRoleName] = c.Spec.DataNodes.toGeneric()
 	}
 	if c.Spec.JournalNodes != nil {
-		roles[JournalNodeRoleName] = c.Spec.JournalNodes.RoleSpec
+		roles[JournalNodeRoleName] = c.Spec.JournalNodes.toGeneric()
 	}
 	// Storage is no longer defaulted here: each role's RoleDeclaration.DataVolume opts it into a
 	// data PVC, and the framework builds the VolumeClaimTemplate from the effective
@@ -280,6 +368,54 @@ func (c *HdfsCluster) GetSpec() *commonsv1alpha1.GenericClusterSpec {
 		ClusterOperation: c.Spec.ClusterOperation,
 		Roles:            roles,
 	}
+}
+
+// Role returns the typed HDFS role for the framework's canonical role name.
+func (c *HdfsCluster) Role(roleName string) *RoleSpec {
+	switch roleName {
+	case NameNodeRoleName:
+		if c.Spec.NameNodes != nil {
+			return &c.Spec.NameNodes.RoleSpec
+		}
+	case DataNodeRoleName:
+		if c.Spec.DataNodes != nil {
+			return &c.Spec.DataNodes.RoleSpec
+		}
+	case JournalNodeRoleName:
+		if c.Spec.JournalNodes != nil {
+			return &c.Spec.JournalNodes.RoleSpec
+		}
+	}
+	return nil
+}
+
+// toGeneric removes the HDFS-owned portion of ConfigSpec while preserving every framework field.
+func (r *RoleSpec) toGeneric() commonsv1alpha1.RoleSpec {
+	out := commonsv1alpha1.RoleSpec{RoleConfig: r.RoleConfig}
+	if r.Config != nil {
+		out.Config = r.Config.RoleGroupConfigSpec
+	}
+	out.ConfigOverrides = r.ConfigOverrides
+	out.EnvOverrides = r.EnvOverrides
+	out.CliOverrides = r.CliOverrides
+	out.PodOverrides = r.PodOverrides
+	out.RoleGroups = make(map[string]commonsv1alpha1.RoleGroupSpec, len(r.RoleGroups))
+	for name, group := range r.RoleGroups {
+		out.RoleGroups[name] = group.toGeneric()
+	}
+	return out
+}
+
+func (r *RoleGroupSpec) toGeneric() commonsv1alpha1.RoleGroupSpec {
+	out := commonsv1alpha1.RoleGroupSpec{Replicas: r.Replicas}
+	if r.Config != nil {
+		out.Config = r.Config.RoleGroupConfigSpec
+	}
+	out.ConfigOverrides = r.ConfigOverrides
+	out.EnvOverrides = r.EnvOverrides
+	out.CliOverrides = r.CliOverrides
+	out.PodOverrides = r.PodOverrides
+	return out
 }
 
 // GetStatus returns the generic cluster status.

@@ -31,7 +31,9 @@ import (
 
 	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/constant"
+	"github.com/zncdatadev/operator-go/pkg/listener"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
+	"k8s.io/utils/ptr"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/constants"
@@ -74,6 +76,10 @@ func ComputeConfig(
 	_ context.Context, _ client.Client, cr *hdfsv1alpha1.HdfsCluster, rg *reconciler.RoleGroupBuildContext,
 ) (*reconciler.Contribution, error) {
 	roleName := rg.RoleName
+	productConfig, err := roleGroupProductConfig(cr, roleName, rg.RoleGroupName)
+	if err != nil {
+		return nil, err
+	}
 	overrides := map[string]map[string]string{
 		constants.CoreSiteXML: coreSiteConfig(cr),
 		constants.HdfsSiteXML: hdfsSiteConfig(cr, roleName),
@@ -83,11 +89,33 @@ func ComputeConfig(
 		overrides[constants.SslServerXML] = sslServerConfig(cr)
 		overrides[constants.SslClientXML] = sslClientConfig(cr)
 	}
-	contribution := &reconciler.Contribution{ConfigOverrides: overrides}
+	contribution := &reconciler.Contribution{
+		ConfigOverrides: overrides,
+	}
+	if productConfig.ListenerClass != nil {
+		contribution.ListenerClass = *productConfig.ListenerClass
+	}
 	if env := jvmOptsEnvVars(roleName, rg.EffectiveConfig()); len(env) > 0 {
 		contribution.EnvVars = env
 	}
 	return contribution, nil
+}
+
+// roleGroupProductConfig folds HDFS-owned fields independently of the commons config already
+// resolved by GenericReconciler. The default is deliberately applied here, below both user layers.
+func roleGroupProductConfig(
+	cr *hdfsv1alpha1.HdfsCluster, roleName, roleGroupName string,
+) (*hdfsv1alpha1.ConfigSpec, error) {
+	defaults := &hdfsv1alpha1.ConfigSpec{ListenerClass: ptr.To(listener.ListenerClassClusterInternal)}
+	role := cr.Role(roleName)
+	if role == nil {
+		return reconciler.FoldProductConfig(defaults)
+	}
+	var roleGroupConfig *hdfsv1alpha1.ConfigSpec
+	if roleGroup, ok := role.RoleGroups[roleGroupName]; ok {
+		roleGroupConfig = roleGroup.Config
+	}
+	return reconciler.FoldProductConfig(defaults, role.Config, roleGroupConfig)
 }
 
 // roleOptsEnvName maps each role to the Hadoop env var carrying its daemon JVM options.
@@ -415,7 +443,7 @@ func sharedEditsURI(cr *hdfsv1alpha1.HdfsCluster, nameservice string) string {
 }
 
 // sortedGroups returns the role group names in deterministic (sorted) order.
-func sortedGroups(groups map[string]commonsv1alpha1.RoleGroupSpec) []string {
+func sortedGroups(groups map[string]hdfsv1alpha1.RoleGroupSpec) []string {
 	names := make([]string, 0, len(groups))
 	for g := range groups {
 		names = append(names, g)

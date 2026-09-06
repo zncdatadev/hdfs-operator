@@ -111,9 +111,8 @@ spec:
                 description: DataNodes defines the DataNode role (storage workers).
                 properties:
                   cliOverrides:
-                    description: |-
-                      CliOverrides allows customization of CLI arguments.
-                      These overrides apply to all RoleGroups unless overridden.
+                    description: CliOverrides replaces the declared command arguments
+                      for all role groups.
                     items:
                       type: string
                     type: array
@@ -121,8 +120,6 @@ spec:
                     description: |-
                       Config contains workload runtime configuration defaults for all RoleGroups.
                       Each RoleGroup inherits these values and can selectively override them.
-                      Key distinction from 'roleConfig': this is workload behavior (resources, affinity, logging)
-                      that propagates to RoleGroups, while roleConfig is Kubernetes resource management.
                     properties:
                       affinity:
                         type: object
@@ -139,6 +136,16 @@ spec:
                           role's setting. A role-level graceful shutdown could therefore only ever reach groups with no
                           config block at all.
                         pattern: ^([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+$
+                        type: string
+                      listenerClass:
+                        description: |-
+                          ListenerClass selects how this role group is exposed. It deliberately has no structural
+                          default: role -> role-group inheritance must see whether the field was omitted. The runtime
+                          fold applies cluster-internal only when neither user layer states a value.
+                        enum:
+                        - cluster-internal
+                        - external-unstable
+                        - external-stable
                         type: string
                       logging:
                         properties:
@@ -346,28 +353,23 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
-                    description: |-
-                      ConfigOverrides allows customization of configuration files (e.g., XML, properties).
-                      Map[FileName]Map[Key]Value. These overrides apply to all RoleGroups unless overridden.
+                    description: ConfigOverrides applies configuration-file overrides
+                      to all role groups.
                     type: object
                   envOverrides:
                     additionalProperties:
                       type: string
-                    description: |-
-                      EnvOverrides allows customization of environment variables.
-                      These overrides apply to all RoleGroups unless overridden.
+                    description: EnvOverrides applies environment-variable overrides
+                      to all role groups.
                     type: object
                   podOverrides:
-                    description: |-
-                      PodOverrides allows customization of Pod template using Strategic Merge Patch.
-                      These overrides apply to all RoleGroups unless overridden.
+                    description: PodOverrides applies a strategic merge patch to all
+                      role groups.
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
                   roleConfig:
-                    description: |-
-                      RoleConfig contains Kubernetes-level role management controls.
-                      These settings are role-scoped and NOT inherited or overridden by individual RoleGroups.
-                      Examples: PodDisruptionBudget that covers all Pods across all RoleGroups.
+                    description: RoleConfig contains Kubernetes-level role management
+                      controls that role groups do not inherit.
                     properties:
                       podDisruptionBudget:
                         description: |-
@@ -396,21 +398,18 @@ spec:
                     type: object
                   roleGroups:
                     additionalProperties:
-                      description: |-
-                        RoleGroupSpec defines the configuration for a role group.
-                        Each RoleGroup maps directly to a Kubernetes StatefulSet and its associated resources.
+                      description: RoleGroupSpec defines one StatefulSet and its role-group-level
+                        overrides.
                       properties:
                         cliOverrides:
-                          description: |-
-                            CliOverrides allows customization of CLI arguments.
-                            RoleGroup overrides take precedence over Role overrides.
+                          description: CliOverrides replaces the role-level command
+                            arguments.
                           items:
                             type: string
                           type: array
                         config:
-                          description: |-
-                            Config contains role group level configurations.
-                            These include resource limits, affinity, and logging settings.
+                          description: Config contains role-group-level configuration
+                            and overrides the role-level Config.
                           properties:
                             affinity:
                               type: object
@@ -427,6 +426,16 @@ spec:
                                 role's setting. A role-level graceful shutdown could therefore only ever reach groups with no
                                 config block at all.
                               pattern: ^([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+$
+                              type: string
+                            listenerClass:
+                              description: |-
+                                ListenerClass selects how this role group is exposed. It deliberately has no structural
+                                default: role -> role-group inheritance must see whether the field was omitted. The runtime
+                                fold applies cluster-internal only when neither user layer states a value.
+                              enum:
+                              - cluster-internal
+                              - external-unstable
+                              - external-stable
                               type: string
                             logging:
                               properties:
@@ -634,21 +643,18 @@ spec:
                             additionalProperties:
                               type: string
                             type: object
-                          description: |-
-                            ConfigOverrides allows customization of configuration files (e.g., XML, properties).
-                            Map[FileName]Map[Key]Value. RoleGroup overrides take precedence over Role overrides.
+                          description: ConfigOverrides overrides role-level configuration-file
+                            entries per key.
                           type: object
                         envOverrides:
                           additionalProperties:
                             type: string
-                          description: |-
-                            EnvOverrides allows customization of environment variables.
-                            RoleGroup overrides take precedence over Role overrides.
+                          description: EnvOverrides overrides role-level environment
+                            variables per key.
                           type: object
                         podOverrides:
-                          description: |-
-                            PodOverrides allows customization of Pod template using Strategic Merge Patch.
-                            RoleGroup overrides take precedence over Role overrides.
+                          description: PodOverrides applies a strategic merge patch
+                            after role-level pod overrides.
                           type: object
                           x-kubernetes-preserve-unknown-fields: true
                         replicas:
@@ -659,16 +665,8 @@ spec:
                           minimum: 0
                           type: integer
                       type: object
-                    description: |-
-                      RoleGroups defines the role group configurations.
-                      Each RoleGroup maps to a Kubernetes StatefulSet.
-
-                      Constrained for the same reason as the role name above: a role group name is a segment of
-                      "<cluster>-<role>-<group>" and the value of the app.kubernetes.io/role-group label, so a name
-                      that is not a lowercase RFC 1123 label yields resource names the API server refuses.
-
-                      MaxProperties bounds the CEL cost estimate, not the deployment — see the note on Roles.
-                      256 role groups in a single role is far past one per rack in a very large cluster.
+                    description: RoleGroups defines the role group configurations.
+                      Each RoleGroup maps to a StatefulSet.
                     maxProperties: 256
                     type: object
                     x-kubernetes-validations:
@@ -735,9 +733,8 @@ spec:
                   log quorum; odd replica count).
                 properties:
                   cliOverrides:
-                    description: |-
-                      CliOverrides allows customization of CLI arguments.
-                      These overrides apply to all RoleGroups unless overridden.
+                    description: CliOverrides replaces the declared command arguments
+                      for all role groups.
                     items:
                       type: string
                     type: array
@@ -745,8 +742,6 @@ spec:
                     description: |-
                       Config contains workload runtime configuration defaults for all RoleGroups.
                       Each RoleGroup inherits these values and can selectively override them.
-                      Key distinction from 'roleConfig': this is workload behavior (resources, affinity, logging)
-                      that propagates to RoleGroups, while roleConfig is Kubernetes resource management.
                     properties:
                       affinity:
                         type: object
@@ -763,6 +758,16 @@ spec:
                           role's setting. A role-level graceful shutdown could therefore only ever reach groups with no
                           config block at all.
                         pattern: ^([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+$
+                        type: string
+                      listenerClass:
+                        description: |-
+                          ListenerClass selects how this role group is exposed. It deliberately has no structural
+                          default: role -> role-group inheritance must see whether the field was omitted. The runtime
+                          fold applies cluster-internal only when neither user layer states a value.
+                        enum:
+                        - cluster-internal
+                        - external-unstable
+                        - external-stable
                         type: string
                       logging:
                         properties:
@@ -970,28 +975,23 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
-                    description: |-
-                      ConfigOverrides allows customization of configuration files (e.g., XML, properties).
-                      Map[FileName]Map[Key]Value. These overrides apply to all RoleGroups unless overridden.
+                    description: ConfigOverrides applies configuration-file overrides
+                      to all role groups.
                     type: object
                   envOverrides:
                     additionalProperties:
                       type: string
-                    description: |-
-                      EnvOverrides allows customization of environment variables.
-                      These overrides apply to all RoleGroups unless overridden.
+                    description: EnvOverrides applies environment-variable overrides
+                      to all role groups.
                     type: object
                   podOverrides:
-                    description: |-
-                      PodOverrides allows customization of Pod template using Strategic Merge Patch.
-                      These overrides apply to all RoleGroups unless overridden.
+                    description: PodOverrides applies a strategic merge patch to all
+                      role groups.
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
                   roleConfig:
-                    description: |-
-                      RoleConfig contains Kubernetes-level role management controls.
-                      These settings are role-scoped and NOT inherited or overridden by individual RoleGroups.
-                      Examples: PodDisruptionBudget that covers all Pods across all RoleGroups.
+                    description: RoleConfig contains Kubernetes-level role management
+                      controls that role groups do not inherit.
                     properties:
                       podDisruptionBudget:
                         description: |-
@@ -1020,21 +1020,18 @@ spec:
                     type: object
                   roleGroups:
                     additionalProperties:
-                      description: |-
-                        RoleGroupSpec defines the configuration for a role group.
-                        Each RoleGroup maps directly to a Kubernetes StatefulSet and its associated resources.
+                      description: RoleGroupSpec defines one StatefulSet and its role-group-level
+                        overrides.
                       properties:
                         cliOverrides:
-                          description: |-
-                            CliOverrides allows customization of CLI arguments.
-                            RoleGroup overrides take precedence over Role overrides.
+                          description: CliOverrides replaces the role-level command
+                            arguments.
                           items:
                             type: string
                           type: array
                         config:
-                          description: |-
-                            Config contains role group level configurations.
-                            These include resource limits, affinity, and logging settings.
+                          description: Config contains role-group-level configuration
+                            and overrides the role-level Config.
                           properties:
                             affinity:
                               type: object
@@ -1051,6 +1048,16 @@ spec:
                                 role's setting. A role-level graceful shutdown could therefore only ever reach groups with no
                                 config block at all.
                               pattern: ^([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+$
+                              type: string
+                            listenerClass:
+                              description: |-
+                                ListenerClass selects how this role group is exposed. It deliberately has no structural
+                                default: role -> role-group inheritance must see whether the field was omitted. The runtime
+                                fold applies cluster-internal only when neither user layer states a value.
+                              enum:
+                              - cluster-internal
+                              - external-unstable
+                              - external-stable
                               type: string
                             logging:
                               properties:
@@ -1258,21 +1265,18 @@ spec:
                             additionalProperties:
                               type: string
                             type: object
-                          description: |-
-                            ConfigOverrides allows customization of configuration files (e.g., XML, properties).
-                            Map[FileName]Map[Key]Value. RoleGroup overrides take precedence over Role overrides.
+                          description: ConfigOverrides overrides role-level configuration-file
+                            entries per key.
                           type: object
                         envOverrides:
                           additionalProperties:
                             type: string
-                          description: |-
-                            EnvOverrides allows customization of environment variables.
-                            RoleGroup overrides take precedence over Role overrides.
+                          description: EnvOverrides overrides role-level environment
+                            variables per key.
                           type: object
                         podOverrides:
-                          description: |-
-                            PodOverrides allows customization of Pod template using Strategic Merge Patch.
-                            RoleGroup overrides take precedence over Role overrides.
+                          description: PodOverrides applies a strategic merge patch
+                            after role-level pod overrides.
                           type: object
                           x-kubernetes-preserve-unknown-fields: true
                         replicas:
@@ -1283,16 +1287,8 @@ spec:
                           minimum: 0
                           type: integer
                       type: object
-                    description: |-
-                      RoleGroups defines the role group configurations.
-                      Each RoleGroup maps to a Kubernetes StatefulSet.
-
-                      Constrained for the same reason as the role name above: a role group name is a segment of
-                      "<cluster>-<role>-<group>" and the value of the app.kubernetes.io/role-group label, so a name
-                      that is not a lowercase RFC 1123 label yields resource names the API server refuses.
-
-                      MaxProperties bounds the CEL cost estimate, not the deployment — see the note on Roles.
-                      256 role groups in a single role is far past one per rack in a very large cluster.
+                    description: RoleGroups defines the role group configurations.
+                      Each RoleGroup maps to a StatefulSet.
                     maxProperties: 256
                     type: object
                     x-kubernetes-validations:
@@ -1308,9 +1304,8 @@ spec:
                   HA usually runs 2+).
                 properties:
                   cliOverrides:
-                    description: |-
-                      CliOverrides allows customization of CLI arguments.
-                      These overrides apply to all RoleGroups unless overridden.
+                    description: CliOverrides replaces the declared command arguments
+                      for all role groups.
                     items:
                       type: string
                     type: array
@@ -1318,8 +1313,6 @@ spec:
                     description: |-
                       Config contains workload runtime configuration defaults for all RoleGroups.
                       Each RoleGroup inherits these values and can selectively override them.
-                      Key distinction from 'roleConfig': this is workload behavior (resources, affinity, logging)
-                      that propagates to RoleGroups, while roleConfig is Kubernetes resource management.
                     properties:
                       affinity:
                         type: object
@@ -1336,6 +1329,16 @@ spec:
                           role's setting. A role-level graceful shutdown could therefore only ever reach groups with no
                           config block at all.
                         pattern: ^([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+$
+                        type: string
+                      listenerClass:
+                        description: |-
+                          ListenerClass selects how this role group is exposed. It deliberately has no structural
+                          default: role -> role-group inheritance must see whether the field was omitted. The runtime
+                          fold applies cluster-internal only when neither user layer states a value.
+                        enum:
+                        - cluster-internal
+                        - external-unstable
+                        - external-stable
                         type: string
                       logging:
                         properties:
@@ -1543,28 +1546,23 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
-                    description: |-
-                      ConfigOverrides allows customization of configuration files (e.g., XML, properties).
-                      Map[FileName]Map[Key]Value. These overrides apply to all RoleGroups unless overridden.
+                    description: ConfigOverrides applies configuration-file overrides
+                      to all role groups.
                     type: object
                   envOverrides:
                     additionalProperties:
                       type: string
-                    description: |-
-                      EnvOverrides allows customization of environment variables.
-                      These overrides apply to all RoleGroups unless overridden.
+                    description: EnvOverrides applies environment-variable overrides
+                      to all role groups.
                     type: object
                   podOverrides:
-                    description: |-
-                      PodOverrides allows customization of Pod template using Strategic Merge Patch.
-                      These overrides apply to all RoleGroups unless overridden.
+                    description: PodOverrides applies a strategic merge patch to all
+                      role groups.
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
                   roleConfig:
-                    description: |-
-                      RoleConfig contains Kubernetes-level role management controls.
-                      These settings are role-scoped and NOT inherited or overridden by individual RoleGroups.
-                      Examples: PodDisruptionBudget that covers all Pods across all RoleGroups.
+                    description: RoleConfig contains Kubernetes-level role management
+                      controls that role groups do not inherit.
                     properties:
                       podDisruptionBudget:
                         description: |-
@@ -1593,21 +1591,18 @@ spec:
                     type: object
                   roleGroups:
                     additionalProperties:
-                      description: |-
-                        RoleGroupSpec defines the configuration for a role group.
-                        Each RoleGroup maps directly to a Kubernetes StatefulSet and its associated resources.
+                      description: RoleGroupSpec defines one StatefulSet and its role-group-level
+                        overrides.
                       properties:
                         cliOverrides:
-                          description: |-
-                            CliOverrides allows customization of CLI arguments.
-                            RoleGroup overrides take precedence over Role overrides.
+                          description: CliOverrides replaces the role-level command
+                            arguments.
                           items:
                             type: string
                           type: array
                         config:
-                          description: |-
-                            Config contains role group level configurations.
-                            These include resource limits, affinity, and logging settings.
+                          description: Config contains role-group-level configuration
+                            and overrides the role-level Config.
                           properties:
                             affinity:
                               type: object
@@ -1624,6 +1619,16 @@ spec:
                                 role's setting. A role-level graceful shutdown could therefore only ever reach groups with no
                                 config block at all.
                               pattern: ^([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+$
+                              type: string
+                            listenerClass:
+                              description: |-
+                                ListenerClass selects how this role group is exposed. It deliberately has no structural
+                                default: role -> role-group inheritance must see whether the field was omitted. The runtime
+                                fold applies cluster-internal only when neither user layer states a value.
+                              enum:
+                              - cluster-internal
+                              - external-unstable
+                              - external-stable
                               type: string
                             logging:
                               properties:
@@ -1831,21 +1836,18 @@ spec:
                             additionalProperties:
                               type: string
                             type: object
-                          description: |-
-                            ConfigOverrides allows customization of configuration files (e.g., XML, properties).
-                            Map[FileName]Map[Key]Value. RoleGroup overrides take precedence over Role overrides.
+                          description: ConfigOverrides overrides role-level configuration-file
+                            entries per key.
                           type: object
                         envOverrides:
                           additionalProperties:
                             type: string
-                          description: |-
-                            EnvOverrides allows customization of environment variables.
-                            RoleGroup overrides take precedence over Role overrides.
+                          description: EnvOverrides overrides role-level environment
+                            variables per key.
                           type: object
                         podOverrides:
-                          description: |-
-                            PodOverrides allows customization of Pod template using Strategic Merge Patch.
-                            RoleGroup overrides take precedence over Role overrides.
+                          description: PodOverrides applies a strategic merge patch
+                            after role-level pod overrides.
                           type: object
                           x-kubernetes-preserve-unknown-fields: true
                         replicas:
@@ -1856,16 +1858,8 @@ spec:
                           minimum: 0
                           type: integer
                       type: object
-                    description: |-
-                      RoleGroups defines the role group configurations.
-                      Each RoleGroup maps to a Kubernetes StatefulSet.
-
-                      Constrained for the same reason as the role name above: a role group name is a segment of
-                      "<cluster>-<role>-<group>" and the value of the app.kubernetes.io/role-group label, so a name
-                      that is not a lowercase RFC 1123 label yields resource names the API server refuses.
-
-                      MaxProperties bounds the CEL cost estimate, not the deployment — see the note on Roles.
-                      256 role groups in a single role is far past one per rack in a very large cluster.
+                    description: RoleGroups defines the role group configurations.
+                      Each RoleGroup maps to a StatefulSet.
                     maxProperties: 256
                     type: object
                     x-kubernetes-validations:
