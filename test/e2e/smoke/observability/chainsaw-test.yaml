@@ -212,6 +212,14 @@ spec:
               --create-namespace \
               -f prometheus-values.yaml \
               --wait --timeout 5m
+    cleanup:
+      - script:
+          bindings:
+            - name: NAMESPACE
+              value: ($namespace)
+          content: |
+            #!/bin/bash
+            helm uninstall prometheus --namespace "$NAMESPACE" --wait --timeout 2m || true
 
   # 5. Verify Prometheus targets
   - name: verify prometheus targets
