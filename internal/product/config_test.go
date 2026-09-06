@@ -72,8 +72,9 @@ func mustCompute(cr *hdfsv1alpha1.HdfsCluster, roleName string) *reconciler.Cont
 
 // defaultGroup / clusterName are fixtures used throughout these tests.
 const (
-	defaultGroup = "default"
-	clusterName  = "simple-hdfs"
+	defaultGroup       = "default"
+	clusterName        = "simple-hdfs"
+	defaultNameNodeIDs = "simple-hdfs-namenode-default-0,simple-hdfs-namenode-default-1"
 )
 
 func testCluster() *hdfsv1alpha1.HdfsCluster {
@@ -201,17 +202,17 @@ func TestComputeConfig_NoTLS(t *testing.T) {
 }
 
 func TestDiscoveryConfig(t *testing.T) {
-	out := DiscoveryConfig(testCluster())
+	out := DiscoveryConfig(testCluster(), nil)
 
 	core := out["core-site.xml"]
 	if core["fs.defaultFS"] != "hdfs://simple-hdfs/" {
 		t.Errorf("discovery fs.defaultFS = %q, want hdfs://simple-hdfs/", core["fs.defaultFS"])
 	}
 	hdfs := out["hdfs-site.xml"]
-	if hdfs["dfs.nameservices"] != clusterName {
-		t.Errorf("discovery nameservices = %q", hdfs["dfs.nameservices"])
+	if hdfs[keyDfsNameservices] != clusterName {
+		t.Errorf("discovery nameservices = %q", hdfs[keyDfsNameservices])
 	}
-	if hdfs["dfs.ha.namenodes.simple-hdfs"] != "simple-hdfs-namenode-default-0,simple-hdfs-namenode-default-1" {
+	if hdfs["dfs.ha.namenodes.simple-hdfs"] != defaultNameNodeIDs {
 		t.Errorf("discovery ha.namenodes = %q", hdfs["dfs.ha.namenodes.simple-hdfs"])
 	}
 	want := "simple-hdfs-namenode-default-0.simple-hdfs-namenode-default-headless.default.svc.cluster.local:8020"
@@ -223,6 +224,36 @@ func TestDiscoveryConfig(t *testing.T) {
 		if _, ok := hdfs[k]; ok {
 			t.Errorf("discovery hdfs-site should not contain pod-local key %q", k)
 		}
+	}
+}
+
+func TestDiscoveryConfigUsesResolvedEndpointsInStablePodOrder(t *testing.T) {
+	cr := testCluster()
+	endpoints := InternalNameNodeDiscoveryEndpoints(cr)
+	endpoints["simple-hdfs-namenode-default-0"] = DiscoveryEndpoint{
+		Address: "nn-0.example.test",
+		Ports: map[string]int32{
+			hdfsv1alpha1.RpcName:  31020,
+			hdfsv1alpha1.HttpName: 31070,
+		},
+	}
+	endpoints["simple-hdfs-namenode-default-1"] = DiscoveryEndpoint{
+		Address: "nn-1.example.test",
+		Ports: map[string]int32{
+			hdfsv1alpha1.RpcName:  32020,
+			hdfsv1alpha1.HttpName: 32070,
+		},
+	}
+
+	hdfs := DiscoveryConfig(cr, endpoints)["hdfs-site.xml"]
+	if got := hdfs["dfs.ha.namenodes.simple-hdfs"]; got != defaultNameNodeIDs {
+		t.Fatalf("discovery HA ids = %q", got)
+	}
+	if got := hdfs["dfs.namenode.rpc-address.simple-hdfs.simple-hdfs-namenode-default-0"]; got != "nn-0.example.test:31020" {
+		t.Errorf("resolved rpc endpoint = %q", got)
+	}
+	if got := hdfs["dfs.namenode.http-address.simple-hdfs.simple-hdfs-namenode-default-1"]; got != "nn-1.example.test:32070" {
+		t.Errorf("resolved http endpoint = %q", got)
 	}
 }
 
@@ -253,9 +284,9 @@ func TestComputeConfig_HdfsSiteHA(t *testing.T) {
 	got := mustCompute(testCluster(), hdfsv1alpha1.DataNodeRoleName).ConfigOverrides["hdfs-site.xml"]
 
 	cases := map[string]string{
-		"dfs.nameservices":                  clusterName,
+		keyDfsNameservices:                  clusterName,
 		"dfs.replication":                   "3",
-		"dfs.ha.namenodes.simple-hdfs":      "simple-hdfs-namenode-default-0,simple-hdfs-namenode-default-1",
+		"dfs.ha.namenodes.simple-hdfs":      defaultNameNodeIDs,
 		"dfs.ha.automatic-failover.enabled": "true",
 		// NameNode pod FQDN must use the "-headless" service suffix produced by the SDK.
 		"dfs.namenode.rpc-address.simple-hdfs.simple-hdfs-namenode-default-0":  "simple-hdfs-namenode-default-0.simple-hdfs-namenode-default-headless.default.svc.cluster.local:8020",

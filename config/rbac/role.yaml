@@ -94,6 +94,14 @@ rules:
   - update
   - watch
 - apiGroups:
+  - listeners.kubedoop.dev
+  resources:
+  - podlisteners
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - policy
   resources:
   - poddisruptionbudgets

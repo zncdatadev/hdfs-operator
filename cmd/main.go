@@ -237,7 +237,9 @@ func main() {
 		setupLog.Error(err, "unable to create reconciler")
 		os.Exit(1)
 	}
-	if err = hdfsReconciler.SetupWithManager(mgr); err != nil {
+	if err = hdfsReconciler.SetupWithManagerOpts(mgr, reconciler.SetupWithManagerOptions{
+		Watches: extensions.DiscoveryWatches(mgr.GetClient()),
+	}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HdfsCluster")
 		os.Exit(1)
 	}

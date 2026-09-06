@@ -52,6 +52,7 @@ const (
 
 const (
 	defaultClusterDomain = "cluster.local"
+	keyDfsNameservices   = "dfs.nameservices"
 	// failoverProxyProvider is the HDFS client-side HA failover proxy provider.
 	failoverProxyProvider = "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider"
 	// xmlTrue is the string value used for boolean HDFS config properties.
@@ -116,6 +117,23 @@ func roleGroupProductConfig(
 		roleGroupConfig = roleGroup.Config
 	}
 	return reconciler.FoldProductConfig(defaults, role.Config, roleGroupConfig)
+}
+
+// RoleGroupListenerClass returns the effective listener class after applying the same
+// product-default < role < role-group precedence used by ComputeConfig. Discovery uses this to
+// decide whether a NameNode's stable pod DNS is client-reachable or its late-bound Listener
+// endpoint must be resolved instead.
+func RoleGroupListenerClass(
+	cr *hdfsv1alpha1.HdfsCluster, roleName, roleGroupName string,
+) (listener.ListenerClass, error) {
+	cfg, err := roleGroupProductConfig(cr, roleName, roleGroupName)
+	if err != nil {
+		return "", err
+	}
+	if cfg.ListenerClass == nil || *cfg.ListenerClass == "" {
+		return listener.ListenerClassClusterInternal, nil
+	}
+	return *cfg.ListenerClass, nil
 }
 
 // roleOptsEnvName maps each role to the Hadoop env var carrying its daemon JVM options.
@@ -269,7 +287,7 @@ func kerberosHdfsSite() map[string]string {
 func nameNodeHAConfig(cr *hdfsv1alpha1.HdfsCluster) map[string]string {
 	nameservice := cr.Name
 	props := map[string]string{
-		"dfs.nameservices": nameservice,
+		keyDfsNameservices: nameservice,
 		"dfs.client.failover.proxy.provider." + nameservice: failoverProxyProvider,
 	}
 	tls := tlsEnabled(cr)
@@ -357,14 +375,46 @@ func clusterDomain(cr *hdfsv1alpha1.HdfsCluster) string {
 	return defaultClusterDomain
 }
 
+// DiscoveryEndpoint is the client-reachable address and named ports for one NameNode. The address
+// is resolved from PodListeners for externally exposed role groups; internal role groups use the
+// stable pod FQDN and declared ports.
+type DiscoveryEndpoint struct {
+	Address string
+	Ports   map[string]int32
+}
+
+// InternalNameNodeDiscoveryEndpoints returns the deterministic cluster-DNS endpoints for all
+// NameNodes. Discovery replaces entries belonging to external listener classes with late-bound
+// PodListeners data before rendering the client ConfigMap.
+func InternalNameNodeDiscoveryEndpoints(cr *hdfsv1alpha1.HdfsCluster) map[string]DiscoveryEndpoint {
+	endpoints := make(map[string]DiscoveryEndpoint)
+	for _, nn := range nameNodePods(cr) {
+		ports := map[string]int32{
+			hdfsv1alpha1.RpcName:  hdfsv1alpha1.NameNodeRpcPort,
+			hdfsv1alpha1.HttpName: hdfsv1alpha1.NameNodeHttpPort,
+		}
+		if tlsEnabled(cr) {
+			ports[hdfsv1alpha1.HttpsName] = hdfsv1alpha1.NameNodeHttpsPort
+		}
+		endpoints[nn.id] = DiscoveryEndpoint{Address: nn.fqdn, Ports: ports}
+	}
+	return endpoints
+}
+
 // DiscoveryConfig returns the client-facing core-site.xml / hdfs-site.xml for the cluster-level
-// discovery ConfigMap: enough for an external client to reach the HA NameNodes (nameservice,
-// failover proxy, per-NameNode rpc/http addresses) plus the Kerberos client keys when enabled.
-func DiscoveryConfig(cr *hdfsv1alpha1.HdfsCluster) map[string]map[string]string {
+// discovery ConfigMap: enough for a client to reach the HA NameNodes (nameservice, failover proxy,
+// per-NameNode rpc/http addresses) plus the Kerberos client keys when enabled. A nil endpoints map
+// retains the cluster-internal behavior for callers that do not need external listener binding.
+func DiscoveryConfig(
+	cr *hdfsv1alpha1.HdfsCluster, endpoints map[string]DiscoveryEndpoint,
+) map[string]map[string]string {
 	core := map[string]string{
 		keyFsDefaultFS: fmt.Sprintf("hdfs://%s/", cr.Name),
 	}
-	hdfs := nameNodeHAConfig(cr)
+	if endpoints == nil {
+		endpoints = InternalNameNodeDiscoveryEndpoints(cr)
+	}
+	hdfs := discoveryNameNodeHAConfig(cr, endpoints)
 
 	if kerberosEnabled(cr) {
 		for k, v := range kerberosCoreSite(cr) {
@@ -379,6 +429,41 @@ func DiscoveryConfig(cr *hdfsv1alpha1.HdfsCluster) map[string]map[string]string 
 		constants.CoreSiteXML: core,
 		constants.HdfsSiteXML: hdfs,
 	}
+}
+
+// discoveryNameNodeHAConfig renders only the client-facing HA keys from the supplied endpoints.
+// It follows the CR's deterministic NameNode order and deliberately does not fall back per entry:
+// the extension publishes only after it has resolved every external endpoint, so a partial map is
+// a programming error that must not silently leak an internal-only address to external clients.
+func discoveryNameNodeHAConfig(
+	cr *hdfsv1alpha1.HdfsCluster, endpoints map[string]DiscoveryEndpoint,
+) map[string]string {
+	nameservice := cr.Name
+	props := map[string]string{
+		keyDfsNameservices: nameservice,
+		"dfs.client.failover.proxy.provider." + nameservice: failoverProxyProvider,
+	}
+	ids := make([]string, 0, len(endpoints))
+	for _, nn := range nameNodePods(cr) {
+		endpoint, ok := endpoints[nn.id]
+		if !ok || endpoint.Address == "" {
+			continue
+		}
+		ids = append(ids, nn.id)
+		if port, ok := endpoint.Ports[hdfsv1alpha1.RpcName]; ok {
+			props["dfs.namenode.rpc-address."+nameservice+"."+nn.id] = fmt.Sprintf("%s:%d", endpoint.Address, port)
+		}
+		if port, ok := endpoint.Ports[hdfsv1alpha1.HttpName]; ok {
+			props["dfs.namenode.http-address."+nameservice+"."+nn.id] = fmt.Sprintf("%s:%d", endpoint.Address, port)
+		}
+		if tlsEnabled(cr) {
+			if port, ok := endpoint.Ports[hdfsv1alpha1.HttpsName]; ok {
+				props["dfs.namenode.https-address."+nameservice+"."+nn.id] = fmt.Sprintf("%s:%d", endpoint.Address, port)
+			}
+		}
+	}
+	props["dfs.ha.namenodes."+nameservice] = strings.Join(ids, ",")
+	return props
 }
 
 // NameNodePodNames returns every NameNode pod name (across all NameNode role groups, sorted).
