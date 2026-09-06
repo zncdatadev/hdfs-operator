@@ -210,7 +210,7 @@ func newContainer(name string, cr *hdfsv1alpha1.HdfsCluster, confDir, script str
 	c := corev1.Container{
 		Name:         name,
 		Image:        resolveImage(cr),
-		Command:      []string{bashShell, "-c"},
+		Command:      []string{bashShell, "-euo", "pipefail", "-c"},
 		Args:         []string{script},
 		Env:          commonEnv(cr, confDir),
 		VolumeMounts: mounts,
@@ -262,10 +262,14 @@ while true; do
         %[2]s namenode -bootstrapStandby -nonInteractive
         break
     fi
-    if [ "$POD_ORDINAL" = "0" ]; then
-        echo "No active namenode found; formatting designated pod $POD_NAME."
-        %[2]s namenode -format -noninteractive
-        break
+	if [ "$POD_ORDINAL" = "0" ]; then
+		echo "No active namenode found; formatting designated pod $POD_NAME."
+		if %[2]s namenode -format -noninteractive; then
+			break
+		fi
+		echo "NameNode format failed, likely because JournalNodes are not ready. Retrying in 5 seconds."
+		sleep 5
+		continue
     fi
 
     echo "No active namenode yet; only pod 0 may format. Retrying in 5 seconds."
@@ -311,9 +315,11 @@ while [ ${n} -lt 12 ]; do
             echo "not ready"; ALL_NODES_READY=false
         fi
     done
-    if [ "$ALL_NODES_READY" == "true" ]; then echo "All namenodes ready!"; break; fi
-    n=$((n + 1)); sleep 5
-done`, ids, hdfsBin)
+	if [ "$ALL_NODES_READY" == "true" ]; then echo "All namenodes ready!"; exit 0; fi
+	n=$((n + 1)); sleep 5
+done
+echo "Namenodes did not become ready within 60 seconds."
+exit 1`, ids, hdfsBin)
 	script = kinitScriptPrefix(cr, kerberosServiceNames[hdfsv1alpha1.DataNodeRoleName]) + script
 	return newContainer(waitForNameNodesContainerName, cr, confDir, script,
 		[]corev1.VolumeMount{configMount(confDir)}, false)

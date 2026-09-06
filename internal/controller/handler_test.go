@@ -284,6 +284,10 @@ func TestInitAndSidecarContainers(t *testing.T) {
 	}
 
 	fmtNN := formatNameNodeContainer(cr, confDir)
+	if len(fmtNN.Command) != 4 || fmtNN.Command[0] != bashShell || fmtNN.Command[1] != "-euo" ||
+		fmtNN.Command[2] != "pipefail" || fmtNN.Command[3] != "-c" {
+		t.Errorf("init containers should use strict bash execution, got %v", fmtNN.Command)
+	}
 	if fmtNN.Name != formatNameNodeContainerName || !strings.Contains(fmtNN.Args[0], "namenode -format") {
 		t.Errorf("format-namenode: name=%q args missing format: %v", fmtNN.Name, fmtNN.Args)
 	}
@@ -294,6 +298,9 @@ func TestInitAndSidecarContainers(t *testing.T) {
 	}
 	if !strings.Contains(fmtNN.Args[0], "namenode -bootstrapStandby") {
 		t.Errorf("format-namenode should bootstrap non-initial pods as standby:\n%s", fmtNN.Args[0])
+	}
+	if !strings.Contains(fmtNN.Args[0], "NameNode format failed") || !strings.Contains(fmtNN.Args[0], "continue") {
+		t.Errorf("format-namenode should retry until JournalNodes are ready:\n%s", fmtNN.Args[0])
 	}
 	if m := mountNames(fmtNN.VolumeMounts); !m[configVolumeName] || !m[dataVolumeName] {
 		t.Errorf("format-namenode should mount config+data, got %v", fmtNN.VolumeMounts)
@@ -316,6 +323,9 @@ func TestInitAndSidecarContainers(t *testing.T) {
 	wait := waitForNameNodesContainer(cr, confDir)
 	if !strings.Contains(wait.Args[0], "haadmin -getServiceState") {
 		t.Errorf("wait-for-namenodes should poll haadmin, got %v", wait.Args)
+	}
+	if !strings.Contains(wait.Args[0], "did not become ready") || !strings.Contains(wait.Args[0], "exit 1") {
+		t.Errorf("wait-for-namenodes should fail closed after its timeout, got %v", wait.Args)
 	}
 }
 
