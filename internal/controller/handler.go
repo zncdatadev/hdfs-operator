@@ -20,6 +20,7 @@ import (
 	"context"
 	"path"
 
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/config"
 	"github.com/zncdatadev/operator-go/pkg/constant"
 	"github.com/zncdatadev/operator-go/pkg/listener"
@@ -110,12 +111,31 @@ func (h *HdfsRoleGroupHandler) roleDeclaration(cr *hdfsv1alpha1.HdfsCluster, rol
 		// paths). Computed env (HDFS_<ROLE>_OPTS, sized from the resolved memory limit) flows through
 		// ComputeConfig's Contribution.EnvVars instead, which sees the effective config.
 		Env: commonEnv(cr, h.ConfigMountPath),
-		// Every HDFS role persists to KubedoopDataDir; the framework builds the VolumeClaimTemplate
-		// from the effective config.resources.storage (defaulting the capacity) and mounts it here.
+		// Every HDFS role persists to KubedoopDataDir. The framework builds the VolumeClaimTemplate
+		// only when DataVolume != nil AND the effective config.resources.storage is non-nil, so
+		// ConfigDefaults below supplies an empty (non-nil) storage — GetCapacity then fills the
+		// commons DefaultStorageCapacity. Without it a CR that omits storage yields NO data volume,
+		// and the init containers' "data" mount fails the StatefulSet ("volumeMounts...data: Not
+		// found"). A user's config.resources.storage folds on top, so an explicit size still wins.
 		DataVolume: &reconciler.DataVolume{MountPath: constant.KubedoopDataDir},
+		// HDFS processes discover peers by the stable pod DNS names before the daemons can become
+		// ready. Publishing only ready EndpointSlices creates a bootstrap cycle for NameNode HA and
+		// the JournalNode quorum. Preserve the pre-v0.13 operator's behavior for all three roles.
+		PublishNotReadyAddresses: true,
+		ConfigDefaults:           dataStorageDefaults(),
 		LogProducers: []productlogging.ContainerLogging{
 			{Container: cname, Framework: productlogging.LoggingFrameworkLog4j},
 		},
+	}
+}
+
+// dataStorageDefaults gives every role group a non-nil (empty) storage default so the framework
+// builds the data PVC. It is the lowest-precedence config layer (ConfigDefaults), folded beneath
+// the CR's role and role group levels, so a user-set config.resources.storage always wins. A fresh
+// value is returned per call so the fold never mutates a shared instance.
+func dataStorageDefaults() *commonsv1alpha1.RoleGroupConfigSpec {
+	return &commonsv1alpha1.RoleGroupConfigSpec{
+		Resources: &commonsv1alpha1.ResourcesSpec{Storage: &commonsv1alpha1.StorageResource{}},
 	}
 }
 

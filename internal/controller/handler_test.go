@@ -21,12 +21,15 @@ import (
 	"strings"
 	"testing"
 
+	commonsv1alpha1 "github.com/zncdatadev/operator-go/pkg/apis/commons/v1alpha1"
 	"github.com/zncdatadev/operator-go/pkg/constant"
 	"github.com/zncdatadev/operator-go/pkg/productlogging"
 	"github.com/zncdatadev/operator-go/pkg/reconciler"
 	"github.com/zncdatadev/operator-go/pkg/sidecar"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
 	"github.com/zncdatadev/hdfs-operator/internal/constants"
@@ -63,6 +66,16 @@ func TestDeclareRoles(t *testing.T) {
 		if d.DataVolume == nil || d.DataVolume.MountPath != constant.KubedoopDataDir {
 			t.Errorf("role %q data volume = %+v, want mountPath %q", role, d.DataVolume, constant.KubedoopDataDir)
 		}
+		if d.ConfigDefaults == nil || d.ConfigDefaults.Resources == nil ||
+			d.ConfigDefaults.Resources.Storage == nil {
+			t.Errorf("role %q must declare a non-nil storage default so its data PVC is built", role)
+		} else if got, want := d.ConfigDefaults.Resources.Storage.GetCapacity(),
+			resource.MustParse(commonsv1alpha1.DefaultStorageCapacity); got.Cmp(want) != 0 {
+			t.Errorf("role %q default storage = %s, want framework floor %s", role, got.String(), want.String())
+		}
+		if !d.PublishNotReadyAddresses {
+			t.Errorf("role %q must publish not-ready addresses so HDFS peers can resolve during bootstrap", role)
+		}
 		if len(d.LogProducers) != 1 || d.LogProducers[0].Container != cname ||
 			d.LogProducers[0].Framework != productlogging.LoggingFrameworkLog4j {
 			t.Errorf("role %q log producers = %+v, want single {%s, log4j}", role, d.LogProducers, cname)
@@ -73,6 +86,26 @@ func TestDeclareRoles(t *testing.T) {
 		if envByName(d.Env, "POD_NAME") == nil {
 			t.Errorf("role %q env should include POD_NAME", role)
 		}
+	}
+}
+
+func TestDataStorageDefaultsPreserveExplicitUserCapacity(t *testing.T) {
+	want := resource.MustParse("25Gi")
+	userConfig := &commonsv1alpha1.RoleGroupConfigSpec{
+		Resources: &commonsv1alpha1.ResourcesSpec{
+			Storage: &commonsv1alpha1.StorageResource{Capacity: ptr.To(want)},
+		},
+	}
+
+	got, _, err := reconciler.FoldCommonConfig(dataStorageDefaults(), userConfig)
+	if err != nil {
+		t.Fatalf("FoldCommonConfig: %v", err)
+	}
+	if got.Resources == nil || got.Resources.Storage == nil || got.Resources.Storage.Capacity == nil {
+		t.Fatalf("folded storage is incomplete: %+v", got.Resources)
+	}
+	if got.Resources.Storage.Capacity.Cmp(want) != 0 {
+		t.Errorf("folded capacity = %s, want explicit user value %s", got.Resources.Storage.Capacity.String(), want.String())
 	}
 }
 
