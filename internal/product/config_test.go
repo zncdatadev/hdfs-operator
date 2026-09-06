@@ -29,6 +29,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	hdfsv1alpha1 "github.com/zncdatadev/hdfs-operator/api/v1alpha1"
+	"github.com/zncdatadev/hdfs-operator/internal/constants"
 )
 
 func TestJvmOptsEnvVars(t *testing.T) {
@@ -254,6 +255,24 @@ func TestDiscoveryConfigUsesResolvedEndpointsInStablePodOrder(t *testing.T) {
 	}
 	if got := hdfs["dfs.namenode.http-address.simple-hdfs.simple-hdfs-namenode-default-1"]; got != "nn-1.example.test:32070" {
 		t.Errorf("resolved http endpoint = %q", got)
+	}
+}
+
+func TestDiscoveryConfigBracketsIPv6ListenerAddress(t *testing.T) {
+	cr := testCluster()
+	endpoints := InternalNameNodeDiscoveryEndpoints(cr)
+	endpoints["simple-hdfs-namenode-default-0"] = DiscoveryEndpoint{
+		Address: "2001:db8::10",
+		Ports: map[string]int32{
+			hdfsv1alpha1.RpcName:  hdfsv1alpha1.NameNodeRpcPort,
+			hdfsv1alpha1.HttpName: hdfsv1alpha1.NameNodeHttpPort,
+		},
+	}
+
+	hdfs := DiscoveryConfig(cr, endpoints)[constants.HdfsSiteXML]
+	key := "dfs.namenode.rpc-address.simple-hdfs.simple-hdfs-namenode-default-0"
+	if got, want := hdfs[key], "[2001:db8::10]:8020"; got != want {
+		t.Errorf("IPv6 discovery endpoint = %q, want %q", got, want)
 	}
 }
 

@@ -22,6 +22,7 @@ package product
 import (
 	"context"
 	"fmt"
+	"net"
 	"path"
 	"slices"
 	"strconv"
@@ -451,14 +452,14 @@ func discoveryNameNodeHAConfig(
 		}
 		ids = append(ids, nn.id)
 		if port, ok := endpoint.Ports[hdfsv1alpha1.RpcName]; ok {
-			props["dfs.namenode.rpc-address."+nameservice+"."+nn.id] = fmt.Sprintf("%s:%d", endpoint.Address, port)
+			props["dfs.namenode.rpc-address."+nameservice+"."+nn.id] = net.JoinHostPort(endpoint.Address, strconv.Itoa(int(port)))
 		}
 		if port, ok := endpoint.Ports[hdfsv1alpha1.HttpName]; ok {
-			props["dfs.namenode.http-address."+nameservice+"."+nn.id] = fmt.Sprintf("%s:%d", endpoint.Address, port)
+			props["dfs.namenode.http-address."+nameservice+"."+nn.id] = net.JoinHostPort(endpoint.Address, strconv.Itoa(int(port)))
 		}
 		if tlsEnabled(cr) {
 			if port, ok := endpoint.Ports[hdfsv1alpha1.HttpsName]; ok {
-				props["dfs.namenode.https-address."+nameservice+"."+nn.id] = fmt.Sprintf("%s:%d", endpoint.Address, port)
+				props["dfs.namenode.https-address."+nameservice+"."+nn.id] = net.JoinHostPort(endpoint.Address, strconv.Itoa(int(port)))
 			}
 		}
 	}

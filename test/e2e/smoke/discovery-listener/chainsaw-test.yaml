@@ -1,0 +1,66 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: smoke-discovery-listener
+spec:
+  steps:
+  - name: install zookeeper
+    try:
+    - apply:
+        file: ../../setup/zookeeper.yaml
+    - assert:
+        file: ../../setup/zookeeper-assert.yaml
+    cleanup:
+    - sleep:
+        duration: 5s
+  - name: install hdfs with external namenode listeners
+    try:
+    - apply:
+        file: hdfs.yaml
+    - assert:
+        timeout: 460s
+        file: hdfs-assert.yaml
+    - script:
+        env:
+        - name: NAMESPACE
+          value: ($namespace)
+        content: |
+          set -eu
+
+          cluster=hdfscluster-listener
+          for ordinal in 0 1; do
+            pod="${cluster}-namenode-default-${ordinal}"
+            uid=$(kubectl -n "$NAMESPACE" get pod "$pod" -o jsonpath='{.metadata.uid}')
+            pod_listeners="pod-${uid}"
+            address=$(kubectl -n "$NAMESPACE" get podlisteners.listeners.kubedoop.dev "$pod_listeners" \
+              -o jsonpath='{.spec.listeners.listener.listenerIngresses[0].address}')
+            rpc_port=$(kubectl -n "$NAMESPACE" get podlisteners.listeners.kubedoop.dev "$pod_listeners" \
+              -o jsonpath='{.spec.listeners.listener.listenerIngresses[0].ports.rpc}')
+            endpoint="${address}:${rpc_port}"
+            case "$address" in *:*) endpoint="[${address}]:${rpc_port}" ;; esac
+
+            found=false
+            for attempt in $(seq 1 60); do
+              hdfs_site=$(kubectl -n "$NAMESPACE" get configmap "$cluster" -o jsonpath='{.data.hdfs-site\.xml}')
+              if printf '%s' "$hdfs_site" | grep -Fq "$endpoint"; then
+                found=true
+                break
+              fi
+              sleep 2
+            done
+            if [ "$found" != true ]; then
+              echo "discovery ConfigMap does not contain listener RPC endpoint ${endpoint} for ${pod}"
+              exit 1
+            fi
+          done
+    catch:
+    - describe:
+        apiVersion: hdfs.kubedoop.dev/v1alpha1
+        kind: HdfsCluster
+        name: hdfscluster-listener
+    - describe:
+        apiVersion: listeners.kubedoop.dev/v1alpha1
+        kind: PodListeners
+    - podLogs:
+        selector: app.kubernetes.io/instance=hdfscluster-listener
+        tail: -1

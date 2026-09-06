@@ -1,0 +1,33 @@
+apiVersion: hdfs.kubedoop.dev/v1alpha1
+kind: HdfsCluster
+metadata:
+  name: hdfscluster-listener
+  namespace: ($namespace)
+spec:
+  image:
+    productVersion: ($values.product_version)
+  clusterConfig:
+    zookeeperConfigMapName: sample-hdfs-znode
+  nameNodes:
+    config:
+      listenerClass: external-unstable
+    roleGroups:
+      default:
+        replicas: 2
+        config:
+          resources:
+            cpu: {}
+  journalNodes:
+    roleGroups:
+      default:
+        replicas: 1
+        config:
+          resources:
+            cpu: {}
+  dataNodes:
+    roleGroups:
+      default:
+        replicas: 1
+        config:
+          resources:
+            cpu: {}
