@@ -3,15 +3,34 @@ kind: Test
 metadata:
   name: smoke-override-pdb
 spec:
-  skip: true # skip this test, util refactored the whole project
-  bindings:
   steps:
-    - name: install zookeeper
-      try:
-      - apply:
-          file: ../setup/zookeeper.yaml
-      - assert:
-          file: ../setup/zookeeper-assert.yaml
-      cleanup:
-      - sleep:
-          duration: 5s
+  - name: install zookeeper
+    try:
+    - apply:
+        file: ../../setup/zookeeper.yaml
+    - assert:
+        file: ../../setup/zookeeper-assert.yaml
+    cleanup:
+    - sleep:
+        duration: 5s
+  - name: install hdfs cluster with a PDB override
+    try:
+    - apply:
+        file: hdfs.yaml
+    - assert:
+        timeout: 460s
+        file: hdfs-assert.yaml
+    cleanup:
+    - sleep:
+        duration: 10s
+    catch:
+    - describe:
+        apiVersion: policy/v1
+        kind: PodDisruptionBudget
+    - describe:
+        apiVersion: v1
+        kind: Pod
+        selector: app.kubernetes.io/managed-by=hdfs-operator
+    - podLogs:
+        selector: app.kubernetes.io/managed-by=hdfs-operator
+        tail: -1

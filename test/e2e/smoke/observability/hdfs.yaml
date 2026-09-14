@@ -14,7 +14,7 @@ spec:
     productVersion: ($values.product_version)
   clusterConfig:
     zookeeperConfigMapName: sample-hdfs-znode
-  nameNode:
+  nameNodes:
     roleGroups:
       default:
         replicas: 2
@@ -25,7 +25,7 @@ spec:
               max: "200m"
             memory:
               limit: "512Mi"
-  journalNode:
+  journalNodes:
     roleGroups:
       default:
         replicas: 1
@@ -36,7 +36,7 @@ spec:
               max: "200m"
             memory:
               limit: "512Mi"
-  dataNode:
+  dataNodes:
     roleGroups:
       default:
         replicas: 1

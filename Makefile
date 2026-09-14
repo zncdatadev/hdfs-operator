@@ -294,12 +294,14 @@ CHAINSAW ?= $(LOCALBIN)/chainsaw
 CHAINSAW_VERSION ?= v0.2.14
 CHAINSAW_CLUSTER ?= chainsaw-${PROJECT_NAME}
 CHAINSAW_KUBECONFIG ?= .kubeconfig
+# Keep chart-e2e and local runs explicit and reproducible when CI does not provide a matrix value.
+PRODUCT_VERSION ?= 3.4.1
 # KIND_K8S_VERSION refers to the version of Kubernetes to be used by kind node image.
 # The version only effects e2e tests.
 # When run `kind create --image kindest/node:v${KIND_K8S_VERSION}`, the node image version of k8s will be used to create the kind cluster,
 # and the target kubeconfig file will be named as `$(CHAINSAW_KUBECONFIG)` (default: `.kubeconfig`).
 # So if you want to use the target cluster, run `export KUBECONFIG=$(CHAINSAW_KUBECONFIG)` (default: `.kubeconfig`).
-KIND_K8S_VERSION ?= 1.26.15
+KIND_K8S_VERSION ?= 1.31.0
 # The kind node image can found in https://github.com/kubernetes-sigs/kind/releases.
 KIND_IMAGE ?= kindest/node:v${KIND_K8S_VERSION}
 # Define operator dependencies to be installed before running chainsaw tests.

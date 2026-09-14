@@ -1,12 +1,6 @@
 apiVersion: hdfs.kubedoop.dev/v1alpha1
 kind: HdfsCluster
 metadata:
-  labels:
-    app.kubernetes.io/name: hdfscluster
-    app.kubernetes.io/instance: hdfscluster-sample
-    app.kubernetes.io/part-of: hdfs-operator
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: hdfs-operator
   name: hdfscluster-sample
   namespace: ($namespace)
 spec:
@@ -14,8 +8,11 @@ spec:
     productVersion: ($values.product_version)
   clusterConfig:
     zookeeperConfigMapName: sample-hdfs-znode
-    vectorAggregatorConfigMapName: vector-aggregator-discovery
   nameNodes:
+    roleConfig:
+      podDisruptionBudget:
+        enabled: true
+        maxUnavailable: 1
     roleGroups:
       default:
         replicas: 2

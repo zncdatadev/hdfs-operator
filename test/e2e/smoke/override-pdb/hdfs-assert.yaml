@@ -1,0 +1,19 @@
+# The NameNode role's PodDisruptionBudget reflects the roleConfig override.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: hdfscluster-sample-namenode
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: hdfscluster-sample
+      app.kubernetes.io/component: namenode
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hdfscluster-sample-namenode-default
+status:
+  availableReplicas: 2
+  replicas: 2

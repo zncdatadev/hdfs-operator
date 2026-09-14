@@ -39,10 +39,17 @@ spec:
             description: HdfsClusterSpec defines the desired state of HdfsCluster
             properties:
               clusterConfig:
+                description: |-
+                  ClusterConfig holds HDFS cluster-wide, product-specific configuration. It is NOT part of
+                  the SDK GenericClusterSpec; the product handler/ProductConfig reads it directly.
                 properties:
                   authentication:
                     properties:
                       authenticationClass:
+                        description: |-
+                          AuthenticationClass references an authentication.kubedoop.dev AuthenticationClass. For OIDC
+                          it must name a class whose provider.oidc block describes the issuer; the operator fronts the
+                          NameNode web UI with an oauth2-proxy sidecar configured from it.
                         type: string
                       kerberos:
                         properties:
@@ -79,38 +86,18 @@ spec:
                   clusterDomain:
                     default: cluster.local
                     type: string
-                  clusterName:
-                    default: cluster.local
-                    type: string
                   dfsReplication:
                     default: 1
                     format: int32
                     type: integer
-                  service:
-                    properties:
-                      annotations:
-                        additionalProperties:
-                          type: string
-                        type: object
-                      port:
-                        default: 18080
-                        format: int32
-                        maximum: 65535
-                        minimum: 1
-                        type: integer
-                      type:
-                        default: ClusterIP
-                        description: Service Type string describes ingress methods
-                          for a service
-                        type: string
-                    type: object
                   vectorAggregatorConfigMapName:
                     type: string
                   zookeeperConfigMapName:
                     type: string
                 type: object
               clusterOperation:
-                description: ClusterOperationSpec defines the desired state of ClusterOperation
+                description: ClusterOperation controls operator behavior at runtime
+                  (pause/stop).
                 properties:
                   reconciliationPaused:
                     default: false
@@ -119,21 +106,45 @@ spec:
                     default: false
                     type: boolean
                 type: object
-              dataNode:
+              dataNodes:
+                description: DataNodes defines the DataNode role (storage workers).
                 properties:
                   cliOverrides:
+                    description: CliOverrides replaces the declared command arguments
+                      for all role groups.
                     items:
                       type: string
                     type: array
                   config:
+                    description: |-
+                      Config contains workload runtime configuration defaults for all RoleGroups.
+                      Each RoleGroup inherits these values and can selectively override them.
                     properties:
                       affinity:
                         type: object
                         x-kubernetes-preserve-unknown-fields: true
                       gracefulShutdownTimeout:
-                        default: 30s
+                        description: |-
+                          GracefulShutdownTimeout maps to the pod's terminationGracePeriodSeconds. Unset means
+                          DefaultGracefulShutdownTimeout.
+
+                          It is a pointer and carries no `+kubebuilder:default` on purpose. Structural defaulting
+                          fills a field as soon as its enclosing object exists, so with a CRD default every role group
+                          that declared a config block for ANY reason — just `resources`, say — was stamped with "30s",
+                          which is then indistinguishable from an explicit group value and wins the merge over the
+                          role's setting. A role-level graceful shutdown could therefore only ever reach groups with no
+                          config block at all.
+                        pattern: ^([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+$
                         type: string
                       listenerClass:
+                        description: |-
+                          ListenerClass selects how this role group is exposed. It deliberately has no structural
+                          default: role -> role-group inheritance must see whether the field was omitted. The runtime
+                          fold applies cluster-internal only when neither user layer states a value.
+                        enum:
+                        - cluster-internal
+                        - external-unstable
+                        - external-stable
                         type: string
                       logging:
                         properties:
@@ -151,10 +162,26 @@ spec:
                                       - DEBUG -> DEBUG
                                       - TRACE -> DEBUG
 
-                                    Default log level is INFO
+                                    The effective default is INFO, applied at consumption time by the renderers rather than by the
+                                    CRD — see Level below.
                                   properties:
                                     level:
-                                      default: INFO
+                                      description: |-
+                                        Level is the log threshold. Unset means "inherit": the role's value when a role group leaves
+                                        it out, and the product's own default (root logger INFO, no appender threshold) when nobody
+                                        sets it.
+
+                                        It carries NO +kubebuilder:default, and must not gain one. This type sits inside `config`,
+                                        the block folded Role -> RoleGroup, where structural defaulting fills a leaf as soon as its
+                                        ENCLOSING OBJECT exists — so a default here lands in any role group that wrote `console: {}`,
+                                        making "unset here" indistinguishable from "explicitly INFO" and stopping the role's value
+                                        from ever winning. That is not hypothetical: with `default:="INFO"` a role asking for DEBUG
+                                        and a role group writing an empty `console: {}` produced INFO, and the guard in
+                                        mergeContainerLogging written to prevent exactly that could never fire, because the API
+                                        server had already filled the field before the merge saw it.
+
+                                        Same rule and same reason as StorageResource.Capacity and RoleGroupConfigSpec's other folded
+                                        leaves; defaults for these live at consumption time.
                                       enum:
                                       - FATAL
                                       - ERROR
@@ -175,10 +202,26 @@ spec:
                                       - DEBUG -> DEBUG
                                       - TRACE -> DEBUG
 
-                                    Default log level is INFO
+                                    The effective default is INFO, applied at consumption time by the renderers rather than by the
+                                    CRD — see Level below.
                                   properties:
                                     level:
-                                      default: INFO
+                                      description: |-
+                                        Level is the log threshold. Unset means "inherit": the role's value when a role group leaves
+                                        it out, and the product's own default (root logger INFO, no appender threshold) when nobody
+                                        sets it.
+
+                                        It carries NO +kubebuilder:default, and must not gain one. This type sits inside `config`,
+                                        the block folded Role -> RoleGroup, where structural defaulting fills a leaf as soon as its
+                                        ENCLOSING OBJECT exists — so a default here lands in any role group that wrote `console: {}`,
+                                        making "unset here" indistinguishable from "explicitly INFO" and stopping the role's value
+                                        from ever winning. That is not hypothetical: with `default:="INFO"` a role asking for DEBUG
+                                        and a role group writing an empty `console: {}` produced INFO, and the guard in
+                                        mergeContainerLogging written to prevent exactly that could never fire, because the API
+                                        server had already filled the field before the merge saw it.
+
+                                        Same rule and same reason as StorageResource.Capacity and RoleGroupConfigSpec's other folded
+                                        leaves; defaults for these live at consumption time.
                                       enum:
                                       - FATAL
                                       - ERROR
@@ -200,10 +243,26 @@ spec:
                                         - DEBUG -> DEBUG
                                         - TRACE -> DEBUG
 
-                                      Default log level is INFO
+                                      The effective default is INFO, applied at consumption time by the renderers rather than by the
+                                      CRD — see Level below.
                                     properties:
                                       level:
-                                        default: INFO
+                                        description: |-
+                                          Level is the log threshold. Unset means "inherit": the role's value when a role group leaves
+                                          it out, and the product's own default (root logger INFO, no appender threshold) when nobody
+                                          sets it.
+
+                                          It carries NO +kubebuilder:default, and must not gain one. This type sits inside `config`,
+                                          the block folded Role -> RoleGroup, where structural defaulting fills a leaf as soon as its
+                                          ENCLOSING OBJECT exists — so a default here lands in any role group that wrote `console: {}`,
+                                          making "unset here" indistinguishable from "explicitly INFO" and stopping the role's value
+                                          from ever winning. That is not hypothetical: with `default:="INFO"` a role asking for DEBUG
+                                          and a role group writing an empty `console: {}` produced INFO, and the guard in
+                                          mergeContainerLogging written to prevent exactly that could never fire, because the API
+                                          server had already filled the field before the merge saw it.
+
+                                          Same rule and same reason as StorageResource.Capacity and RoleGroupConfigSpec's other folded
+                                          leaves; defaults for these live at consumption time.
                                         enum:
                                         - FATAL
                                         - ERROR
@@ -222,6 +281,11 @@ spec:
                       resources:
                         properties:
                           cpu:
+                            description: |-
+                              CPUResource bounds the container's CPU. Both fields are pointers so that "unset" is
+                              representable: a bare resource.Quantity is a struct, which `omitempty` cannot omit and whose
+                              MarshalJSON renders the zero value as "0", so a Go-constructed spec would transmit an explicit
+                              zero and a role group would silently erase the role's value.
                             properties:
                               max:
                                 anyOf:
@@ -237,6 +301,9 @@ spec:
                                 x-kubernetes-int-or-string: true
                             type: object
                           memory:
+                            description: |-
+                              MemoryResource bounds the container's memory. Limit is a pointer for the same reason as
+                              CPUResource's fields.
                             properties:
                               limit:
                                 anyOf:
@@ -246,15 +313,36 @@ spec:
                                 x-kubernetes-int-or-string: true
                             type: object
                           storage:
+                            description: StorageResource describes the role group's
+                              data PVC.
                             properties:
                               capacity:
                                 anyOf:
                                 - type: integer
                                 - type: string
-                                default: 10Gi
+                                description: |-
+                                  Capacity of the data volume. Unset means DefaultStorageCapacity.
+
+                                  It carries no `+kubebuilder:default`: the enclosing storage block exists as soon as a user
+                                  overrides ANY leaf of it (a storageClass, say), and a CRD default would then be stamped into
+                                  that block and win the role/roleGroup merge — turning a one-line storageClass override into
+                                  a silent downgrade of the role's capacity, baked into a StatefulSet volumeClaimTemplate that
+                                  Kubernetes will not let the operator change afterwards.
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
                               storageClass:
+                                description: |-
+                                  StorageClass names the StorageClass for the PVC. Unset means "use the cluster default", which
+                                  is what an absent `storageClassName` asks Kubernetes for.
+
+                                  It is a POINTER because the empty string is not a synonym for unset here — Kubernetes reads
+                                  `storageClassName: ""` as "no class at all", i.e. bind a pre-provisioned PV and do no dynamic
+                                  provisioning. With a plain string a role group could never express that over a role that names
+                                  a class, because "" was how the merge spelled "inherit". This is the same reason
+                                  StorageResource.Capacity, CPUResource.Min/Max, MemoryResource.Limit and
+                                  RoleGroupConfigSpec.GracefulShutdownTimeout are pointers, and it carries the same rule: no
+                                  `+kubebuilder:default`, or structural defaulting would fill it as soon as the enclosing
+                                  object exists and the role's value could never win.
                                 type: string
                             type: object
                         type: object
@@ -264,15 +352,23 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
+                    description: ConfigOverrides applies configuration-file overrides
+                      to all role groups.
                     type: object
                   envOverrides:
                     additionalProperties:
                       type: string
+                    description: EnvOverrides applies environment-variable overrides
+                      to all role groups.
                     type: object
                   podOverrides:
+                    description: PodOverrides applies a strategic merge patch to all
+                      role groups.
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
                   roleConfig:
+                    description: RoleConfig contains Kubernetes-level role management
+                      controls that role groups do not inherit.
                     properties:
                       podDisruptionBudget:
                         description: |-
@@ -281,11 +377,14 @@ spec:
                            2. The allowed number of Pods to be unavailable (`maxUnavailable`)
                         properties:
                           enabled:
-                            default: true
                             description: |-
                               Whether a PodDisruptionBudget should be written out for this role.
                               Disabling this enables you to specify your own - custom - one.
                               Defaults to true.
+
+                              A pointer, so that "unset" and "explicitly false" are distinguishable. As a bare bool with
+                              a CRD default it read as false in every Go-constructed spec — the zero value — which
+                              silently disabled the PDB for any caller that built the spec in code rather than YAML.
                             type: boolean
                           maxUnavailable:
                             description: |-
@@ -298,20 +397,44 @@ spec:
                     type: object
                   roleGroups:
                     additionalProperties:
+                      description: RoleGroupSpec defines one StatefulSet and its role-group-level
+                        overrides.
                       properties:
                         cliOverrides:
+                          description: CliOverrides replaces the role-level command
+                            arguments.
                           items:
                             type: string
                           type: array
                         config:
+                          description: Config contains role-group-level configuration
+                            and overrides the role-level Config.
                           properties:
                             affinity:
                               type: object
                               x-kubernetes-preserve-unknown-fields: true
                             gracefulShutdownTimeout:
-                              default: 30s
+                              description: |-
+                                GracefulShutdownTimeout maps to the pod's terminationGracePeriodSeconds. Unset means
+                                DefaultGracefulShutdownTimeout.
+
+                                It is a pointer and carries no `+kubebuilder:default` on purpose. Structural defaulting
+                                fills a field as soon as its enclosing object exists, so with a CRD default every role group
+                                that declared a config block for ANY reason — just `resources`, say — was stamped with "30s",
+                                which is then indistinguishable from an explicit group value and wins the merge over the
+                                role's setting. A role-level graceful shutdown could therefore only ever reach groups with no
+                                config block at all.
+                              pattern: ^([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+$
                               type: string
                             listenerClass:
+                              description: |-
+                                ListenerClass selects how this role group is exposed. It deliberately has no structural
+                                default: role -> role-group inheritance must see whether the field was omitted. The runtime
+                                fold applies cluster-internal only when neither user layer states a value.
+                              enum:
+                              - cluster-internal
+                              - external-unstable
+                              - external-stable
                               type: string
                             logging:
                               properties:
@@ -329,10 +452,26 @@ spec:
                                             - DEBUG -> DEBUG
                                             - TRACE -> DEBUG
 
-                                          Default log level is INFO
+                                          The effective default is INFO, applied at consumption time by the renderers rather than by the
+                                          CRD — see Level below.
                                         properties:
                                           level:
-                                            default: INFO
+                                            description: |-
+                                              Level is the log threshold. Unset means "inherit": the role's value when a role group leaves
+                                              it out, and the product's own default (root logger INFO, no appender threshold) when nobody
+                                              sets it.
+
+                                              It carries NO +kubebuilder:default, and must not gain one. This type sits inside `config`,
+                                              the block folded Role -> RoleGroup, where structural defaulting fills a leaf as soon as its
+                                              ENCLOSING OBJECT exists — so a default here lands in any role group that wrote `console: {}`,
+                                              making "unset here" indistinguishable from "explicitly INFO" and stopping the role's value
+                                              from ever winning. That is not hypothetical: with `default:="INFO"` a role asking for DEBUG
+                                              and a role group writing an empty `console: {}` produced INFO, and the guard in
+                                              mergeContainerLogging written to prevent exactly that could never fire, because the API
+                                              server had already filled the field before the merge saw it.
+
+                                              Same rule and same reason as StorageResource.Capacity and RoleGroupConfigSpec's other folded
+                                              leaves; defaults for these live at consumption time.
                                             enum:
                                             - FATAL
                                             - ERROR
@@ -353,10 +492,26 @@ spec:
                                             - DEBUG -> DEBUG
                                             - TRACE -> DEBUG
 
-                                          Default log level is INFO
+                                          The effective default is INFO, applied at consumption time by the renderers rather than by the
+                                          CRD — see Level below.
                                         properties:
                                           level:
-                                            default: INFO
+                                            description: |-
+                                              Level is the log threshold. Unset means "inherit": the role's value when a role group leaves
+                                              it out, and the product's own default (root logger INFO, no appender threshold) when nobody
+                                              sets it.
+
+                                              It carries NO +kubebuilder:default, and must not gain one. This type sits inside `config`,
+                                              the block folded Role -> RoleGroup, where structural defaulting fills a leaf as soon as its
+                                              ENCLOSING OBJECT exists — so a default here lands in any role group that wrote `console: {}`,
+                                              making "unset here" indistinguishable from "explicitly INFO" and stopping the role's value
+                                              from ever winning. That is not hypothetical: with `default:="INFO"` a role asking for DEBUG
+                                              and a role group writing an empty `console: {}` produced INFO, and the guard in
+                                              mergeContainerLogging written to prevent exactly that could never fire, because the API
+                                              server had already filled the field before the merge saw it.
+
+                                              Same rule and same reason as StorageResource.Capacity and RoleGroupConfigSpec's other folded
+                                              leaves; defaults for these live at consumption time.
                                             enum:
                                             - FATAL
                                             - ERROR
@@ -378,10 +533,26 @@ spec:
                                               - DEBUG -> DEBUG
                                               - TRACE -> DEBUG
 
-                                            Default log level is INFO
+                                            The effective default is INFO, applied at consumption time by the renderers rather than by the
+                                            CRD — see Level below.
                                           properties:
                                             level:
-                                              default: INFO
+                                              description: |-
+                                                Level is the log threshold. Unset means "inherit": the role's value when a role group leaves
+                                                it out, and the product's own default (root logger INFO, no appender threshold) when nobody
+                                                sets it.
+
+                                                It carries NO +kubebuilder:default, and must not gain one. This type sits inside `config`,
+                                                the block folded Role -> RoleGroup, where structural defaulting fills a leaf as soon as its
+                                                ENCLOSING OBJECT exists — so a default here lands in any role group that wrote `console: {}`,
+                                                making "unset here" indistinguishable from "explicitly INFO" and stopping the role's value
+                                                from ever winning. That is not hypothetical: with `default:="INFO"` a role asking for DEBUG
+                                                and a role group writing an empty `console: {}` produced INFO, and the guard in
+                                                mergeContainerLogging written to prevent exactly that could never fire, because the API
+                                                server had already filled the field before the merge saw it.
+
+                                                Same rule and same reason as StorageResource.Capacity and RoleGroupConfigSpec's other folded
+                                                leaves; defaults for these live at consumption time.
                                               enum:
                                               - FATAL
                                               - ERROR
@@ -400,6 +571,11 @@ spec:
                             resources:
                               properties:
                                 cpu:
+                                  description: |-
+                                    CPUResource bounds the container's CPU. Both fields are pointers so that "unset" is
+                                    representable: a bare resource.Quantity is a struct, which `omitempty` cannot omit and whose
+                                    MarshalJSON renders the zero value as "0", so a Go-constructed spec would transmit an explicit
+                                    zero and a role group would silently erase the role's value.
                                   properties:
                                     max:
                                       anyOf:
@@ -415,6 +591,9 @@ spec:
                                       x-kubernetes-int-or-string: true
                                   type: object
                                 memory:
+                                  description: |-
+                                    MemoryResource bounds the container's memory. Limit is a pointer for the same reason as
+                                    CPUResource's fields.
                                   properties:
                                     limit:
                                       anyOf:
@@ -424,15 +603,36 @@ spec:
                                       x-kubernetes-int-or-string: true
                                   type: object
                                 storage:
+                                  description: StorageResource describes the role
+                                    group's data PVC.
                                   properties:
                                     capacity:
                                       anyOf:
                                       - type: integer
                                       - type: string
-                                      default: 10Gi
+                                      description: |-
+                                        Capacity of the data volume. Unset means DefaultStorageCapacity.
+
+                                        It carries no `+kubebuilder:default`: the enclosing storage block exists as soon as a user
+                                        overrides ANY leaf of it (a storageClass, say), and a CRD default would then be stamped into
+                                        that block and win the role/roleGroup merge — turning a one-line storageClass override into
+                                        a silent downgrade of the role's capacity, baked into a StatefulSet volumeClaimTemplate that
+                                        Kubernetes will not let the operator change afterwards.
                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                       x-kubernetes-int-or-string: true
                                     storageClass:
+                                      description: |-
+                                        StorageClass names the StorageClass for the PVC. Unset means "use the cluster default", which
+                                        is what an absent `storageClassName` asks Kubernetes for.
+
+                                        It is a POINTER because the empty string is not a synonym for unset here — Kubernetes reads
+                                        `storageClassName: ""` as "no class at all", i.e. bind a pre-provisioned PV and do no dynamic
+                                        provisioning. With a plain string a role group could never express that over a role that names
+                                        a class, because "" was how the merge spelled "inherit". This is the same reason
+                                        StorageResource.Capacity, CPUResource.Min/Max, MemoryResource.Limit and
+                                        RoleGroupConfigSpec.GracefulShutdownTimeout are pointers, and it carries the same rule: no
+                                        `+kubebuilder:default`, or structural defaulting would fill it as soon as the enclosing
+                                        object exists and the role's value could never win.
                                       type: string
                                   type: object
                               type: object
@@ -442,59 +642,131 @@ spec:
                             additionalProperties:
                               type: string
                             type: object
+                          description: ConfigOverrides overrides role-level configuration-file
+                            entries per key.
                           type: object
                         envOverrides:
                           additionalProperties:
                             type: string
+                          description: EnvOverrides overrides role-level environment
+                            variables per key.
                           type: object
                         podOverrides:
+                          description: PodOverrides applies a strategic merge patch
+                            after role-level pod overrides.
                           type: object
                           x-kubernetes-preserve-unknown-fields: true
                         replicas:
                           default: 1
+                          description: Replicas is the number of pod replicas for
+                            this role group.
                           format: int32
+                          minimum: 0
                           type: integer
                       type: object
+                    description: RoleGroups defines the role group configurations.
+                      Each RoleGroup maps to a StatefulSet.
+                    maxProperties: 256
                     type: object
+                    x-kubernetes-validations:
+                    - message: 'each role group name must be a lowercase RFC 1123
+                        label (lowercase alphanumerics and ''-'', starting and ending
+                        with an alphanumeric, at most 63 characters): role group names
+                        become part of the name and labels of every resource built
+                        for the group'
+                      rule: self.all(k, size(k) <= 63 && k.matches('^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'))
                 type: object
               image:
-                default:
-                  pullPolicy: IfNotPresent
-                  repo: quay.io/zncdatadev
+                description: |-
+                  Image specifies the HDFS container image configuration. Fields left empty are filled from
+                  the handler's ImageDefaults on every reconcile (operator-go #581); the webhook only
+                  validates that the result resolves.
                 properties:
                   custom:
+                    description: |-
+                      Custom is a fully qualified image reference (e.g. "my-registry.com/ns/product:3.4.1").
+                      When set, Repo, ProductVersion and KubedoopVersion are ignored.
                     type: string
                   kubedoopVersion:
+                    description: |-
+                      KubedoopVersion is the version of the kubedoop operator stack (e.g. "0.2.0").
+                      Used only when Custom is not set.
                     type: string
                   productVersion:
-                    default: 3.3.6
+                    description: |-
+                      ProductVersion is the version of the product to deploy (e.g. "3.4.1").
+                      Used only when Custom is not set.
                     type: string
                   pullPolicy:
                     default: IfNotPresent
-                    description: PullPolicy describes a policy for if/when to pull
-                      a container image
+                    description: |-
+                      PullPolicy defines the image pull policy for the container.
+                      Defaults to IfNotPresent.
+                    enum:
+                    - Always
+                    - Never
+                    - IfNotPresent
                     type: string
                   pullSecretName:
+                    description: |-
+                      PullSecretName names a docker-registry Secret in the cluster CR's namespace, added to
+                      .spec.imagePullSecrets of every pod the framework builds for this cluster.
+
+                      It applies to whichever image path is taken, Custom included: a private registry is a
+                      property of where the image lives, not of how its reference was assembled. It is also
+                      deliberately NOT part of image resolution — a pull secret is still needed when the product
+                      resolves its own images and the framework never builds a reference at all.
+
+                      One name rather than a list, matching the field the ten product CRDs already declare. A
+                      deployment needing several credentials merges them into one Secret, or adds the rest through
+                      podOverrides, which is applied after this and therefore wins.
                     type: string
                   repo:
-                    default: quay.io/zncdatadev
+                    description: |-
+                      Repo is the image repository (e.g. "quay.io/kubedoop").
+                      Used only when Custom is not set.
                     type: string
                 type: object
-              journalNode:
+              journalNodes:
+                description: JournalNodes defines the JournalNode role (metadata edit
+                  log quorum; odd replica count).
                 properties:
                   cliOverrides:
+                    description: CliOverrides replaces the declared command arguments
+                      for all role groups.
                     items:
                       type: string
                     type: array
                   config:
+                    description: |-
+                      Config contains workload runtime configuration defaults for all RoleGroups.
+                      Each RoleGroup inherits these values and can selectively override them.
                     properties:
                       affinity:
                         type: object
                         x-kubernetes-preserve-unknown-fields: true
                       gracefulShutdownTimeout:
-                        default: 30s
+                        description: |-
+                          GracefulShutdownTimeout maps to the pod's terminationGracePeriodSeconds. Unset means
+                          DefaultGracefulShutdownTimeout.
+
+                          It is a pointer and carries no `+kubebuilder:default` on purpose. Structural defaulting
+                          fills a field as soon as its enclosing object exists, so with a CRD default every role group
+                          that declared a config block for ANY reason — just `resources`, say — was stamped with "30s",
+                          which is then indistinguishable from an explicit group value and wins the merge over the
+                          role's setting. A role-level graceful shutdown could therefore only ever reach groups with no
+                          config block at all.
+                        pattern: ^([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+$
                         type: string
                       listenerClass:
+                        description: |-
+                          ListenerClass selects how this role group is exposed. It deliberately has no structural
+                          default: role -> role-group inheritance must see whether the field was omitted. The runtime
+                          fold applies cluster-internal only when neither user layer states a value.
+                        enum:
+                        - cluster-internal
+                        - external-unstable
+                        - external-stable
                         type: string
                       logging:
                         properties:
@@ -512,10 +784,26 @@ spec:
                                       - DEBUG -> DEBUG
                                       - TRACE -> DEBUG
 
-                                    Default log level is INFO
+                                    The effective default is INFO, applied at consumption time by the renderers rather than by the
+                                    CRD — see Level below.
                                   properties:
                                     level:
-                                      default: INFO
+                                      description: |-
+                                        Level is the log threshold. Unset means "inherit": the role's value when a role group leaves
+                                        it out, and the product's own default (root logger INFO, no appender threshold) when nobody
+                                        sets it.
+
+                                        It carries NO +kubebuilder:default, and must not gain one. This type sits inside `config`,
+                                        the block folded Role -> RoleGroup, where structural defaulting fills a leaf as soon as its
+                                        ENCLOSING OBJECT exists — so a default here lands in any role group that wrote `console: {}`,
+                                        making "unset here" indistinguishable from "explicitly INFO" and stopping the role's value
+                                        from ever winning. That is not hypothetical: with `default:="INFO"` a role asking for DEBUG
+                                        and a role group writing an empty `console: {}` produced INFO, and the guard in
+                                        mergeContainerLogging written to prevent exactly that could never fire, because the API
+                                        server had already filled the field before the merge saw it.
+
+                                        Same rule and same reason as StorageResource.Capacity and RoleGroupConfigSpec's other folded
+                                        leaves; defaults for these live at consumption time.
                                       enum:
                                       - FATAL
                                       - ERROR
@@ -536,10 +824,26 @@ spec:
                                       - DEBUG -> DEBUG
                                       - TRACE -> DEBUG
 
-                                    Default log level is INFO
+                                    The effective default is INFO, applied at consumption time by the renderers rather than by the
+                                    CRD — see Level below.
                                   properties:
                                     level:
-                                      default: INFO
+                                      description: |-
+                                        Level is the log threshold. Unset means "inherit": the role's value when a role group leaves
+                                        it out, and the product's own default (root logger INFO, no appender threshold) when nobody
+                                        sets it.
+
+                                        It carries NO +kubebuilder:default, and must not gain one. This type sits inside `config`,
+                                        the block folded Role -> RoleGroup, where structural defaulting fills a leaf as soon as its
+                                        ENCLOSING OBJECT exists — so a default here lands in any role group that wrote `console: {}`,
+                                        making "unset here" indistinguishable from "explicitly INFO" and stopping the role's value
+                                        from ever winning. That is not hypothetical: with `default:="INFO"` a role asking for DEBUG
+                                        and a role group writing an empty `console: {}` produced INFO, and the guard in
+                                        mergeContainerLogging written to prevent exactly that could never fire, because the API
+                                        server had already filled the field before the merge saw it.
+
+                                        Same rule and same reason as StorageResource.Capacity and RoleGroupConfigSpec's other folded
+                                        leaves; defaults for these live at consumption time.
                                       enum:
                                       - FATAL
                                       - ERROR
@@ -561,10 +865,26 @@ spec:
                                         - DEBUG -> DEBUG
                                         - TRACE -> DEBUG
 
-                                      Default log level is INFO
+                                      The effective default is INFO, applied at consumption time by the renderers rather than by the
+                                      CRD — see Level below.
                                     properties:
                                       level:
-                                        default: INFO
+                                        description: |-
+                                          Level is the log threshold. Unset means "inherit": the role's value when a role group leaves
+                                          it out, and the product's own default (root logger INFO, no appender threshold) when nobody
+                                          sets it.
+
+                                          It carries NO +kubebuilder:default, and must not gain one. This type sits inside `config`,
+                                          the block folded Role -> RoleGroup, where structural defaulting fills a leaf as soon as its
+                                          ENCLOSING OBJECT exists — so a default here lands in any role group that wrote `console: {}`,
+                                          making "unset here" indistinguishable from "explicitly INFO" and stopping the role's value
+                                          from ever winning. That is not hypothetical: with `default:="INFO"` a role asking for DEBUG
+                                          and a role group writing an empty `console: {}` produced INFO, and the guard in
+                                          mergeContainerLogging written to prevent exactly that could never fire, because the API
+                                          server had already filled the field before the merge saw it.
+
+                                          Same rule and same reason as StorageResource.Capacity and RoleGroupConfigSpec's other folded
+                                          leaves; defaults for these live at consumption time.
                                         enum:
                                         - FATAL
                                         - ERROR
@@ -583,6 +903,11 @@ spec:
                       resources:
                         properties:
                           cpu:
+                            description: |-
+                              CPUResource bounds the container's CPU. Both fields are pointers so that "unset" is
+                              representable: a bare resource.Quantity is a struct, which `omitempty` cannot omit and whose
+                              MarshalJSON renders the zero value as "0", so a Go-constructed spec would transmit an explicit
+                              zero and a role group would silently erase the role's value.
                             properties:
                               max:
                                 anyOf:
@@ -598,6 +923,9 @@ spec:
                                 x-kubernetes-int-or-string: true
                             type: object
                           memory:
+                            description: |-
+                              MemoryResource bounds the container's memory. Limit is a pointer for the same reason as
+                              CPUResource's fields.
                             properties:
                               limit:
                                 anyOf:
@@ -607,15 +935,36 @@ spec:
                                 x-kubernetes-int-or-string: true
                             type: object
                           storage:
+                            description: StorageResource describes the role group's
+                              data PVC.
                             properties:
                               capacity:
                                 anyOf:
                                 - type: integer
                                 - type: string
-                                default: 10Gi
+                                description: |-
+                                  Capacity of the data volume. Unset means DefaultStorageCapacity.
+
+                                  It carries no `+kubebuilder:default`: the enclosing storage block exists as soon as a user
+                                  overrides ANY leaf of it (a storageClass, say), and a CRD default would then be stamped into
+                                  that block and win the role/roleGroup merge — turning a one-line storageClass override into
+                                  a silent downgrade of the role's capacity, baked into a StatefulSet volumeClaimTemplate that
+                                  Kubernetes will not let the operator change afterwards.
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
                               storageClass:
+                                description: |-
+                                  StorageClass names the StorageClass for the PVC. Unset means "use the cluster default", which
+                                  is what an absent `storageClassName` asks Kubernetes for.
+
+                                  It is a POINTER because the empty string is not a synonym for unset here — Kubernetes reads
+                                  `storageClassName: ""` as "no class at all", i.e. bind a pre-provisioned PV and do no dynamic
+                                  provisioning. With a plain string a role group could never express that over a role that names
+                                  a class, because "" was how the merge spelled "inherit". This is the same reason
+                                  StorageResource.Capacity, CPUResource.Min/Max, MemoryResource.Limit and
+                                  RoleGroupConfigSpec.GracefulShutdownTimeout are pointers, and it carries the same rule: no
+                                  `+kubebuilder:default`, or structural defaulting would fill it as soon as the enclosing
+                                  object exists and the role's value could never win.
                                 type: string
                             type: object
                         type: object
@@ -625,15 +974,23 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
+                    description: ConfigOverrides applies configuration-file overrides
+                      to all role groups.
                     type: object
                   envOverrides:
                     additionalProperties:
                       type: string
+                    description: EnvOverrides applies environment-variable overrides
+                      to all role groups.
                     type: object
                   podOverrides:
+                    description: PodOverrides applies a strategic merge patch to all
+                      role groups.
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
                   roleConfig:
+                    description: RoleConfig contains Kubernetes-level role management
+                      controls that role groups do not inherit.
                     properties:
                       podDisruptionBudget:
                         description: |-
@@ -642,11 +999,14 @@ spec:
                            2. The allowed number of Pods to be unavailable (`maxUnavailable`)
                         properties:
                           enabled:
-                            default: true
                             description: |-
                               Whether a PodDisruptionBudget should be written out for this role.
                               Disabling this enables you to specify your own - custom - one.
                               Defaults to true.
+
+                              A pointer, so that "unset" and "explicitly false" are distinguishable. As a bare bool with
+                              a CRD default it read as false in every Go-constructed spec — the zero value — which
+                              silently disabled the PDB for any caller that built the spec in code rather than YAML.
                             type: boolean
                           maxUnavailable:
                             description: |-
@@ -659,20 +1019,44 @@ spec:
                     type: object
                   roleGroups:
                     additionalProperties:
+                      description: RoleGroupSpec defines one StatefulSet and its role-group-level
+                        overrides.
                       properties:
                         cliOverrides:
+                          description: CliOverrides replaces the role-level command
+                            arguments.
                           items:
                             type: string
                           type: array
                         config:
+                          description: Config contains role-group-level configuration
+                            and overrides the role-level Config.
                           properties:
                             affinity:
                               type: object
                               x-kubernetes-preserve-unknown-fields: true
                             gracefulShutdownTimeout:
-                              default: 30s
+                              description: |-
+                                GracefulShutdownTimeout maps to the pod's terminationGracePeriodSeconds. Unset means
+                                DefaultGracefulShutdownTimeout.
+
+                                It is a pointer and carries no `+kubebuilder:default` on purpose. Structural defaulting
+                                fills a field as soon as its enclosing object exists, so with a CRD default every role group
+                                that declared a config block for ANY reason — just `resources`, say — was stamped with "30s",
+                                which is then indistinguishable from an explicit group value and wins the merge over the
+                                role's setting. A role-level graceful shutdown could therefore only ever reach groups with no
+                                config block at all.
+                              pattern: ^([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+$
                               type: string
                             listenerClass:
+                              description: |-
+                                ListenerClass selects how this role group is exposed. It deliberately has no structural
+                                default: role -> role-group inheritance must see whether the field was omitted. The runtime
+                                fold applies cluster-internal only when neither user layer states a value.
+                              enum:
+                              - cluster-internal
+                              - external-unstable
+                              - external-stable
                               type: string
                             logging:
                               properties:
@@ -690,10 +1074,26 @@ spec:
                                             - DEBUG -> DEBUG
                                             - TRACE -> DEBUG
 
-                                          Default log level is INFO
+                                          The effective default is INFO, applied at consumption time by the renderers rather than by the
+                                          CRD — see Level below.
                                         properties:
                                           level:
-                                            default: INFO
+                                            description: |-
+                                              Level is the log threshold. Unset means "inherit": the role's value when a role group leaves
+                                              it out, and the product's own default (root logger INFO, no appender threshold) when nobody
+                                              sets it.
+
+                                              It carries NO +kubebuilder:default, and must not gain one. This type sits inside `config`,
+                                              the block folded Role -> RoleGroup, where structural defaulting fills a leaf as soon as its
+                                              ENCLOSING OBJECT exists — so a default here lands in any role group that wrote `console: {}`,
+                                              making "unset here" indistinguishable from "explicitly INFO" and stopping the role's value
+                                              from ever winning. That is not hypothetical: with `default:="INFO"` a role asking for DEBUG
+                                              and a role group writing an empty `console: {}` produced INFO, and the guard in
+                                              mergeContainerLogging written to prevent exactly that could never fire, because the API
+                                              server had already filled the field before the merge saw it.
+
+                                              Same rule and same reason as StorageResource.Capacity and RoleGroupConfigSpec's other folded
+                                              leaves; defaults for these live at consumption time.
                                             enum:
                                             - FATAL
                                             - ERROR
@@ -714,10 +1114,26 @@ spec:
                                             - DEBUG -> DEBUG
                                             - TRACE -> DEBUG
 
-                                          Default log level is INFO
+                                          The effective default is INFO, applied at consumption time by the renderers rather than by the
+                                          CRD — see Level below.
                                         properties:
                                           level:
-                                            default: INFO
+                                            description: |-
+                                              Level is the log threshold. Unset means "inherit": the role's value when a role group leaves
+                                              it out, and the product's own default (root logger INFO, no appender threshold) when nobody
+                                              sets it.
+
+                                              It carries NO +kubebuilder:default, and must not gain one. This type sits inside `config`,
+                                              the block folded Role -> RoleGroup, where structural defaulting fills a leaf as soon as its
+                                              ENCLOSING OBJECT exists — so a default here lands in any role group that wrote `console: {}`,
+                                              making "unset here" indistinguishable from "explicitly INFO" and stopping the role's value
+                                              from ever winning. That is not hypothetical: with `default:="INFO"` a role asking for DEBUG
+                                              and a role group writing an empty `console: {}` produced INFO, and the guard in
+                                              mergeContainerLogging written to prevent exactly that could never fire, because the API
+                                              server had already filled the field before the merge saw it.
+
+                                              Same rule and same reason as StorageResource.Capacity and RoleGroupConfigSpec's other folded
+                                              leaves; defaults for these live at consumption time.
                                             enum:
                                             - FATAL
                                             - ERROR
@@ -739,10 +1155,26 @@ spec:
                                               - DEBUG -> DEBUG
                                               - TRACE -> DEBUG
 
-                                            Default log level is INFO
+                                            The effective default is INFO, applied at consumption time by the renderers rather than by the
+                                            CRD — see Level below.
                                           properties:
                                             level:
-                                              default: INFO
+                                              description: |-
+                                                Level is the log threshold. Unset means "inherit": the role's value when a role group leaves
+                                                it out, and the product's own default (root logger INFO, no appender threshold) when nobody
+                                                sets it.
+
+                                                It carries NO +kubebuilder:default, and must not gain one. This type sits inside `config`,
+                                                the block folded Role -> RoleGroup, where structural defaulting fills a leaf as soon as its
+                                                ENCLOSING OBJECT exists — so a default here lands in any role group that wrote `console: {}`,
+                                                making "unset here" indistinguishable from "explicitly INFO" and stopping the role's value
+                                                from ever winning. That is not hypothetical: with `default:="INFO"` a role asking for DEBUG
+                                                and a role group writing an empty `console: {}` produced INFO, and the guard in
+                                                mergeContainerLogging written to prevent exactly that could never fire, because the API
+                                                server had already filled the field before the merge saw it.
+
+                                                Same rule and same reason as StorageResource.Capacity and RoleGroupConfigSpec's other folded
+                                                leaves; defaults for these live at consumption time.
                                               enum:
                                               - FATAL
                                               - ERROR
@@ -761,6 +1193,11 @@ spec:
                             resources:
                               properties:
                                 cpu:
+                                  description: |-
+                                    CPUResource bounds the container's CPU. Both fields are pointers so that "unset" is
+                                    representable: a bare resource.Quantity is a struct, which `omitempty` cannot omit and whose
+                                    MarshalJSON renders the zero value as "0", so a Go-constructed spec would transmit an explicit
+                                    zero and a role group would silently erase the role's value.
                                   properties:
                                     max:
                                       anyOf:
@@ -776,6 +1213,9 @@ spec:
                                       x-kubernetes-int-or-string: true
                                   type: object
                                 memory:
+                                  description: |-
+                                    MemoryResource bounds the container's memory. Limit is a pointer for the same reason as
+                                    CPUResource's fields.
                                   properties:
                                     limit:
                                       anyOf:
@@ -785,15 +1225,36 @@ spec:
                                       x-kubernetes-int-or-string: true
                                   type: object
                                 storage:
+                                  description: StorageResource describes the role
+                                    group's data PVC.
                                   properties:
                                     capacity:
                                       anyOf:
                                       - type: integer
                                       - type: string
-                                      default: 10Gi
+                                      description: |-
+                                        Capacity of the data volume. Unset means DefaultStorageCapacity.
+
+                                        It carries no `+kubebuilder:default`: the enclosing storage block exists as soon as a user
+                                        overrides ANY leaf of it (a storageClass, say), and a CRD default would then be stamped into
+                                        that block and win the role/roleGroup merge — turning a one-line storageClass override into
+                                        a silent downgrade of the role's capacity, baked into a StatefulSet volumeClaimTemplate that
+                                        Kubernetes will not let the operator change afterwards.
                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                       x-kubernetes-int-or-string: true
                                     storageClass:
+                                      description: |-
+                                        StorageClass names the StorageClass for the PVC. Unset means "use the cluster default", which
+                                        is what an absent `storageClassName` asks Kubernetes for.
+
+                                        It is a POINTER because the empty string is not a synonym for unset here — Kubernetes reads
+                                        `storageClassName: ""` as "no class at all", i.e. bind a pre-provisioned PV and do no dynamic
+                                        provisioning. With a plain string a role group could never express that over a role that names
+                                        a class, because "" was how the merge spelled "inherit". This is the same reason
+                                        StorageResource.Capacity, CPUResource.Min/Max, MemoryResource.Limit and
+                                        RoleGroupConfigSpec.GracefulShutdownTimeout are pointers, and it carries the same rule: no
+                                        `+kubebuilder:default`, or structural defaulting would fill it as soon as the enclosing
+                                        object exists and the role's value could never win.
                                       type: string
                                   type: object
                               type: object
@@ -803,37 +1264,80 @@ spec:
                             additionalProperties:
                               type: string
                             type: object
+                          description: ConfigOverrides overrides role-level configuration-file
+                            entries per key.
                           type: object
                         envOverrides:
                           additionalProperties:
                             type: string
+                          description: EnvOverrides overrides role-level environment
+                            variables per key.
                           type: object
                         podOverrides:
+                          description: PodOverrides applies a strategic merge patch
+                            after role-level pod overrides.
                           type: object
                           x-kubernetes-preserve-unknown-fields: true
                         replicas:
                           default: 1
+                          description: Replicas is the number of pod replicas for
+                            this role group.
                           format: int32
+                          minimum: 0
                           type: integer
                       type: object
+                    description: RoleGroups defines the role group configurations.
+                      Each RoleGroup maps to a StatefulSet.
+                    maxProperties: 256
                     type: object
+                    x-kubernetes-validations:
+                    - message: 'each role group name must be a lowercase RFC 1123
+                        label (lowercase alphanumerics and ''-'', starting and ending
+                        with an alphanumeric, at most 63 characters): role group names
+                        become part of the name and labels of every resource built
+                        for the group'
+                      rule: self.all(k, size(k) <= 63 && k.matches('^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'))
                 type: object
-              nameNode:
-                description: 'roles defined: nameNode, dataNode, journalNode'
+              nameNodes:
+                description: NameNodes defines the NameNode role (metadata servers;
+                  HA usually runs 2+).
                 properties:
                   cliOverrides:
+                    description: CliOverrides replaces the declared command arguments
+                      for all role groups.
                     items:
                       type: string
                     type: array
                   config:
+                    description: |-
+                      Config contains workload runtime configuration defaults for all RoleGroups.
+                      Each RoleGroup inherits these values and can selectively override them.
                     properties:
                       affinity:
                         type: object
                         x-kubernetes-preserve-unknown-fields: true
                       gracefulShutdownTimeout:
-                        default: 30s
+                        description: |-
+                          GracefulShutdownTimeout maps to the pod's terminationGracePeriodSeconds. Unset means
+                          DefaultGracefulShutdownTimeout.
+
+                          It is a pointer and carries no `+kubebuilder:default` on purpose. Structural defaulting
+                          fills a field as soon as its enclosing object exists, so with a CRD default every role group
+                          that declared a config block for ANY reason — just `resources`, say — was stamped with "30s",
+                          which is then indistinguishable from an explicit group value and wins the merge over the
+                          role's setting. A role-level graceful shutdown could therefore only ever reach groups with no
+                          config block at all.
+                        pattern: ^([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+$
                         type: string
                       listenerClass:
+                        description: |-
+                          ListenerClass selects how this role group is exposed. It deliberately has no structural
+                          default: role -> role-group inheritance must see whether the field was omitted. The runtime
+                          fold applies cluster-internal only when neither user layer states a value.
+                        enum:
+                        - cluster-internal
+                        - external-unstable
+                        - external-stable
                         type: string
                       logging:
                         properties:
@@ -851,10 +1355,26 @@ spec:
                                       - DEBUG -> DEBUG
                                       - TRACE -> DEBUG
 
-                                    Default log level is INFO
+                                    The effective default is INFO, applied at consumption time by the renderers rather than by the
+                                    CRD — see Level below.
                                   properties:
                                     level:
-                                      default: INFO
+                                      description: |-
+                                        Level is the log threshold. Unset means "inherit": the role's value when a role group leaves
+                                        it out, and the product's own default (root logger INFO, no appender threshold) when nobody
+                                        sets it.
+
+                                        It carries NO +kubebuilder:default, and must not gain one. This type sits inside `config`,
+                                        the block folded Role -> RoleGroup, where structural defaulting fills a leaf as soon as its
+                                        ENCLOSING OBJECT exists — so a default here lands in any role group that wrote `console: {}`,
+                                        making "unset here" indistinguishable from "explicitly INFO" and stopping the role's value
+                                        from ever winning. That is not hypothetical: with `default:="INFO"` a role asking for DEBUG
+                                        and a role group writing an empty `console: {}` produced INFO, and the guard in
+                                        mergeContainerLogging written to prevent exactly that could never fire, because the API
+                                        server had already filled the field before the merge saw it.
+
+                                        Same rule and same reason as StorageResource.Capacity and RoleGroupConfigSpec's other folded
+                                        leaves; defaults for these live at consumption time.
                                       enum:
                                       - FATAL
                                       - ERROR
@@ -875,10 +1395,26 @@ spec:
                                       - DEBUG -> DEBUG
                                       - TRACE -> DEBUG
 
-                                    Default log level is INFO
+                                    The effective default is INFO, applied at consumption time by the renderers rather than by the
+                                    CRD — see Level below.
                                   properties:
                                     level:
-                                      default: INFO
+                                      description: |-
+                                        Level is the log threshold. Unset means "inherit": the role's value when a role group leaves
+                                        it out, and the product's own default (root logger INFO, no appender threshold) when nobody
+                                        sets it.
+
+                                        It carries NO +kubebuilder:default, and must not gain one. This type sits inside `config`,
+                                        the block folded Role -> RoleGroup, where structural defaulting fills a leaf as soon as its
+                                        ENCLOSING OBJECT exists — so a default here lands in any role group that wrote `console: {}`,
+                                        making "unset here" indistinguishable from "explicitly INFO" and stopping the role's value
+                                        from ever winning. That is not hypothetical: with `default:="INFO"` a role asking for DEBUG
+                                        and a role group writing an empty `console: {}` produced INFO, and the guard in
+                                        mergeContainerLogging written to prevent exactly that could never fire, because the API
+                                        server had already filled the field before the merge saw it.
+
+                                        Same rule and same reason as StorageResource.Capacity and RoleGroupConfigSpec's other folded
+                                        leaves; defaults for these live at consumption time.
                                       enum:
                                       - FATAL
                                       - ERROR
@@ -900,10 +1436,26 @@ spec:
                                         - DEBUG -> DEBUG
                                         - TRACE -> DEBUG
 
-                                      Default log level is INFO
+                                      The effective default is INFO, applied at consumption time by the renderers rather than by the
+                                      CRD — see Level below.
                                     properties:
                                       level:
-                                        default: INFO
+                                        description: |-
+                                          Level is the log threshold. Unset means "inherit": the role's value when a role group leaves
+                                          it out, and the product's own default (root logger INFO, no appender threshold) when nobody
+                                          sets it.
+
+                                          It carries NO +kubebuilder:default, and must not gain one. This type sits inside `config`,
+                                          the block folded Role -> RoleGroup, where structural defaulting fills a leaf as soon as its
+                                          ENCLOSING OBJECT exists — so a default here lands in any role group that wrote `console: {}`,
+                                          making "unset here" indistinguishable from "explicitly INFO" and stopping the role's value
+                                          from ever winning. That is not hypothetical: with `default:="INFO"` a role asking for DEBUG
+                                          and a role group writing an empty `console: {}` produced INFO, and the guard in
+                                          mergeContainerLogging written to prevent exactly that could never fire, because the API
+                                          server had already filled the field before the merge saw it.
+
+                                          Same rule and same reason as StorageResource.Capacity and RoleGroupConfigSpec's other folded
+                                          leaves; defaults for these live at consumption time.
                                         enum:
                                         - FATAL
                                         - ERROR
@@ -922,6 +1474,11 @@ spec:
                       resources:
                         properties:
                           cpu:
+                            description: |-
+                              CPUResource bounds the container's CPU. Both fields are pointers so that "unset" is
+                              representable: a bare resource.Quantity is a struct, which `omitempty` cannot omit and whose
+                              MarshalJSON renders the zero value as "0", so a Go-constructed spec would transmit an explicit
+                              zero and a role group would silently erase the role's value.
                             properties:
                               max:
                                 anyOf:
@@ -937,6 +1494,9 @@ spec:
                                 x-kubernetes-int-or-string: true
                             type: object
                           memory:
+                            description: |-
+                              MemoryResource bounds the container's memory. Limit is a pointer for the same reason as
+                              CPUResource's fields.
                             properties:
                               limit:
                                 anyOf:
@@ -946,15 +1506,36 @@ spec:
                                 x-kubernetes-int-or-string: true
                             type: object
                           storage:
+                            description: StorageResource describes the role group's
+                              data PVC.
                             properties:
                               capacity:
                                 anyOf:
                                 - type: integer
                                 - type: string
-                                default: 10Gi
+                                description: |-
+                                  Capacity of the data volume. Unset means DefaultStorageCapacity.
+
+                                  It carries no `+kubebuilder:default`: the enclosing storage block exists as soon as a user
+                                  overrides ANY leaf of it (a storageClass, say), and a CRD default would then be stamped into
+                                  that block and win the role/roleGroup merge — turning a one-line storageClass override into
+                                  a silent downgrade of the role's capacity, baked into a StatefulSet volumeClaimTemplate that
+                                  Kubernetes will not let the operator change afterwards.
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
                               storageClass:
+                                description: |-
+                                  StorageClass names the StorageClass for the PVC. Unset means "use the cluster default", which
+                                  is what an absent `storageClassName` asks Kubernetes for.
+
+                                  It is a POINTER because the empty string is not a synonym for unset here — Kubernetes reads
+                                  `storageClassName: ""` as "no class at all", i.e. bind a pre-provisioned PV and do no dynamic
+                                  provisioning. With a plain string a role group could never express that over a role that names
+                                  a class, because "" was how the merge spelled "inherit". This is the same reason
+                                  StorageResource.Capacity, CPUResource.Min/Max, MemoryResource.Limit and
+                                  RoleGroupConfigSpec.GracefulShutdownTimeout are pointers, and it carries the same rule: no
+                                  `+kubebuilder:default`, or structural defaulting would fill it as soon as the enclosing
+                                  object exists and the role's value could never win.
                                 type: string
                             type: object
                         type: object
@@ -964,15 +1545,23 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
+                    description: ConfigOverrides applies configuration-file overrides
+                      to all role groups.
                     type: object
                   envOverrides:
                     additionalProperties:
                       type: string
+                    description: EnvOverrides applies environment-variable overrides
+                      to all role groups.
                     type: object
                   podOverrides:
+                    description: PodOverrides applies a strategic merge patch to all
+                      role groups.
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
                   roleConfig:
+                    description: RoleConfig contains Kubernetes-level role management
+                      controls that role groups do not inherit.
                     properties:
                       podDisruptionBudget:
                         description: |-
@@ -981,11 +1570,14 @@ spec:
                            2. The allowed number of Pods to be unavailable (`maxUnavailable`)
                         properties:
                           enabled:
-                            default: true
                             description: |-
                               Whether a PodDisruptionBudget should be written out for this role.
                               Disabling this enables you to specify your own - custom - one.
                               Defaults to true.
+
+                              A pointer, so that "unset" and "explicitly false" are distinguishable. As a bare bool with
+                              a CRD default it read as false in every Go-constructed spec — the zero value — which
+                              silently disabled the PDB for any caller that built the spec in code rather than YAML.
                             type: boolean
                           maxUnavailable:
                             description: |-
@@ -998,20 +1590,44 @@ spec:
                     type: object
                   roleGroups:
                     additionalProperties:
+                      description: RoleGroupSpec defines one StatefulSet and its role-group-level
+                        overrides.
                       properties:
                         cliOverrides:
+                          description: CliOverrides replaces the role-level command
+                            arguments.
                           items:
                             type: string
                           type: array
                         config:
+                          description: Config contains role-group-level configuration
+                            and overrides the role-level Config.
                           properties:
                             affinity:
                               type: object
                               x-kubernetes-preserve-unknown-fields: true
                             gracefulShutdownTimeout:
-                              default: 30s
+                              description: |-
+                                GracefulShutdownTimeout maps to the pod's terminationGracePeriodSeconds. Unset means
+                                DefaultGracefulShutdownTimeout.
+
+                                It is a pointer and carries no `+kubebuilder:default` on purpose. Structural defaulting
+                                fills a field as soon as its enclosing object exists, so with a CRD default every role group
+                                that declared a config block for ANY reason — just `resources`, say — was stamped with "30s",
+                                which is then indistinguishable from an explicit group value and wins the merge over the
+                                role's setting. A role-level graceful shutdown could therefore only ever reach groups with no
+                                config block at all.
+                              pattern: ^([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+$
                               type: string
                             listenerClass:
+                              description: |-
+                                ListenerClass selects how this role group is exposed. It deliberately has no structural
+                                default: role -> role-group inheritance must see whether the field was omitted. The runtime
+                                fold applies cluster-internal only when neither user layer states a value.
+                              enum:
+                              - cluster-internal
+                              - external-unstable
+                              - external-stable
                               type: string
                             logging:
                               properties:
@@ -1029,10 +1645,26 @@ spec:
                                             - DEBUG -> DEBUG
                                             - TRACE -> DEBUG
 
-                                          Default log level is INFO
+                                          The effective default is INFO, applied at consumption time by the renderers rather than by the
+                                          CRD — see Level below.
                                         properties:
                                           level:
-                                            default: INFO
+                                            description: |-
+                                              Level is the log threshold. Unset means "inherit": the role's value when a role group leaves
+                                              it out, and the product's own default (root logger INFO, no appender threshold) when nobody
+                                              sets it.
+
+                                              It carries NO +kubebuilder:default, and must not gain one. This type sits inside `config`,
+                                              the block folded Role -> RoleGroup, where structural defaulting fills a leaf as soon as its
+                                              ENCLOSING OBJECT exists — so a default here lands in any role group that wrote `console: {}`,
+                                              making "unset here" indistinguishable from "explicitly INFO" and stopping the role's value
+                                              from ever winning. That is not hypothetical: with `default:="INFO"` a role asking for DEBUG
+                                              and a role group writing an empty `console: {}` produced INFO, and the guard in
+                                              mergeContainerLogging written to prevent exactly that could never fire, because the API
+                                              server had already filled the field before the merge saw it.
+
+                                              Same rule and same reason as StorageResource.Capacity and RoleGroupConfigSpec's other folded
+                                              leaves; defaults for these live at consumption time.
                                             enum:
                                             - FATAL
                                             - ERROR
@@ -1053,10 +1685,26 @@ spec:
                                             - DEBUG -> DEBUG
                                             - TRACE -> DEBUG
 
-                                          Default log level is INFO
+                                          The effective default is INFO, applied at consumption time by the renderers rather than by the
+                                          CRD — see Level below.
                                         properties:
                                           level:
-                                            default: INFO
+                                            description: |-
+                                              Level is the log threshold. Unset means "inherit": the role's value when a role group leaves
+                                              it out, and the product's own default (root logger INFO, no appender threshold) when nobody
+                                              sets it.
+
+                                              It carries NO +kubebuilder:default, and must not gain one. This type sits inside `config`,
+                                              the block folded Role -> RoleGroup, where structural defaulting fills a leaf as soon as its
+                                              ENCLOSING OBJECT exists — so a default here lands in any role group that wrote `console: {}`,
+                                              making "unset here" indistinguishable from "explicitly INFO" and stopping the role's value
+                                              from ever winning. That is not hypothetical: with `default:="INFO"` a role asking for DEBUG
+                                              and a role group writing an empty `console: {}` produced INFO, and the guard in
+                                              mergeContainerLogging written to prevent exactly that could never fire, because the API
+                                              server had already filled the field before the merge saw it.
+
+                                              Same rule and same reason as StorageResource.Capacity and RoleGroupConfigSpec's other folded
+                                              leaves; defaults for these live at consumption time.
                                             enum:
                                             - FATAL
                                             - ERROR
@@ -1078,10 +1726,26 @@ spec:
                                               - DEBUG -> DEBUG
                                               - TRACE -> DEBUG
 
-                                            Default log level is INFO
+                                            The effective default is INFO, applied at consumption time by the renderers rather than by the
+                                            CRD — see Level below.
                                           properties:
                                             level:
-                                              default: INFO
+                                              description: |-
+                                                Level is the log threshold. Unset means "inherit": the role's value when a role group leaves
+                                                it out, and the product's own default (root logger INFO, no appender threshold) when nobody
+                                                sets it.
+
+                                                It carries NO +kubebuilder:default, and must not gain one. This type sits inside `config`,
+                                                the block folded Role -> RoleGroup, where structural defaulting fills a leaf as soon as its
+                                                ENCLOSING OBJECT exists — so a default here lands in any role group that wrote `console: {}`,
+                                                making "unset here" indistinguishable from "explicitly INFO" and stopping the role's value
+                                                from ever winning. That is not hypothetical: with `default:="INFO"` a role asking for DEBUG
+                                                and a role group writing an empty `console: {}` produced INFO, and the guard in
+                                                mergeContainerLogging written to prevent exactly that could never fire, because the API
+                                                server had already filled the field before the merge saw it.
+
+                                                Same rule and same reason as StorageResource.Capacity and RoleGroupConfigSpec's other folded
+                                                leaves; defaults for these live at consumption time.
                                               enum:
                                               - FATAL
                                               - ERROR
@@ -1100,6 +1764,11 @@ spec:
                             resources:
                               properties:
                                 cpu:
+                                  description: |-
+                                    CPUResource bounds the container's CPU. Both fields are pointers so that "unset" is
+                                    representable: a bare resource.Quantity is a struct, which `omitempty` cannot omit and whose
+                                    MarshalJSON renders the zero value as "0", so a Go-constructed spec would transmit an explicit
+                                    zero and a role group would silently erase the role's value.
                                   properties:
                                     max:
                                       anyOf:
@@ -1115,6 +1784,9 @@ spec:
                                       x-kubernetes-int-or-string: true
                                   type: object
                                 memory:
+                                  description: |-
+                                    MemoryResource bounds the container's memory. Limit is a pointer for the same reason as
+                                    CPUResource's fields.
                                   properties:
                                     limit:
                                       anyOf:
@@ -1124,15 +1796,36 @@ spec:
                                       x-kubernetes-int-or-string: true
                                   type: object
                                 storage:
+                                  description: StorageResource describes the role
+                                    group's data PVC.
                                   properties:
                                     capacity:
                                       anyOf:
                                       - type: integer
                                       - type: string
-                                      default: 10Gi
+                                      description: |-
+                                        Capacity of the data volume. Unset means DefaultStorageCapacity.
+
+                                        It carries no `+kubebuilder:default`: the enclosing storage block exists as soon as a user
+                                        overrides ANY leaf of it (a storageClass, say), and a CRD default would then be stamped into
+                                        that block and win the role/roleGroup merge — turning a one-line storageClass override into
+                                        a silent downgrade of the role's capacity, baked into a StatefulSet volumeClaimTemplate that
+                                        Kubernetes will not let the operator change afterwards.
                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                       x-kubernetes-int-or-string: true
                                     storageClass:
+                                      description: |-
+                                        StorageClass names the StorageClass for the PVC. Unset means "use the cluster default", which
+                                        is what an absent `storageClassName` asks Kubernetes for.
+
+                                        It is a POINTER because the empty string is not a synonym for unset here — Kubernetes reads
+                                        `storageClassName: ""` as "no class at all", i.e. bind a pre-provisioned PV and do no dynamic
+                                        provisioning. With a plain string a role group could never express that over a role that names
+                                        a class, because "" was how the merge spelled "inherit". This is the same reason
+                                        StorageResource.Capacity, CPUResource.Min/Max, MemoryResource.Limit and
+                                        RoleGroupConfigSpec.GracefulShutdownTimeout are pointers, and it carries the same rule: no
+                                        `+kubebuilder:default`, or structural defaulting would fill it as soon as the enclosing
+                                        object exists and the role's value could never win.
                                       type: string
                                   type: object
                               type: object
@@ -1142,31 +1835,55 @@ spec:
                             additionalProperties:
                               type: string
                             type: object
+                          description: ConfigOverrides overrides role-level configuration-file
+                            entries per key.
                           type: object
                         envOverrides:
                           additionalProperties:
                             type: string
+                          description: EnvOverrides overrides role-level environment
+                            variables per key.
                           type: object
                         podOverrides:
+                          description: PodOverrides applies a strategic merge patch
+                            after role-level pod overrides.
                           type: object
                           x-kubernetes-preserve-unknown-fields: true
                         replicas:
                           default: 1
+                          description: Replicas is the number of pod replicas for
+                            this role group.
                           format: int32
+                          minimum: 0
                           type: integer
                       type: object
+                    description: RoleGroups defines the role group configurations.
+                      Each RoleGroup maps to a StatefulSet.
+                    maxProperties: 256
                     type: object
+                    x-kubernetes-validations:
+                    - message: 'each role group name must be a lowercase RFC 1123
+                        label (lowercase alphanumerics and ''-'', starting and ending
+                        with an alphanumeric, at most 63 characters): role group names
+                        become part of the name and labels of every resource built
+                        for the group'
+                      rule: self.all(k, size(k) <= 63 && k.matches('^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'))
                 type: object
             required:
             - clusterConfig
-            - dataNode
-            - journalNode
-            - nameNode
+            - dataNodes
+            - journalNodes
+            - nameNodes
             type: object
           status:
-            description: Status defines the common status
+            description: |-
+              HdfsClusterStatus defines the observed state of HdfsCluster.
+              It embeds the SDK GenericClusterStatus (Conditions, RoleGroups, ObservedGeneration)
+              and can be extended with HDFS-specific status fields.
             properties:
               conditions:
+                description: Conditions represent the latest available observations
+                  of the cluster state.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -1222,26 +1939,25 @@ spec:
                   - type
                   type: object
                 type: array
-              generation:
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the most recent generation observed for this cluster.
+                  It corresponds to the metadata generation of the CR.
                 format: int64
                 type: integer
-              name:
-                type: string
-              type:
-                type: string
-              urls:
-                items:
-                  description: URL is a URL with a name
-                  properties:
-                    name:
-                      type: string
-                    url:
-                      type: string
-                  required:
-                  - name
-                  - url
-                  type: object
-                type: array
+              roleGroups:
+                additionalProperties:
+                  items:
+                    type: string
+                  type: array
+                description: |-
+                  RoleGroups tracks the actual deployed role groups.
+                  Map key is the role name, value is the list of role group names.
+                  This is used for orphaned resource cleanup.
+                type: object
             type: object
         type: object
     served: true

@@ -3,7 +3,6 @@ kind: Test
 metadata:
   name: smoke-cluster-operation
 spec:
-  skip: true # skip this test, util refactored the whole project
   bindings:
   - name: cluster_stopped
     value: false
@@ -13,9 +12,9 @@ spec:
   - name: install zookeeper
     try:
     - apply:
-        file: ../setup/zookeeper.yaml
+        file: ../../setup/zookeeper.yaml
     - assert:
-        file: ../setup/zookeeper-assert.yaml
+        file: ../../setup/zookeeper-assert.yaml
     cleanup:
     - sleep:
         duration: 5s
